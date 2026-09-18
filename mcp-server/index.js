@@ -456,7 +456,7 @@ app.post('/messages', async (req, res) => {
 // Servir frontend compilado se existir dist/
 if (hasDist) {
   app.use(express.static(distPath));
-  app.get('*', (req, res) => {
+  app.use((req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
