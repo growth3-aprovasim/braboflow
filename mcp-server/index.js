@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { createClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import dotenv from 'dotenv';
@@ -423,8 +424,18 @@ if (!hasDist) {
   app.get('/', mcpInfoHandler);
 }
 
-// Endpoint SSE (Server-Sent Events) compatível com Claude.ai
-app.get(['/sse', '/mcp'], async (req, res) => {
+// 1. Endpoint HTTP Streamável (Novo Padrão Oficial Claude.ai / Streamable HTTP)
+const streamableServer = createBraboMcpServer();
+const streamableTransport = new StreamableHTTPServerTransport({ endpoint: '/mcp' });
+await streamableServer.connect(streamableTransport);
+
+app.all('/mcp', async (req, res) => {
+  console.log(`📡 Requisição Streamable HTTP (${req.method}) de Claude.ai`);
+  await streamableTransport.handleRequest(req, res, req.body);
+});
+
+// 2. Endpoint SSE (Server-Sent Events - Legado para compatibilidade retroativa)
+app.get('/sse', async (req, res) => {
   console.log('📡 Nova conexão SSE recebida de Claude.ai');
   
   const mcpServer = createBraboMcpServer();
