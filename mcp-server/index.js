@@ -17,9 +17,14 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'https://bjfapsvlhojiouarbzap.supabase.co';
 const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_2LOoQ4MKWn-iFjKADxT-AQ_aElQoYkS';
-const PORT = process.env.PORT || process.env.MCP_PORT || 3001;
+const PORT = process.env.PORT || process.env.MCP_PORT || 3000;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false
+  }
+});
 
 function safeDate(val) {
   if (!val || typeof val !== 'string') return null;
