@@ -1,0 +1,39 @@
+# Environment files
+.env
+.env.*
+!.env.example
+*.env
+
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Production build
+dist
+dist-ssr
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Local and OS files
+.DS_Store
+*.local
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# IDEs & Cache
+.vscode/*
+!.vscode/extensions.json
+.idea
+.gemini
