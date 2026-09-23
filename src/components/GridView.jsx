@@ -395,7 +395,7 @@ export default function GridView({
     if (!newColName.trim()) return;
 
     const newCol = {
-      id: `col_${Date.now()}`,
+      id: `col_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       name: newColName.trim(),
       type: newColType,
       width: newColType === 'checkbox' ? 110 : newColType === 'select' ? 145 : 160,

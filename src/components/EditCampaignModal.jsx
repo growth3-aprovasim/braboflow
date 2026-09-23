@@ -67,7 +67,7 @@ export default function EditCampaignModal({
   if (!isOpen || !campaign) return null;
 
   const handleAddLink = () => {
-    setLinks(prev => [...prev, { id: `lnk-${Date.now()}`, label: '', url: 'https://' }]);
+    setLinks(prev => [...prev, { id: `lnk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, label: '', url: 'https://' }]);
   };
 
   const handleLinkChange = (index, field, val) => {

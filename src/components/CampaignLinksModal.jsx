@@ -25,7 +25,7 @@ export default function CampaignLinksModal({
     const updated = [
       ...links,
       {
-        id: `lnk-${Date.now()}`,
+        id: `lnk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         label: newLabel.trim(),
         url: formattedUrl
       }

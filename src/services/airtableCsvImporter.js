@@ -317,7 +317,7 @@ export function analyzeCsvHeaders(headers) {
 /**
  * Builds the dynamic column order matching the exact visual sequence of the imported CSV
  */
-export function buildColumnOrderFromCsv(headers, columnMap) {
+export function buildColumnOrderFromCsv(headers, columnMap, customColIdByIndex = null) {
   const order = [];
 
   headers.forEach((h, idx) => {
@@ -331,7 +331,10 @@ export function buildColumnOrderFromCsv(headers, columnMap) {
     else if (columnMap.notes?.index === idx) order.push('notes');
     else {
       const custom = columnMap.custom.find(c => c.index === idx);
-      if (custom) order.push(custom.sanitizedId);
+      if (custom) {
+        const colId = customColIdByIndex?.get(idx) || custom.sanitizedId;
+        order.push(colId);
+      }
     }
   });
 
@@ -348,23 +351,29 @@ export function buildColumnOrderFromCsv(headers, columnMap) {
  */
 export function buildCampaignFromAirtableCsv(campaignName, headers, rows) {
   const columnMap = analyzeCsvHeaders(headers);
-  const campaignId = `camp-${Date.now()}`;
+  const campaignId = `camp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
 
   const predefinedLinks = [];
   const linkUrlMap = new Map();
   let linkCounter = 1;
 
-  // 1. Create Custom Columns definitions
-  const customColumns = columnMap.custom.map(c => ({
-    id: c.sanitizedId,
-    name: c.name,
-    type: c.type,
-    options: []
-  }));
+  // 1. Create Custom Columns definitions with globally unique IDs scoped to this campaign
+  const customColIdByIndex = new Map();
+  const customColumns = columnMap.custom.map((c, idx) => {
+    const rawClean = c.sanitizedId.replace(/^col_/, '');
+    const uniqueColId = `col_${campaignId}_${idx}_${rawClean}`;
+    customColIdByIndex.set(c.index, uniqueColId);
+    return {
+      id: uniqueColId,
+      name: c.name,
+      type: c.type || 'text',
+      options: []
+    };
+  });
 
   // 2. Build Messages
   const messages = rows.map((row, rowIndex) => {
-    const messageId = `msg-${Date.now()}-${rowIndex + 1}`;
+    const messageId = `msg-${Date.now()}-${rowIndex + 1}-${Math.random().toString(36).substring(2, 6)}`;
 
     const titleRaw = columnMap.title ? row[columnMap.title.index] : '';
     const title = titleRaw?.trim() || `Disparo ${(rowIndex + 1).toString().padStart(2, '0')}`;
@@ -407,7 +416,7 @@ export function buildCampaignFromAirtableCsv(campaignName, headers, rows) {
         }
 
         if (!linkUrlMap.has(cleanUrl)) {
-          const newLinkId = `lnk-${linkCounter++}`;
+          const newLinkId = `lnk-${campaignId}-${linkCounter++}`;
           linkUrlMap.set(cleanUrl, newLinkId);
           try {
             const domain = new URL(cleanUrl).hostname.replace('www.', '');
@@ -433,9 +442,10 @@ export function buildCampaignFromAirtableCsv(campaignName, headers, rows) {
     // Handle Custom Fields (100% of extra Airtable columns)
     const customFields = {};
     columnMap.custom.forEach(customCol => {
+      const uniqueColId = customColIdByIndex.get(customCol.index);
       const val = row[customCol.index];
       if (val !== undefined && val !== null && val !== '') {
-        customFields[customCol.sanitizedId] = val.trim();
+        customFields[uniqueColId] = val.trim();
       }
     });
 
@@ -462,7 +472,7 @@ export function buildCampaignFromAirtableCsv(campaignName, headers, rows) {
   const startDate = dates[0] || new Date().toISOString().split('T')[0];
   const endDate = dates[dates.length - 1] || '';
 
-  const columnOrder = buildColumnOrderFromCsv(headers, columnMap);
+  const columnOrder = buildColumnOrderFromCsv(headers, columnMap, customColIdByIndex);
 
   // Set the adaptive column order in localStorage for instant alignment
   try {

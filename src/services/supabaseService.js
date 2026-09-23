@@ -156,13 +156,13 @@ export async function dbCreateCampaign(campaign) {
   }
 
   if (campaign.predefinedLinks?.length) {
-    const links = campaign.predefinedLinks.map(l => ({
-      id: l.id,
+    const links = campaign.predefinedLinks.map((l, idx) => ({
+      id: l.id || `lnk-${campaign.id}-${idx}-${Date.now()}`,
       campaign_id: campaign.id,
       label: l.label,
       url: l.url
     }));
-    const { error: linkErr } = await supabase.from('bflow_campaign_links').insert(links);
+    const { error: linkErr } = await supabase.from('bflow_campaign_links').upsert(links, { onConflict: 'id' });
     if (linkErr) {
       console.error('Erro ao salvar bflow_campaign_links:', linkErr);
       throw linkErr;
@@ -170,14 +170,14 @@ export async function dbCreateCampaign(campaign) {
   }
 
   if (campaign.customColumns?.length) {
-    const cols = campaign.customColumns.map(c => ({
-      id: c.id,
+    const cols = campaign.customColumns.map((c, idx) => ({
+      id: c.id || `col_${campaign.id}_${idx}_${Date.now()}`,
       campaign_id: campaign.id,
       name: c.name,
       type: c.type || 'text',
       options: c.options || []
     }));
-    const { error: colErr } = await supabase.from('bflow_custom_columns').insert(cols);
+    const { error: colErr } = await supabase.from('bflow_custom_columns').upsert(cols, { onConflict: 'id' });
     if (colErr) {
       console.error('Erro ao salvar bflow_custom_columns:', colErr);
       throw colErr;
@@ -193,7 +193,7 @@ export async function dbCreateCampaign(campaign) {
     // Inserir em lotes de 50 registros para evitar limite de payload
     for (let i = 0; i < msgs.length; i += 50) {
       const chunk = msgs.slice(i, i + 50);
-      const { error: dispErr } = await supabase.from('bflow_disparos').insert(chunk);
+      const { error: dispErr } = await supabase.from('bflow_disparos').upsert(chunk, { onConflict: 'id' });
       if (dispErr) {
         console.error(`Erro ao salvar lote de disparos (${i}-${i + chunk.length}):`, dispErr);
         throw dispErr;
@@ -237,13 +237,13 @@ export async function dbSyncCampaignLinks(campaignId, links) {
   // Limpar links anteriores da campanha e re-inserir
   await supabase.from('bflow_campaign_links').delete().eq('campaign_id', campaignId);
   if (links && links.length > 0) {
-    const toInsert = links.map(l => ({
-      id: l.id,
+    const toInsert = links.map((l, idx) => ({
+      id: l.id || `lnk-${campaignId}-${idx}-${Date.now()}`,
       campaign_id: campaignId,
       label: l.label,
       url: l.url
     }));
-    const { error } = await supabase.from('bflow_campaign_links').insert(toInsert);
+    const { error } = await supabase.from('bflow_campaign_links').upsert(toInsert, { onConflict: 'id' });
     if (error) throw error;
   }
 }
@@ -251,14 +251,14 @@ export async function dbSyncCampaignLinks(campaignId, links) {
 export async function dbSyncCampaignColumns(campaignId, columns) {
   await supabase.from('bflow_custom_columns').delete().eq('campaign_id', campaignId);
   if (columns && columns.length > 0) {
-    const toInsert = columns.map(c => ({
-      id: c.id,
+    const toInsert = columns.map((c, idx) => ({
+      id: c.id || `col_${campaignId}_${idx}_${Date.now()}`,
       campaign_id: campaignId,
       name: c.name,
-      type: c.type,
+      type: c.type || 'text',
       options: c.options || []
     }));
-    const { error } = await supabase.from('bflow_custom_columns').insert(toInsert);
+    const { error } = await supabase.from('bflow_custom_columns').upsert(toInsert, { onConflict: 'id' });
     if (error) throw error;
   }
 }
