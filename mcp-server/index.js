@@ -135,7 +135,7 @@ function createBraboMcpServer() {
   // 3. Tool: Inserir Disparos / Copies em Lote
   server.tool(
     'braboflow_add_disparos_batch',
-    'Insere em lote múltiplas copies e disparos extraídos de documentos/briefings para dentro de uma campanha do BraboFlow.',
+    'Insere em lote múltiplas copies e disparos em uma campanha. Para incluir links na copy, use a tag {{1}} no texto (ex: "Acesse a aula agora:\\n{{1}}"). Se você fornecer selectedLinkUrl ou linkLabel, o BraboFlow vinculará a variável {{1}} automaticamente.',
     {
       campaignId: z.string().describe('ID da campanha de destino'),
       disparos: z.array(z.object({
@@ -153,9 +153,11 @@ function createBraboMcpServer() {
         ]).default('Grupo Normal WhatsApp'),
         scheduledDate: z.string().optional().describe('Data programada no formato YYYY-MM-DD'),
         scheduledTime: z.string().optional().describe('Horário do disparo (ex: "10:00", "19:30")'),
-        copyText: z.string().describe('Texto completo da copy / mensagem que será disparada'),
+        copyText: z.string().describe('Texto completo da copy. Use a tag {{1}} onde o link deve aparecer (ex: "Acesse: {{1}}")'),
         notes: z.string().optional().describe('Observações ou instruções para a equipe'),
-        selectedLinkUrl: z.string().optional().describe('Link oficial de destino/checkout a ser vinculado ao disparo'),
+        selectedLinkId: z.string().optional().describe('ID de um link existente na campanha (ex: "lnk-1")'),
+        selectedLinkUrl: z.string().optional().describe('URL do link oficial a ser vinculado (ex: "https://youtube.com/live/...")'),
+        linkLabel: z.string().optional().describe('Nome amigável do link se for novo (ex: "Aula 01", "Checkout 50%")'),
         customFields: z.record(z.any()).optional().describe('Campos customizados adicionais')
       })).describe('Lista de disparos estruturados extraídos do documento')
     },
@@ -174,39 +176,63 @@ function createBraboMcpServer() {
         };
       }
 
-      // Preparar links pré-definidos se houver URLs
+      // Buscar links existentes da campanha para evitar duplicatas
+      const { data: existingLinks } = await supabase
+        .from('bflow_campaign_links')
+        .select('*')
+        .eq('campaign_id', campaignId);
+
       const linkMap = new Map();
-      let linkCounter = 1;
+      (existingLinks || []).forEach(l => {
+        linkMap.set(l.url.trim(), l);
+        linkMap.set(l.id, l);
+      });
+
+      let linkCounter = (existingLinks || []).length + 1;
+      const newLinksToInsert = [];
 
       for (const d of disparos) {
         if (d.selectedLinkUrl && (d.selectedLinkUrl.startsWith('http://') || d.selectedLinkUrl.startsWith('https://'))) {
-          if (!linkMap.has(d.selectedLinkUrl)) {
+          const cleanUrl = d.selectedLinkUrl.trim();
+          if (!linkMap.has(cleanUrl)) {
             const linkId = `lnk-${Date.now()}-${linkCounter++}`;
-            let domain = 'Oficial';
-            try { domain = new URL(d.selectedLinkUrl).hostname.replace('www.', ''); } catch { /* ignore */ }
+            const label = d.linkLabel?.trim() || `Link (${cleanUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]})`;
             const linkObj = {
               id: linkId,
               campaign_id: campaignId,
-              label: `Link (${domain})`,
-              url: d.selectedLinkUrl
+              label,
+              url: cleanUrl
             };
-            linkMap.set(d.selectedLinkUrl, linkObj);
+            linkMap.set(cleanUrl, linkObj);
+            linkMap.set(linkId, linkObj);
+            newLinksToInsert.push(linkObj);
           }
         }
       }
 
-      if (linkMap.size > 0) {
-        const linksToInsert = Array.from(linkMap.values());
-        await supabase.from('bflow_campaign_links').upsert(linksToInsert);
+      if (newLinksToInsert.length > 0) {
+        await supabase.from('bflow_campaign_links').insert(newLinksToInsert);
       }
 
-      // Montar mensagens
+      // Montar mensagens com resolução automática de variáveis {{1}}
       const recordsToInsert = disparos.map((d, idx) => {
         const messageId = `msg-${Date.now()}-${idx + 1}`;
-        const linkObj = d.selectedLinkUrl ? linkMap.get(d.selectedLinkUrl) : null;
+        let linkObj = null;
+
+        if (d.selectedLinkId && linkMap.has(d.selectedLinkId)) {
+          linkObj = linkMap.get(d.selectedLinkId);
+        } else if (d.selectedLinkUrl && linkMap.has(d.selectedLinkUrl.trim())) {
+          linkObj = linkMap.get(d.selectedLinkUrl.trim());
+        }
+
+        let processedCopy = d.copyText || '';
         const variables = {};
+
         if (linkObj) {
           variables['1'] = { linkId: linkObj.id, text: linkObj.url };
+          if (!processedCopy.includes('{{1}}') && d.linkLabel && processedCopy.includes(`{{${d.linkLabel}}}`)) {
+            processedCopy = processedCopy.replace(`{{${d.linkLabel}}}`, '{{1}}');
+          }
         }
 
         return {
@@ -219,7 +245,7 @@ function createBraboMcpServer() {
           scheduled_time: normalizeTime(d.scheduledTime),
           selected_link_id: linkObj?.id || null,
           variables,
-          copy_text: d.copyText || '',
+          copy_text: processedCopy,
           notes: d.notes || '',
           custom_fields: d.customFields || {},
           position: idx,
@@ -242,7 +268,7 @@ function createBraboMcpServer() {
       return {
         content: [{
           type: 'text',
-          text: `🎉 Sucesso! ${recordsToInsert.length} disparos e copies foram adicionados à campanha "${camp.name}" no BraboFlow.\nEles já estão visíveis na planilha Airtable, no Kanban e no Calendário!`
+          text: `🎉 Sucesso! ${recordsToInsert.length} disparos e copies foram adicionados à campanha "${camp.name}" no BraboFlow.\nSintaxe utilizada para links no texto: {{1}}`
         }]
       };
     }
@@ -251,29 +277,45 @@ function createBraboMcpServer() {
   // 4. Tool: Adicionar Links Oficiais
   server.tool(
     'braboflow_add_campaign_links',
-    'Cadastra links de checkout, grupo VIP, YouTube ou inscrição vinculados a uma campanha.',
+    'Cadastra links oficiais (ex: "Aula 01", "Checkout", "Grupo VIP") vinculados a uma campanha.',
     {
       campaignId: z.string().describe('ID da campanha'),
       links: z.array(z.object({
-        label: z.string().describe('Rótulo do link (ex: "Checkout 50% OFF", "Grupo VIP WhatsApp")'),
-        url: z.string().url().describe('URL completa (ex: "https://...")')
+        label: z.string().describe('Rótulo amigável do link (ex: "Aula 01 - YouTube", "Checkout 50% OFF")'),
+        url: z.string().url().describe('URL completa (ex: "https://youtube.com/live/...")')
       }))
     },
     async ({ campaignId, links }) => {
-      const toInsert = links.map((l, i) => ({
-        id: `lnk-${Date.now()}-${i}`,
-        campaign_id: campaignId,
-        label: l.label.trim(),
-        url: l.url.trim()
-      }));
+      const { data: existing } = await supabase
+        .from('bflow_campaign_links')
+        .select('*')
+        .eq('campaign_id', campaignId);
 
-      const { error } = await supabase.from('bflow_campaign_links').insert(toInsert);
-      if (error) {
-        return { content: [{ type: 'text', text: `Erro ao inserir links: ${error.message}` }], isError: true };
+      const existingUrls = new Set((existing || []).map(l => l.url.trim()));
+      const toInsert = [];
+
+      links.forEach((l, i) => {
+        const cleanUrl = l.url.trim();
+        if (!existingUrls.has(cleanUrl)) {
+          toInsert.push({
+            id: `lnk-${Date.now()}-${i}`,
+            campaign_id: campaignId,
+            label: l.label.trim(),
+            url: cleanUrl
+          });
+          existingUrls.add(cleanUrl);
+        }
+      });
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from('bflow_campaign_links').insert(toInsert);
+        if (error) {
+          return { content: [{ type: 'text', text: `Erro ao inserir links: ${error.message}` }], isError: true };
+        }
       }
 
       return {
-        content: [{ type: 'text', text: `✅ ${links.length} links predefinidos foram cadastrados na campanha.` }]
+        content: [{ type: 'text', text: `✅ ${toInsert.length} novos links cadastrados na campanha (duplicatas evitadas).` }]
       };
     }
   );
@@ -327,6 +369,7 @@ function createBraboMcpServer() {
           channel: d.channel,
           scheduledDate: d.scheduled_date,
           scheduledTime: d.scheduled_time,
+          selectedLinkId: d.selected_link_id,
           copyText: d.copy_text,
           notes: d.notes
         }))
@@ -341,7 +384,7 @@ function createBraboMcpServer() {
   // 6. Tool: Atualizar Disparo
   server.tool(
     'braboflow_update_disparo',
-    'Atualiza campos específicos de um disparo existente (copy, data, canal, status, etc).',
+    'Atualiza campos de um disparo (copyText, link, data, canal, status). Para links na copy, use a tag {{1}} no texto (ex: "Assista aqui: {{1}}") e forneça selectedLinkUrl ou selectedLinkId.',
     {
       disparoId: z.string().describe('ID do disparo a ser atualizado'),
       title: z.string().optional(),
@@ -349,32 +392,98 @@ function createBraboMcpServer() {
       channel: z.string().optional(),
       scheduledDate: z.string().optional(),
       scheduledTime: z.string().optional(),
-      copyText: z.string().optional(),
+      copyText: z.string().optional().describe('Texto da copy. Use {{1}} para onde o link deve entrar'),
+      selectedLinkId: z.string().optional().describe('ID do link pré-definido da campanha (ex: "lnk-1")'),
+      selectedLinkUrl: z.string().optional().describe('URL do link para vincular automaticamente ao disparo'),
+      linkLabel: z.string().optional().describe('Rótulo amigável para o link se for novo (ex: "Aula 01")'),
       notes: z.string().optional()
     },
     async ({ disparoId, ...updates }) => {
+      const { data: currentDisp, error: fetchErr } = await supabase
+        .from('bflow_disparos')
+        .select('*')
+        .eq('id', disparoId)
+        .single();
+
+      if (fetchErr || !currentDisp) {
+        return { content: [{ type: 'text', text: `Disparo "${disparoId}" não encontrado.` }], isError: true };
+      }
+
       const dbUpdates = {};
       if (updates.title) dbUpdates.title = updates.title.trim();
       if (updates.stage) dbUpdates.stage = updates.stage;
       if (updates.channel) dbUpdates.channel = updates.channel;
       if (updates.scheduledDate) dbUpdates.scheduled_date = safeDate(updates.scheduledDate);
       if (updates.scheduledTime) dbUpdates.scheduled_time = normalizeTime(updates.scheduledTime);
-      if (updates.copyText !== undefined) dbUpdates.copy_text = updates.copyText;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+
+      // Tratar Link & Variáveis
+      let linkId = updates.selectedLinkId || currentDisp.selected_link_id;
+
+      if (updates.selectedLinkUrl) {
+        const cleanUrl = updates.selectedLinkUrl.trim();
+        const { data: existingLink } = await supabase
+          .from('bflow_campaign_links')
+          .select('*')
+          .eq('campaign_id', currentDisp.campaign_id)
+          .eq('url', cleanUrl)
+          .maybeSingle();
+
+        if (existingLink) {
+          linkId = existingLink.id;
+          if (updates.linkLabel && existingLink.label !== updates.linkLabel) {
+            await supabase.from('bflow_campaign_links').update({ label: updates.linkLabel.trim() }).eq('id', existingLink.id);
+          }
+        } else {
+          linkId = `lnk-${Date.now()}`;
+          const newLabel = updates.linkLabel?.trim() || `Link (${cleanUrl.replace(/^https?:\/\/(www\.)?/, '').split('/')[0]})`;
+          await supabase.from('bflow_campaign_links').insert({
+            id: linkId,
+            campaign_id: currentDisp.campaign_id,
+            label: newLabel,
+            url: cleanUrl
+          });
+        }
+      }
+
+      if (linkId) {
+        dbUpdates.selected_link_id = linkId;
+        const { data: linkRecord } = await supabase
+          .from('bflow_campaign_links')
+          .select('*')
+          .eq('id', linkId)
+          .single();
+
+        if (linkRecord) {
+          const currentVars = currentDisp.variables || {};
+          dbUpdates.variables = {
+            ...currentVars,
+            '1': { linkId: linkRecord.id, text: linkRecord.url }
+          };
+        }
+      }
+
+      if (updates.copyText !== undefined) {
+        let processedCopy = updates.copyText;
+        if (updates.linkLabel && processedCopy.includes(`{{${updates.linkLabel}}}`)) {
+          processedCopy = processedCopy.replace(`{{${updates.linkLabel}}}`, '{{1}}');
+        }
+        dbUpdates.copy_text = processedCopy;
+      }
+
       dbUpdates.updated_at = new Date().toISOString();
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('bflow_disparos')
         .update(dbUpdates)
-        .eq('id', disparoId)
-        .select();
+        .eq('id', disparoId);
 
       if (error) {
         return { content: [{ type: 'text', text: `Erro ao atualizar disparo: ${error.message}` }], isError: true };
       }
 
       return {
-        content: [{ type: 'text', text: `✅ Disparo "${disparoId}" atualizado com sucesso no BraboFlow!` }]
+        content: [{ type: 'text', text: `✅ Disparo "${disparoId}" atualizado com sucesso no BraboFlow com a variável {{1}} vinculada ao link!` }]
       };
     }
   );
