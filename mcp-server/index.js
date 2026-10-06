@@ -436,21 +436,18 @@ if (!hasDist) {
 }
 
 // 1. Endpoint HTTP Streamável (Novo Padrão Oficial Claude.ai / Streamable HTTP)
-const streamableServer = createBraboMcpServer();
-const streamableTransport = new StreamableHTTPServerTransport({
-  sessionIdGenerator: undefined // Modo stateless: perfeito para Claude.ai Web sem exigir cookies/sessões complexas
-});
-await streamableServer.connect(streamableTransport);
-
 app.all('/mcp', async (req, res) => {
-  console.log(`📡 Requisição Streamable HTTP (${req.method}) de Claude.ai`);
-  
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   try {
-    await streamableTransport.handleRequest(req, res, req.body);
+    const mcpServer = createBraboMcpServer();
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined // Modo stateless per-request: garante listagem de tools e execução sem perda de sessão
+    });
+    await mcpServer.connect(transport);
+    await transport.handleRequest(req, res, req.body);
   } catch (err) {
     console.error('Erro ao processar requisição MCP Streamable HTTP:', err);
     if (!res.headersSent) {
