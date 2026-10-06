@@ -437,20 +437,25 @@ if (!hasDist) {
 
 // 1. Endpoint HTTP Streamável (Novo Padrão Oficial Claude.ai / Streamable HTTP)
 const streamableServer = createBraboMcpServer();
-const streamableTransport = new StreamableHTTPServerTransport({ endpoint: '/mcp' });
+const streamableTransport = new StreamableHTTPServerTransport({
+  sessionIdGenerator: undefined // Modo stateless: perfeito para Claude.ai Web sem exigir cookies/sessões complexas
+});
 await streamableServer.connect(streamableTransport);
 
 app.all('/mcp', async (req, res) => {
   console.log(`📡 Requisição Streamable HTTP (${req.method}) de Claude.ai`);
-  // Normalizar cabeçalho Accept para garantir compatibilidade com Claude discovery
-  if (!req.headers.accept || req.headers.accept === '*/*' || !req.headers.accept.includes('text/event-stream')) {
-    req.headers.accept = 'application/json, text/event-stream';
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
+
   try {
     await streamableTransport.handleRequest(req, res, req.body);
   } catch (err) {
-    console.error('Erro ao processar requisição MCP:', err);
-    res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: err.message }, id: null });
+    console.error('Erro ao processar requisição MCP Streamable HTTP:', err);
+    if (!res.headersSent) {
+      res.status(500).json({ jsonrpc: '2.0', error: { code: -32603, message: err.message }, id: null });
+    }
   }
 });
 

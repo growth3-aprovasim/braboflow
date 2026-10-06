@@ -11,7 +11,6 @@ import {
   ZoomIn,
   ZoomOut,
   Maximize2,
-  RotateCcw,
   Search,
   Share2,
   Workflow,
@@ -24,7 +23,6 @@ import {
   CheckCheck
 } from 'lucide-react';
 import {
-  BRABO_CHANNELS,
   resolveCopyVariables,
   getStageObj
 } from '../data/initialData';
