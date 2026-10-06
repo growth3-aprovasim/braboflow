@@ -22,7 +22,7 @@ import {
   Play,
   FileSpreadsheet
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, resolveCopyVariables, getStageObj, getChannelsByCategory } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail } from '../services/attachmentStorage';
 import { uploadAttachmentToSupabase } from '../services/supabaseService';
 import ChannelPreview from './ChannelPreview';
@@ -49,21 +49,32 @@ export default function RecordDetailModal({
     }
   }, [record?.id]);
 
-  // Load preview URL from IndexedDB if not present
+  // Load preview URLs from IndexedDB for all attachments if not present
   useEffect(() => {
     let isMounted = true;
-    if (formData.attachment?.id && !formData.attachment.previewUrl) {
-      getAttachmentUrl(formData.attachment.id).then(url => {
-        if (isMounted && url) {
-          setFormData(prev => ({
-            ...prev,
-            attachment: { ...prev.attachment, previewUrl: url }
-          }));
-        }
-      });
-    }
+    const atts = normalizeAttachments(formData.attachment);
+    if (atts.length === 0) return;
+
+    let hasMissing = atts.some(a => a.id && !a.previewUrl);
+    if (!hasMissing) return;
+
+    Promise.all(atts.map(async (att) => {
+      if (att.id && !att.previewUrl) {
+        const url = await getAttachmentUrl(att.id);
+        return url ? { ...att, previewUrl: url } : att;
+      }
+      return att;
+    })).then(updated => {
+      if (isMounted) {
+        setFormData(prev => ({
+          ...prev,
+          attachment: updated
+        }));
+      }
+    });
+
     return () => { isMounted = false; };
-  }, [formData.attachment?.id]);
+  }, [formData.attachment]);
 
   if (!isOpen || !record) return null;
 
@@ -160,79 +171,102 @@ export default function RecordDetailModal({
     }, 50);
   };
 
-  // Attachment upload and position handling with IndexedDB
-  const handleFileSelected = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Multi-attachment upload and position handling with IndexedDB & Supabase
+  const currentAttachments = normalizeAttachments(formData.attachment);
 
-    let type = 'document';
-    if (file.type.startsWith('image/')) type = 'image';
-    else if (file.type.startsWith('video/')) type = 'video';
-    else if (file.type.startsWith('audio/')) type = 'audio';
+  const handleFilesSelected = async (e, defaultPosition = 'before') => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
-    const attachmentId = `att-${Date.now()}`;
+    const newItems = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      let type = 'document';
+      if (file.type.startsWith('image/')) type = 'image';
+      else if (file.type.startsWith('video/')) type = 'video';
+      else if (file.type.startsWith('audio/')) type = 'audio';
 
-    // Store heavy binary in IndexedDB for immediate local caching
-    await saveAttachmentFile(attachmentId, file);
+      const attachmentId = `att-${Date.now()}-${i}`;
 
-    const blobUrl = URL.createObjectURL(file);
+      // Store heavy binary in IndexedDB for immediate local caching
+      await saveAttachmentFile(attachmentId, file);
 
-    // Upload to Supabase Storage in parallel
-    let publicUrl = null;
-    let storagePath = null;
-    try {
-      const storageResult = await uploadAttachmentToSupabase(file, record?.id || attachmentId);
-      if (storageResult) {
-        publicUrl = storageResult.publicUrl;
-        storagePath = storageResult.storagePath;
+      const blobUrl = URL.createObjectURL(file);
+
+      // Upload to Supabase Storage in parallel
+      let publicUrl = null;
+      let storagePath = null;
+      try {
+        const storageResult = await uploadAttachmentToSupabase(file, record?.id || attachmentId);
+        if (storageResult) {
+          publicUrl = storageResult.publicUrl;
+          storagePath = storageResult.storagePath;
+        }
+      } catch (err) {
+        console.warn('Storage upload fallback:', err);
       }
-    } catch (err) {
-      console.warn('Storage upload fallback:', err);
+
+      // Extract video cover thumbnail or use image preview
+      let thumbnailUrl = null;
+      if (type === 'video') {
+        thumbnailUrl = await generateVideoThumbnail(file);
+      } else if (type === 'image') {
+        thumbnailUrl = publicUrl || blobUrl;
+      }
+
+      const formattedSize = file.size > 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${(file.size / 1024).toFixed(1)} KB`;
+
+      newItems.push({
+        id: attachmentId,
+        name: file.name,
+        size: formattedSize,
+        type,
+        position: defaultPosition,
+        previewUrl: publicUrl || blobUrl,
+        publicUrl,
+        storagePath,
+        thumbnailUrl
+      });
     }
 
-    // Extract video cover thumbnail or use image preview
-    let thumbnailUrl = null;
-    if (type === 'video') {
-      thumbnailUrl = await generateVideoThumbnail(file);
-    } else if (type === 'image') {
-      thumbnailUrl = publicUrl || blobUrl;
-    }
-
-    const formattedSize = file.size > 1024 * 1024
-      ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-      : `${(file.size / 1024).toFixed(1)} KB`;
-
-    const newAttachment = {
-      id: attachmentId,
-      name: file.name,
-      size: formattedSize,
-      type,
-      position: formData.attachment?.position || 'before',
-      previewUrl: publicUrl || blobUrl,
-      publicUrl,
-      storagePath,
-      thumbnailUrl
-    };
-
-    handleChange('attachment', newAttachment);
+    const updatedList = [...currentAttachments, ...newItems];
+    handleChange('attachment', updatedList);
     e.target.value = '';
   };
 
-  const handleRemoveAttachment = async () => {
-    if (formData.attachment?.id) {
-      await deleteAttachmentFile(formData.attachment.id);
+  const handleRemoveAttachmentIndex = async (indexToRemove) => {
+    const target = currentAttachments[indexToRemove];
+    if (target?.id) {
+      await deleteAttachmentFile(target.id);
     }
-    handleChange('attachment', null);
+    const updatedList = currentAttachments.filter((_, idx) => idx !== indexToRemove);
+    handleChange('attachment', updatedList.length > 0 ? updatedList : null);
   };
 
-  const handleDownloadAttachment = async () => {
-    if (!formData.attachment) return;
-    await triggerFileDownload(formData.attachment);
+  const handleDownloadAttachmentItem = async (att) => {
+    if (!att) return;
+    await triggerFileDownload(att);
   };
 
-  const handleToggleAttachmentPosition = (newPos) => {
-    if (!formData.attachment) return;
-    handleChange('attachment', { ...formData.attachment, position: newPos });
+  const handleToggleAttachmentPositionIndex = (index, newPos) => {
+    const updatedList = currentAttachments.map((item, idx) => {
+      if (idx === index) {
+        return { ...item, position: newPos };
+      }
+      return item;
+    });
+    handleChange('attachment', updatedList);
+  };
+
+  const handleMoveAttachment = (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= currentAttachments.length) return;
+    const copy = [...currentAttachments];
+    const [moved] = copy.splice(index, 1);
+    copy.splice(targetIdx, 0, moved);
+    handleChange('attachment', copy);
   };
 
   const getFullResolvedText = () => {
@@ -472,7 +506,7 @@ export default function RecordDetailModal({
               </div>
             </div>
 
-            {/* 1. CRIATIVO / ANEXO (Simples & Minimalista - Antes da Copy) */}
+            {/* 1. ANEXOS & MÍDIAS (Suporte a múltiplos arquivos: Imagens, PDFs, Áudios, Vídeos) */}
             <div style={{
               background: 'var(--bg-sidebar)',
               border: '1px solid var(--border-color)',
@@ -480,48 +514,62 @@ export default function RecordDetailModal({
               padding: '0.75rem 0.9rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.55rem'
+              gap: '0.6rem'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Paperclip size={13} color="var(--text-muted)" /> Criativo / Anexo (Imagem, Vídeo, Áudio ou PDF)
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Paperclip size={13} color="var(--text-muted)" /> 
+                  <span>Mídias & Anexos ({currentAttachments.length})</span>
+                  {currentAttachments.length > 0 && (
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 400 }}>
+                      • {currentAttachments.filter(a => (a.position || 'before') === 'before').length} antes / {currentAttachments.filter(a => a.position === 'after').length} depois do texto
+                    </span>
+                  )}
                 </span>
 
-                {formData.attachment && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <button
                     type="button"
                     className="btn-ghost"
-                    style={{ fontSize: '0.7rem', color: '#ef4444', padding: '0.1rem 0.35rem' }}
-                    onClick={handleRemoveAttachment}
+                    style={{
+                      fontSize: '0.72rem',
+                      padding: '0.2rem 0.5rem',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      color: '#93c5fd',
+                      border: '1px solid rgba(59, 130, 246, 0.25)',
+                      borderRadius: '4px'
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
                   >
-                    Remover
+                    + Adicionar Arquivo(s)
                   </button>
-                )}
+                </div>
               </div>
 
-              {/* Hidden file input */}
+              {/* Hidden file input with multiple selection support */}
               <input
                 type="file"
                 ref={fileInputRef}
                 style={{ display: 'none' }}
-                accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
-                onChange={handleFileSelected}
+                multiple
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+                onChange={(e) => handleFilesSelected(e)}
               />
 
-              {!formData.attachment ? (
+              {currentAttachments.length === 0 ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   style={{
                     border: '1px dashed #2d3748',
                     borderRadius: '6px',
-                    padding: '0.85rem',
+                    padding: '0.9rem',
                     textAlign: 'center',
                     cursor: 'pointer',
                     background: 'rgba(255, 255, 255, 0.015)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '0.45rem',
+                    gap: '0.5rem',
                     transition: 'var(--transition-fast)'
                   }}
                   onMouseEnter={(e) => {
@@ -533,74 +581,144 @@ export default function RecordDetailModal({
                     e.currentTarget.style.background = 'rgba(255, 255, 255, 0.015)';
                   }}
                 >
-                  <Upload size={14} color="var(--text-muted)" />
+                  <Upload size={15} color="var(--text-muted)" />
                   <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                    Clique para anexar imagem, vídeo, áudio ou documento
+                    Clique para anexar imagem, PDF/documento, áudio ou vídeo (permite selecionar vários)
                   </span>
                 </div>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.2)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-subtle)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', overflow: 'hidden' }}>
-                    {formData.attachment.thumbnailUrl ? (
-                      <div style={{ width: '36px', height: '36px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000' }}>
-                        <img src={formData.attachment.thumbnailUrl} alt="Capa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                  {currentAttachments.map((att, idx) => {
+                    const isBefore = (att.position || 'before') === 'before';
+
+                    return (
+                      <div
+                        key={att.id || `att-${idx}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'rgba(0, 0, 0, 0.25)',
+                          padding: '0.45rem 0.65rem',
+                          borderRadius: '6px',
+                          border: `1px solid ${isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(251, 191, 36, 0.2)'}`,
+                          gap: '0.6rem'
+                        }}
+                      >
+                        {/* Left: Thumbnail & Name */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                          {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl)) ? (
+                            <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid rgba(255,255,255,0.1)' }}>
+                              <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            </div>
+                          ) : (
+                            <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              {att.type === 'image' && <ImageIcon size={15} color="#60a5fa" />}
+                              {att.type === 'video' && <VideoIcon size={15} color="#c084fc" />}
+                              {att.type === 'audio' && <Music size={15} color="#4ade80" />}
+                              {att.type === 'document' && <FileText size={15} color="#fbbf24" />}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.76rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={att.name}>
+                              {att.name}
+                            </span>
+                            <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>
+                              {att.type === 'document' ? '📄 DOCUMENTO' : att.type === 'image' ? '🖼️ IMAGEM' : att.type === 'audio' ? '🎵 ÁUDIO' : '🎬 VÍDEO'} • {att.size || 'Arquivo'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Middle: Position Pill Toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '0.2rem 0.45rem',
+                              borderRadius: '4px',
+                              background: isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                              color: isBefore ? '#38bdf8' : 'var(--text-muted)',
+                              border: isBefore ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                              fontWeight: isBefore ? 700 : 400
+                            }}
+                            onClick={() => handleToggleAttachmentPositionIndex(idx, 'before')}
+                            title="Enviar antes do texto da copy"
+                          >
+                            ⬆️ Antes
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '0.2rem 0.45rem',
+                              borderRadius: '4px',
+                              background: !isBefore ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                              color: !isBefore ? '#fbbf24' : 'var(--text-muted)',
+                              border: !isBefore ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid transparent',
+                              fontWeight: !isBefore ? 700 : 400
+                            }}
+                            onClick={() => handleToggleAttachmentPositionIndex(idx, 'after')}
+                            title="Enviar depois do texto da copy"
+                          >
+                            ⬇️ Depois
+                          </button>
+                        </div>
+
+                        {/* Right: Reorder & Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                          {currentAttachments.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn-ghost"
+                                style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === 0 ? 0.3 : 1 }}
+                                disabled={idx === 0}
+                                onClick={() => handleMoveAttachment(idx, -1)}
+                                title="Mover para cima"
+                              >
+                                <ArrowUp size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-ghost"
+                                style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === currentAttachments.length - 1 ? 0.3 : 1 }}
+                                disabled={idx === currentAttachments.length - 1}
+                                onClick={() => handleMoveAttachment(idx, 1)}
+                                title="Mover para baixo"
+                              >
+                                <ArrowDown size={12} />
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}
+                            onClick={() => handleDownloadAttachmentItem(att)}
+                            title="Baixar arquivo anexo"
+                          >
+                            <Download size={12} />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: '#ef4444' }}
+                            onClick={() => handleRemoveAttachmentIndex(idx)}
+                            title="Excluir este anexo"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {formData.attachment.type === 'image' && <ImageIcon size={16} color="#60a5fa" />}
-                        {formData.attachment.type === 'video' && <VideoIcon size={16} color="#c084fc" />}
-                        {formData.attachment.type === 'audio' && <Music size={16} color="#4ade80" />}
-                        {formData.attachment.type === 'document' && <FileText size={16} color="#94a3b8" />}
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {formData.attachment.name}
-                      </span>
-                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                        {formData.attachment.type.toUpperCase()} • {formData.attachment.size}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
-                    {/* Position Toggle Minimal */}
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      style={{
-                        fontSize: '0.7rem',
-                        padding: '0.2rem 0.45rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255,255,255,0.04)',
-                        color: 'var(--text-secondary)'
-                      }}
-                      onClick={() => handleToggleAttachmentPosition((formData.attachment.position || 'before') === 'before' ? 'after' : 'before')}
-                      title="Alternar se o criativo é enviado antes ou depois do texto"
-                    >
-                      {(formData.attachment.position || 'before') === 'before' ? '⬆️ Antes do Texto' : '⬇️ Depois do Texto'}
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem' }}
-                      onClick={handleDownloadAttachment}
-                      title="Baixar arquivo anexo"
-                    >
-                      <Download size={12} />
-                    </button>
-
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.45rem' }}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      Trocar
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

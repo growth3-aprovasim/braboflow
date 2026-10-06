@@ -25,24 +25,27 @@ import {
   Check,
   Settings
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
 import { triggerFileDownload, getAttachmentUrl } from '../services/attachmentStorage';
 
-// Compact Attachment Thumbnail Preview Component for Grid Cells
+// Compact Attachment Thumbnail Preview Component for Grid Cells (Single or Multiple)
 function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
+  const atts = normalizeAttachments(attachment || record?.attachment);
+  const firstAtt = atts[0] || null;
+
   const [mediaUrl, setMediaUrl] = useState(
-    attachment?.thumbnailUrl || attachment?.previewUrl || attachment?.dataUrl || null
+    firstAtt?.thumbnailUrl || firstAtt?.previewUrl || firstAtt?.dataUrl || null
   );
 
   React.useEffect(() => {
     let isMounted = true;
-    if (attachment) {
-      const initial = attachment.thumbnailUrl || attachment.previewUrl || attachment.dataUrl;
+    if (firstAtt) {
+      const initial = firstAtt.thumbnailUrl || firstAtt.previewUrl || firstAtt.dataUrl;
       if (initial) {
         setMediaUrl(initial);
-      } else if (attachment.id) {
-        getAttachmentUrl(attachment.id).then(blobUrl => {
+      } else if (firstAtt.id) {
+        getAttachmentUrl(firstAtt.id).then(blobUrl => {
           if (isMounted && blobUrl) {
             setMediaUrl(blobUrl);
           }
@@ -54,9 +57,9 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
     return () => {
       isMounted = false;
     };
-  }, [attachment]);
+  }, [firstAtt]);
 
-  if (!attachment) {
+  if (!firstAtt || atts.length === 0) {
     return (
       <div
         className="grid-empty-creative"
@@ -68,14 +71,31 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
     );
   }
 
-  const { type, name, size } = attachment;
+  const { type, name, size } = firstAtt;
+  const extraCount = atts.length - 1;
+
+  const extraBadge = extraCount > 0 ? (
+    <span style={{
+      fontSize: '0.62rem',
+      fontWeight: 800,
+      color: '#fbbf24',
+      background: 'rgba(251, 191, 36, 0.15)',
+      border: '1px solid rgba(251, 191, 36, 0.35)',
+      borderRadius: '4px',
+      padding: '0.05rem 0.3rem',
+      marginLeft: '0.2rem',
+      flexShrink: 0
+    }} title={`${atts.length} anexos vinculados`}>
+      +{extraCount}
+    </span>
+  ) : null;
 
   if (type === 'image') {
     return (
       <div
         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
         onClick={() => onOpenRecord(record)}
-        title={`Imagem: ${name} (${size}) - Clique para expandir`}
+        title={`Imagem: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para expandir`}
       >
         <div className="grid-creative-thumb" style={{ border: '1px solid rgba(56, 189, 248, 0.4)' }}>
           {mediaUrl ? (
@@ -91,6 +111,7 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
         <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </span>
+        {extraBadge}
       </div>
     );
   }
@@ -100,7 +121,7 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
       <div
         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
         onClick={() => onOpenRecord(record)}
-        title={`Vídeo: ${name} (${size}) - Clique para expandir`}
+        title={`Vídeo: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para expandir`}
       >
         <div className="grid-creative-thumb" style={{ border: '1px solid rgba(168, 85, 247, 0.4)' }}>
           {mediaUrl ? (
@@ -128,6 +149,7 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
         <span style={{ fontSize: '0.72rem', color: '#c084fc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </span>
+        {extraBadge}
       </div>
     );
   }
@@ -147,12 +169,13 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
           maxWidth: '100%'
         }}
         onClick={() => onOpenRecord(record)}
-        title={`Áudio: ${name} (${size})`}
+        title={`Áudio: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
       >
         <Music size={12} color="#eab308" />
         <span style={{ fontSize: '0.7rem', color: '#eab308', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {name}
         </span>
+        {extraBadge}
       </div>
     );
   }
@@ -171,12 +194,13 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
         maxWidth: '100%'
       }}
       onClick={() => onOpenRecord(record)}
-      title={`Documento: ${name} (${size})`}
+      title={`Documento: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
     >
       <FileText size={12} color="#94a3b8" />
       <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
         {name}
       </span>
+      {extraBadge}
     </div>
   );
 }

@@ -158,6 +158,12 @@ function createBraboMcpServer() {
         selectedLinkId: z.string().optional().describe('ID de um link existente na campanha (ex: "lnk-1")'),
         selectedLinkUrl: z.string().optional().describe('URL do link oficial a ser vinculado (ex: "https://youtube.com/live/...")'),
         linkLabel: z.string().optional().describe('Nome amigável do link se for novo (ex: "Aula 01", "Checkout 50%")'),
+        attachments: z.array(z.object({
+          name: z.string().describe('Nome do arquivo (ex: "banner.png", "edital_esquematizado.pdf")'),
+          url: z.string().optional().describe('URL pública do arquivo'),
+          type: z.enum(['image', 'video', 'audio', 'document']).default('document'),
+          position: z.enum(['before', 'after']).default('before').describe('"before" para enviar antes do texto, "after" para enviar depois do texto')
+        })).optional().describe('Mídias/arquivos anexos à mensagem'),
         customFields: z.record(z.any()).optional().describe('Campos customizados adicionais')
       })).describe('Lista de disparos estruturados extraídos do documento')
     },
@@ -235,6 +241,8 @@ function createBraboMcpServer() {
           }
         }
 
+        const attachmentData = d.attachments || d.attachment || null;
+
         return {
           id: messageId,
           campaign_id: campaignId,
@@ -246,6 +254,7 @@ function createBraboMcpServer() {
           selected_link_id: linkObj?.id || null,
           variables,
           copy_text: processedCopy,
+          attachment: attachmentData,
           notes: d.notes || '',
           custom_fields: d.customFields || {},
           position: idx,
@@ -396,6 +405,12 @@ function createBraboMcpServer() {
       selectedLinkId: z.string().optional().describe('ID do link pré-definido da campanha (ex: "lnk-1")'),
       selectedLinkUrl: z.string().optional().describe('URL do link para vincular automaticamente ao disparo'),
       linkLabel: z.string().optional().describe('Rótulo amigável para o link se for novo (ex: "Aula 01")'),
+      attachments: z.array(z.object({
+        name: z.string().describe('Nome do arquivo (ex: "banner.png", "edital_esquematizado.pdf")'),
+        url: z.string().optional().describe('URL pública do arquivo'),
+        type: z.enum(['image', 'video', 'audio', 'document']).default('document'),
+        position: z.enum(['before', 'after']).default('before').describe('"before" para antes do texto, "after" para depois do texto')
+      })).optional().describe('Lista de anexos/mídias a associar ao disparo'),
       notes: z.string().optional()
     },
     async ({ disparoId, ...updates }) => {
@@ -416,6 +431,7 @@ function createBraboMcpServer() {
       if (updates.scheduledDate) dbUpdates.scheduled_date = safeDate(updates.scheduledDate);
       if (updates.scheduledTime) dbUpdates.scheduled_time = normalizeTime(updates.scheduledTime);
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+      if (updates.attachments !== undefined) dbUpdates.attachment = updates.attachments;
 
       // Tratar Link & Variáveis
       let linkId = updates.selectedLinkId || currentDisp.selected_link_id;

@@ -28,7 +28,7 @@ import {
   BatteryMedium,
   Camera
 } from 'lucide-react';
-import { BRABO_CHANNELS, resolveCopyVariables } from '../data/initialData';
+import { BRABO_CHANNELS, resolveCopyVariables, normalizeAttachments } from '../data/initialData';
 import { triggerFileDownload } from '../services/attachmentStorage';
 
 export const YouTubeIcon = ({ size = 16, color = '#ef4444' }) => (
@@ -397,6 +397,11 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
   // Resolve copy text with variables {{1}}, {{2}}
   const resolvedText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks);
 
+  // Normalize attachments (support single or multiple)
+  const allAttachments = normalizeAttachments(record.attachment);
+  const beforeAttachments = allAttachments.filter(a => (a.position || 'before') === 'before');
+  const afterAttachments = allAttachments.filter(a => a.position === 'after');
+
   // Extract any links present in the copy or variables
   const foundUrls = (resolvedText.match(/https?:\/\/[^\s]+/g) || []);
 
@@ -504,20 +509,24 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </span>
           </div>
 
-          {/* Attachment if position === 'before' */}
-          {record.attachment && (record.attachment.position || 'before') === 'before' && (
-            renderAttachmentBadge(record.attachment)
-          )}
+          {/* Attachments if position === 'before' */}
+          {beforeAttachments.map(att => (
+            <React.Fragment key={att.id || att.name}>
+              {renderAttachmentBadge(att)}
+            </React.Fragment>
+          ))}
 
           {/* Body text */}
           <div style={{ whiteSpace: 'pre-wrap', marginBottom: '1.25rem' }}>
             {formatFormattedText(resolvedText)}
           </div>
 
-          {/* Attachment if position === 'after' */}
-          {record.attachment && record.attachment.position === 'after' && (
-            renderAttachmentBadge(record.attachment)
-          )}
+          {/* Attachments if position === 'after' */}
+          {afterAttachments.map(att => (
+            <React.Fragment key={att.id || att.name}>
+              {renderAttachmentBadge(att)}
+            </React.Fragment>
+          ))}
 
           {/* Highlighted CTA button if links exist */}
           {foundUrls.length > 0 && (
@@ -636,10 +645,12 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </div>
           </div>
 
-          {/* Attachment if position === 'before' */}
-          {record.attachment && (record.attachment.position || 'before') === 'before' && (
-            renderAttachmentBadge(record.attachment)
-          )}
+          {/* Attachments if position === 'before' */}
+          {beforeAttachments.map(att => (
+            <React.Fragment key={att.id || att.name}>
+              {renderAttachmentBadge(att)}
+            </React.Fragment>
+          ))}
 
           {/* Post Content */}
           <div style={{
@@ -654,10 +665,12 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             {formatFormattedText(resolvedText, true)}
           </div>
 
-          {/* Attachment if position === 'after' */}
-          {record.attachment && record.attachment.position === 'after' && (
-            renderAttachmentBadge(record.attachment)
-          )}
+          {/* Attachments if position === 'after' */}
+          {afterAttachments.map(att => (
+            <React.Fragment key={att.id || att.name}>
+              {renderAttachmentBadge(att)}
+            </React.Fragment>
+          ))}
 
           {/* Post Action Buttons (YouTube style) */}
           <div style={{
@@ -752,35 +765,47 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
         </div>
 
         {/* Message Bubble Container */}
-        <div className="wa-bubble-container">
-          <div className="wa-message-bubble">
-            {/* Attachment if position === 'before' */}
-            {record.attachment && (record.attachment.position || 'before') === 'before' && (
+        <div className="wa-bubble-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          
+          {/* 1. Mídias Anteriores (Ex: Imagens / Banners enviados antes do texto) */}
+          {beforeAttachments.map(att => (
+            <div key={att.id || att.name} className="wa-message-bubble" style={{ padding: '0.35rem 0.5rem' }}>
               <div className="wa-attachment-wrapper">
-                {renderAttachmentBadge(record.attachment, '100%')}
+                {renderAttachmentBadge(att, '100%')}
               </div>
-            )}
+              <div className="wa-bubble-meta">
+                <span>{record.scheduledTime || '10:00'}</span>
+                <CheckCheck size={14} color="#53bdeb" />
+              </div>
+            </div>
+          ))}
 
-            {/* Message Body */}
-            {resolvedText && (
+          {/* 2. Balão de Texto Central da Copy */}
+          {resolvedText && (
+            <div className="wa-message-bubble">
               <div className="wa-message-text">
                 {formatFormattedText(resolvedText)}
               </div>
-            )}
-
-            {/* Attachment if position === 'after' */}
-            {record.attachment && record.attachment.position === 'after' && (
-              <div className="wa-attachment-wrapper">
-                {renderAttachmentBadge(record.attachment, '100%')}
+              <div className="wa-bubble-meta">
+                <span>{record.scheduledTime || '10:00'}</span>
+                <CheckCheck size={14} color="#53bdeb" />
               </div>
-            )}
-
-            {/* Message Meta Info */}
-            <div className="wa-bubble-meta">
-              <span>{record.scheduledTime || '10:00'}</span>
-              <CheckCheck size={14} color="#53bdeb" />
             </div>
-          </div>
+          )}
+
+          {/* 3. Mídias Posteriores (Ex: PDF do Edital / Áudio enviados depois do texto) */}
+          {afterAttachments.map(att => (
+            <div key={att.id || att.name} className="wa-message-bubble" style={{ padding: '0.35rem 0.5rem' }}>
+              <div className="wa-attachment-wrapper">
+                {renderAttachmentBadge(att, '100%')}
+              </div>
+              <div className="wa-bubble-meta">
+                <span>{record.scheduledTime || '10:00'}</span>
+                <CheckCheck size={14} color="#53bdeb" />
+              </div>
+            </div>
+          ))}
+
         </div>
       </div>
 

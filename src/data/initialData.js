@@ -63,6 +63,15 @@ export function extractCopyVariables(copyText) {
   return Array.from(nums).sort((a, b) => Number(a) - Number(b));
 }
 
+export function normalizeAttachments(attachmentField) {
+  if (!attachmentField) return [];
+  if (Array.isArray(attachmentField)) return attachmentField.filter(Boolean);
+  if (typeof attachmentField === 'object' && (attachmentField.id || attachmentField.name || attachmentField.previewUrl || attachmentField.publicUrl)) {
+    return [attachmentField];
+  }
+  return [];
+}
+
 export function resolveCopyVariables(copyText, variables = {}, predefinedLinks = []) {
   if (!copyText) return '';
   let text = copyText;
