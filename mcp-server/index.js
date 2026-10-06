@@ -482,8 +482,330 @@ function createBraboMcpServer() {
         return { content: [{ type: 'text', text: `Erro ao atualizar disparo: ${error.message}` }], isError: true };
       }
 
+  // 7. Tool: Excluir Disparos
+  server.tool(
+    'braboflow_delete_disparo',
+    'Exclui um ou múltiplos disparos do BraboFlow pelo ID.',
+    {
+      disparoIds: z.array(z.string()).describe('Lista de IDs dos disparos a serem excluídos (ex: ["msg-123", "msg-456"])')
+    },
+    async ({ disparoIds }) => {
+      if (!disparoIds || disparoIds.length === 0) {
+        return { content: [{ type: 'text', text: 'Nenhum ID de disparo fornecido para exclusão.' }], isError: true };
+      }
+
+      const { error } = await supabase
+        .from('bflow_disparos')
+        .delete()
+        .in('id', disparoIds);
+
+      if (error) {
+        return { content: [{ type: 'text', text: `Erro ao excluir disparos: ${error.message}` }], isError: true };
+      }
+
       return {
-        content: [{ type: 'text', text: `✅ Disparo "${disparoId}" atualizado com sucesso no BraboFlow com a variável {{1}} vinculada ao link!` }]
+        content: [{ type: 'text', text: `🗑️ ${disparoIds.length} disparo(s) excluído(s) com sucesso do BraboFlow!` }]
+      };
+    }
+  );
+
+  // 8. Tool: Excluir Campanha Completa
+  server.tool(
+    'braboflow_delete_campaign',
+    'Exclui uma campanha inteira e todos os seus disparos e links associados.',
+    {
+      campaignId: z.string().describe('ID da campanha a ser excluída')
+    },
+    async ({ campaignId }) => {
+      // Excluir disparos e links primeiro
+      await supabase.from('bflow_disparos').delete().eq('campaign_id', campaignId);
+      await supabase.from('bflow_campaign_links').delete().eq('campaign_id', campaignId);
+
+      const { error } = await supabase.from('bflow_campaigns').delete().eq('id', campaignId);
+      if (error) {
+        return { content: [{ type: 'text', text: `Erro ao excluir campanha: ${error.message}` }], isError: true };
+      }
+
+      return {
+        content: [{ type: 'text', text: `🗑️ Campanha "${campaignId}" e todos os seus disparos foram excluídos com sucesso.` }]
+      };
+    }
+  );
+
+  // 9. Tool: Duplicar Campanha Inteira (Clonagem Inteligente)
+  server.tool(
+    'braboflow_duplicate_campaign',
+    'Clona uma campanha existente com todas as suas copies, cronograma de dias, links e configurações para criar um novo lançamento.',
+    {
+      sourceCampaignId: z.string().describe('ID da campanha de origem a ser clonada'),
+      newCampaignName: z.string().describe('Nome da nova campanha (ex: "PRF 2026 - Turma Elite")'),
+      newStartDate: z.string().optional().describe('Nova data de início no formato YYYY-MM-DD (as datas dos disparos serão ajustadas proporcionalmente)'),
+      newEndDate: z.string().optional().describe('Nova data de término no formato YYYY-MM-DD')
+    },
+    async ({ sourceCampaignId, newCampaignName, newStartDate, newEndDate }) => {
+      // Buscar campanha original
+      const { data: origCamp, error: cErr } = await supabase
+        .from('bflow_campaigns')
+        .select('*')
+        .eq('id', sourceCampaignId)
+        .single();
+
+      if (cErr || !origCamp) {
+        return { content: [{ type: 'text', text: `Campanha original "${sourceCampaignId}" não encontrada.` }], isError: true };
+      }
+
+      const newCampId = `camp-${Date.now()}`;
+      const { error: insCampErr } = await supabase.from('bflow_campaigns').insert({
+        id: newCampId,
+        name: newCampaignName.trim(),
+        tagline: origCamp.tagline || 'Clonada via Claude MCP',
+        status: 'Ativa',
+        badge_color: origCamp.badge_color || '#facc15',
+        start_date: safeDate(newStartDate) || origCamp.start_date,
+        end_date: safeDate(newEndDate) || origCamp.end_date
+      });
+
+      if (insCampErr) {
+        return { content: [{ type: 'text', text: `Erro ao criar nova campanha: ${insCampErr.message}` }], isError: true };
+      }
+
+      // Clonar Links
+      const { data: origLinks } = await supabase
+        .from('bflow_campaign_links')
+        .select('*')
+        .eq('campaign_id', sourceCampaignId);
+
+      const linkIdMap = new Map();
+      if (origLinks && origLinks.length > 0) {
+        const newLinks = origLinks.map((l, idx) => {
+          const newLinkId = `lnk-${Date.now()}-${idx + 1}`;
+          linkIdMap.set(l.id, newLinkId);
+          return {
+            id: newLinkId,
+            campaign_id: newCampId,
+            label: l.label,
+            url: l.url
+          };
+        });
+        await supabase.from('bflow_campaign_links').insert(newLinks);
+      }
+
+      // Clonar Disparos
+      const { data: origDisparos } = await supabase
+        .from('bflow_disparos')
+        .select('*')
+        .eq('campaign_id', sourceCampaignId)
+        .order('position', { ascending: true });
+
+      if (origDisparos && origDisparos.length > 0) {
+        // Calcular diferença de dias se nova data de início foi informada
+        let dayDiff = 0;
+        if (newStartDate && origCamp.start_date) {
+          const origStart = new Date(origCamp.start_date);
+          const newStart = new Date(newStartDate);
+          dayDiff = Math.round((newStart - origStart) / (1000 * 60 * 60 * 24));
+        }
+
+        const newDisparos = origDisparos.map((d, idx) => {
+          let adjustedDate = d.scheduled_date;
+          if (dayDiff !== 0 && d.scheduled_date) {
+            const dObj = new Date(d.scheduled_date);
+            dObj.setDate(dObj.getDate() + dayDiff);
+            adjustedDate = dObj.toISOString().split('T')[0];
+          }
+
+          // Remapear variáveis de links
+          const newVars = {};
+          if (d.variables && typeof d.variables === 'object') {
+            for (const [k, v] of Object.entries(d.variables)) {
+              const mappedLinkId = v.linkId ? linkIdMap.get(v.linkId) || v.linkId : null;
+              newVars[k] = { ...v, linkId: mappedLinkId };
+            }
+          }
+
+          return {
+            id: `msg-${Date.now()}-${idx + 1}`,
+            campaign_id: newCampId,
+            title: d.title,
+            stage: 'Em Rascunho', // Resetar para rascunho na nova campanha
+            channel: d.channel,
+            scheduled_date: adjustedDate,
+            scheduled_time: d.scheduled_time,
+            selected_link_id: d.selected_link_id ? linkIdMap.get(d.selected_link_id) || null : null,
+            variables: newVars,
+            copy_text: d.copy_text,
+            notes: d.notes,
+            custom_fields: d.custom_fields || {},
+            position: idx,
+            updated_at: new Date().toISOString()
+          };
+        });
+
+        await supabase.from('bflow_disparos').insert(newDisparos);
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `📋 Campanha clonada com sucesso!\nNova Campanha: "${newCampaignName}" (ID: ${newCampId})\nTotal de disparos clonados: ${origDisparos?.length || 0}\nTotal de links clonados: ${origLinks?.length || 0}`
+        }]
+      };
+    }
+  );
+
+  // 10. Tool: Atualização em Massa de Disparos (Batch Update & Shift de Datas)
+  server.tool(
+    'braboflow_batch_update_disparos',
+    'Permite aprovar, alterar status, canal ou adiar/antecipar datas de múltiplos disparos de uma vez.',
+    {
+      campaignId: z.string().describe('ID da campanha'),
+      disparoIds: z.array(z.string()).optional().describe('Lista opcional de IDs específicos para atualizar'),
+      filterStage: z.enum(['Em Rascunho', 'Programada', 'Disparada', 'Cancelada', 'Todos']).optional().describe('Filtrar disparos por status atual'),
+      filterChannel: z.string().optional().describe('Filtrar disparos por canal atual'),
+      newStage: z.enum(['Em Rascunho', 'Programada', 'Disparada', 'Cancelada']).optional().describe('Novo status para aplicar a todos os filtrados'),
+      newChannel: z.string().optional().describe('Novo canal para aplicar a todos os filtrados'),
+      shiftDays: z.number().optional().describe('Número de dias para adiantar (+) ou antecipar (-) as datas agendadas (ex: 1 para adiar 1 dia, -2 para antecipar 2 dias)')
+    },
+    async ({ campaignId, disparoIds, filterStage, filterChannel, newStage, newChannel, shiftDays }) => {
+      let query = supabase.from('bflow_disparos').select('*').eq('campaign_id', campaignId);
+      if (disparoIds && disparoIds.length > 0) {
+        query = query.in('id', disparoIds);
+      }
+      if (filterStage && filterStage !== 'Todos') {
+        query = query.eq('stage', filterStage);
+      }
+      if (filterChannel && filterChannel !== 'Todos') {
+        query = query.eq('channel', filterChannel);
+      }
+
+      const { data: matched, error: qErr } = await query;
+      if (qErr || !matched || matched.length === 0) {
+        return { content: [{ type: 'text', text: 'Nenhum disparo encontrado correspondente aos filtros informados.' }] };
+      }
+
+      let updatedCount = 0;
+      for (const d of matched) {
+        const updates = { updated_at: new Date().toISOString() };
+        if (newStage) updates.stage = newStage;
+        if (newChannel) updates.channel = newChannel;
+        if (shiftDays && shiftDays !== 0 && d.scheduled_date) {
+          const dt = new Date(d.scheduled_date);
+          dt.setDate(dt.getDate() + shiftDays);
+          updates.scheduled_date = dt.toISOString().split('T')[0];
+        }
+
+        const { error: uErr } = await supabase.from('bflow_disparos').update(updates).eq('id', d.id);
+        if (!uErr) updatedCount++;
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: `⚡ ${updatedCount} disparo(s) atualizado(s) em massa na campanha com sucesso!`
+        }]
+      };
+    }
+  );
+
+  // 11. Tool: Buscar Copies no Histórico
+  server.tool(
+    'braboflow_search_copies',
+    'Busca mensagens e copies em todo o histórico do BraboFlow por palavra-chave, canal ou status.',
+    {
+      query: z.string().describe('Termo de busca (ex: "Simulado", "Black", "Delegado", "Cespe")'),
+      channel: z.string().optional().describe('Filtrar por canal específico'),
+      limit: z.number().default(15).describe('Quantidade máxima de resultados')
+    },
+    async ({ query, channel, limit }) => {
+      let req = supabase
+        .from('bflow_disparos')
+        .select('id, campaign_id, title, stage, channel, scheduled_date, copy_text, notes')
+        .ilike('copy_text', `%${query.trim()}%`)
+        .limit(limit);
+
+      if (channel && channel !== 'Todos') {
+        req = req.eq('channel', channel);
+      }
+
+      const { data: results, error } = await req;
+      if (error) {
+        return { content: [{ type: 'text', text: `Erro ao buscar copies: ${error.message}` }], isError: true };
+      }
+
+      const { data: camps } = await supabase.from('bflow_campaigns').select('id, name');
+      const campMap = new Map((camps || []).map(c => [c.id, c.name]));
+
+      const formatted = (results || []).map(r => ({
+        id: r.id,
+        campaignName: campMap.get(r.campaign_id) || r.campaign_id,
+        title: r.title,
+        channel: r.channel,
+        stage: r.stage,
+        scheduledDate: r.scheduled_date,
+        copyPreview: (r.copy_text || '').slice(0, 300) + '...'
+      }));
+
+      return {
+        content: [{
+          type: 'text',
+          text: `🔍 Encontrados ${formatted.length} disparos correspondentes à busca "${query}":\n\n${JSON.stringify(formatted, null, 2)}`
+        }]
+      };
+    }
+  );
+
+  // 12. Tool: Relatório & Diagnóstico Estratégico da Campanha
+  server.tool(
+    'braboflow_get_campaign_analytics',
+    'Gera um diagnóstico executivo da campanha: total por canal, copies sem link vinculado, disparos pendentes em rascunho e consistência de datas.',
+    {
+      campaignId: z.string().describe('ID da campanha para diagnóstico')
+    },
+    async ({ campaignId }) => {
+      const { data: camp } = await supabase.from('bflow_campaigns').select('*').eq('id', campaignId).single();
+      if (!camp) return { content: [{ type: 'text', text: `Campanha "${campaignId}" não encontrada.` }], isError: true };
+
+      const { data: disparos } = await supabase.from('bflow_disparos').select('*').eq('campaign_id', campaignId);
+      const { data: links } = await supabase.from('bflow_campaign_links').select('*').eq('campaign_id', campaignId);
+
+      const msgs = disparos || [];
+      const draftMsgs = msgs.filter(m => m.stage === 'Em Rascunho');
+      const scheduledMsgs = msgs.filter(m => m.stage === 'Programada');
+      const sentMsgs = msgs.filter(m => m.stage === 'Disparada');
+
+      // Copies que usam {{1}} mas não têm link vinculado
+      const missingLinkMsgs = msgs.filter(m => {
+        const hasTag = (m.copy_text || '').includes('{{1}}');
+        const hasLink = !!m.selected_link_id;
+        return hasTag && !hasLink;
+      });
+
+      // Contagem por canais
+      const channelsBreakdown = {};
+      msgs.forEach(m => {
+        channelsBreakdown[m.channel] = (channelsBreakdown[m.channel] || 0) + 1;
+      });
+
+      const report = {
+        campaignName: camp.name,
+        period: `${camp.start_date || 'N/A'} até ${camp.end_date || 'N/A'}`,
+        status: camp.status,
+        summary: {
+          totalDisparos: msgs.length,
+          disparosEmRascunho: draftMsgs.length,
+          disparosProgramados: scheduledMsgs.length,
+          disparosEnviados: sentMsgs.length,
+          totalLinksCadastrados: (links || []).length
+        },
+        canais: channelsBreakdown,
+        diagnosticoQualidade: {
+          disparosSemLinkAssociado: missingLinkMsgs.map(m => ({ id: m.id, title: m.title })),
+          alerta: missingLinkMsgs.length > 0 ? `⚠️ Atenção: Há ${missingLinkMsgs.length} disparo(s) com a tag {{1}} mas sem link associado!` : '✅ Todas as copies com link estão devidamente vinculadas.'
+        }
+      };
+
+      return {
+        content: [{ type: 'text', text: `📊 DIAGNÓSTICO DA CAMPANHA:\n\n${JSON.stringify(report, null, 2)}` }]
       };
     }
   );
@@ -530,7 +852,13 @@ const mcpInfoHandler = (req, res) => {
       'braboflow_add_disparos_batch',
       'braboflow_add_campaign_links',
       'braboflow_get_campaign_details',
-      'braboflow_update_disparo'
+      'braboflow_update_disparo',
+      'braboflow_delete_disparo',
+      'braboflow_delete_campaign',
+      'braboflow_duplicate_campaign',
+      'braboflow_batch_update_disparos',
+      'braboflow_search_copies',
+      'braboflow_get_campaign_analytics'
     ]
   });
 };
