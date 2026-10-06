@@ -16,7 +16,8 @@ import {
   Plus,
   Trash2,
   X,
-  Edit3
+  Edit3,
+  Workflow
 } from 'lucide-react';
 import { BRABO_CHANNELS, FLOW_CATEGORIES, DISPARO_STAGES, getChannelsByCategory } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -264,7 +265,7 @@ export default function ViewToolbar({
 
       <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 0.25rem' }} />
 
-      {/* 2. View Switcher buttons (Grid, Kanban, Calendar, Simulator) */}
+      {/* 2. View Switcher buttons (Grid, Kanban, Calendar, Simulator, Flow) */}
       <div className="view-selector-group">
         <button
           className={`view-btn ${activeView === 'grid' ? 'active gold-tint' : ''}`}
@@ -277,13 +278,23 @@ export default function ViewToolbar({
         </button>
 
         <button
+          className={`view-btn ${activeView === 'flow' ? 'active gold-tint' : ''}`}
+          onClick={() => setActiveView('flow')}
+          id="view-flow"
+          title="Fluxograma Visual Interativo (Estilo Unnichat / Dias)"
+        >
+          <Workflow size={14} />
+          <span>Fluxo Visual</span>
+        </button>
+
+        <button
           className={`view-btn ${activeView === 'kanban' ? 'active' : ''}`}
           onClick={() => setActiveView('kanban')}
           id="view-kanban"
-          title="Quadro Kanban por Statuss do Disparo"
+          title="Quadro Kanban por Status do Disparo"
         >
           <Kanban size={14} />
-          <span>Kanban por Statuss</span>
+          <span>Kanban por Status</span>
         </button>
 
         <button

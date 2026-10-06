@@ -3,6 +3,7 @@ import Header from './components/Header';
 import TableTabs from './components/TableTabs';
 import ViewToolbar from './components/ViewToolbar';
 import GridView from './components/GridView';
+import FlowView from './components/FlowView';
 import KanbanView from './components/KanbanView';
 import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
@@ -754,6 +755,18 @@ export default function App() {
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
                   hiddenColumns={activeHiddenColumns}
                   activeFlowCategory={activeFlowCategory}
+                />
+              )}
+
+              {activeView === 'flow' && (
+                <FlowView
+                  records={filteredMessages}
+                  campaign={activeCampaign}
+                  onUpdateRecord={handleUpdateRecord}
+                  onOpenRecord={handleOpenRecord}
+                  onDeleteRecord={handleDeleteRecord}
+                  onDuplicateRecord={handleDuplicateRecord}
+                  onAddNewMessage={handleAddNewMessage}
                 />
               )}
 

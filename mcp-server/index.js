@@ -386,8 +386,19 @@ function createBraboMcpServer() {
 // SERVIDOR HTTP / SSE PARA CONEXÃO COM CLAUDE.AI
 // ----------------------------------------------------
 const app = express();
-app.use(cors());
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['*'] }));
 app.use(express.json({ limit: '10mb' }));
+
+// Middleware para garantir cabeçalhos de CORS e proxy reverso em todas as rotas
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Armazenar transportes ativos por sessão
 const transports = new Map();
@@ -443,12 +454,26 @@ app.all('/mcp', async (req, res) => {
   }
 });
 
-// 2. Endpoint SSE (Server-Sent Events - Legado para compatibilidade retroativa)
+// 2. Endpoint SSE (Server-Sent Events) com suporte a proxy reverso e URL absoluta
 app.get('/sse', async (req, res) => {
   console.log('📡 Nova conexão SSE recebida de Claude.ai');
   
+  // Cabeçalhos essenciais para evitar buffering em Nginx / Easypanel / Cloudflare
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  if (typeof res.flushHeaders === 'function') {
+    res.flushHeaders();
+  }
+
+  // Resolver URL absoluta para o endpoint de mensagens POST
+  const protocol = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  const messagesUrl = host ? `${protocol}://${host}/messages` : '/messages';
+
   const mcpServer = createBraboMcpServer();
-  const transport = new SSEServerTransport('/messages', res);
+  const transport = new SSEServerTransport(messagesUrl, res);
   
   transports.set(transport.sessionId, transport);
   

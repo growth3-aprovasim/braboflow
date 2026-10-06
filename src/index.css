@@ -1303,3 +1303,49 @@ textarea.form-control {
   flex-shrink: 0;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   FLOW VIEW / AUTOMATION CANVAS (UNNICHAT & DIAGRAM STYLE)
+   ========================================================================== */
+.flow-view-container {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.flow-node-card {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease;
+}
+
+.flow-node-card:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(16, 185, 129, 0.2) !important;
+  border-color: rgba(16, 185, 129, 0.5) !important;
+}
+
+.flow-node-card.selected {
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.4), 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+.flow-node-card button {
+  transition: all 0.15s ease;
+}
+
+.flow-node-card button:hover {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+}
+
+.flow-day-column {
+  animation: slideUpFade 0.25s ease-out;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
