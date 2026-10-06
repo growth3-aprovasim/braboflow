@@ -482,6 +482,12 @@ function createBraboMcpServer() {
         return { content: [{ type: 'text', text: `Erro ao atualizar disparo: ${error.message}` }], isError: true };
       }
 
+      return {
+        content: [{ type: 'text', text: `✅ Disparo "${disparoId}" atualizado com sucesso no BraboFlow!` }]
+      };
+    }
+  );
+
   // 7. Tool: Excluir Disparos
   server.tool(
     'braboflow_delete_disparo',
