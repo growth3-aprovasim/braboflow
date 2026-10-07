@@ -770,20 +770,7 @@ export default function App() {
         supabaseStatus={supabaseStatus}
       />
 
-      {/* 2. Table Tabs bar (Bases do Workspace) */}
-      <TableTabs
-        activeTable={activeTable}
-        setActiveTable={(tabId) => {
-          setActiveTable(tabId);
-          if (tabId === 'simulator') setActiveView('simulator');
-        }}
-        campaignCount={campaigns.length}
-        messagesCount={activeMessages.length}
-        linksCount={activeCampaign?.predefinedLinks?.length || 0}
-        activeCampaign={activeCampaign}
-      />
-
-      {/* 3. View Toolbar (Controls for Active Campaign's messages) */}
+      {/* 2. View Toolbar (Controls for Active Campaign's messages) */}
       {activeTable === 'disparos' && (
         <ViewToolbar
           activeView={activeView}
