@@ -363,20 +363,118 @@ export default function App() {
 
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'date') {
-        const dateA = new Date(`${a.scheduledDate}T${a.scheduledTime || '00:00'}`).getTime();
-        const dateB = new Date(`${b.scheduledDate}T${b.scheduledTime || '00:00'}`).getTime();
+      if (sortBy === 'default' || !sortBy) return 0;
+
+      let valA, valB;
+      if (sortBy === 'date' || sortBy === 'scheduledDate') {
+        const dateA = new Date(`${a.scheduledDate || '1970-01-01'}T${a.scheduledTime || '00:00'}`).getTime();
+        const dateB = new Date(`${b.scheduledDate || '1970-01-01'}T${b.scheduledTime || '00:00'}`).getTime();
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       }
-      if (sortBy === 'title') {
-        return sortDirection === 'asc' ? a.title.localeCompare(b.title) : b.title.localeCompare(a.title);
+      if (sortBy === 'time' || sortBy === 'scheduledTime') {
+        valA = a.scheduledTime || '';
+        valB = b.scheduledTime || '';
+      } else if (sortBy === 'title') {
+        valA = a.title || '';
+        valB = b.title || '';
+      } else if (sortBy === 'stage') {
+        valA = a.stage || '';
+        valB = b.stage || '';
+      } else if (sortBy === 'channel') {
+        valA = a.channel || '';
+        valB = b.channel || '';
+      } else if (sortBy === 'copy' || sortBy === 'copyText') {
+        valA = a.copyText || '';
+        valB = b.copyText || '';
+      } else if (sortBy === 'notes') {
+        valA = a.notes || '';
+        valB = b.notes || '';
+      } else if (sortBy.startsWith('custom_') || a.customFields?.[sortBy] !== undefined || b.customFields?.[sortBy] !== undefined) {
+        const cId = sortBy.replace('custom_', '');
+        valA = (a.customFields?.[cId] ?? '').toString();
+        valB = (b.customFields?.[cId] ?? '').toString();
+      } else {
+        valA = (a[sortBy] ?? '').toString();
+        valB = (b[sortBy] ?? '').toString();
       }
-      if (sortBy === 'channel') {
-        return sortDirection === 'asc' ? a.channel.localeCompare(b.channel) : b.channel.localeCompare(a.channel);
+
+      if (typeof valA === 'string' && typeof valB === 'string') {
+        return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
       }
-      return 0;
+      return sortDirection === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
     });
   }, [flowMessages, searchQuery, filterChannel, toolbarFilter, activeCustomFilter, sortBy, sortDirection]);
+
+  // Automatic Dispatch: Quando o disparo estiver com o status "PROGRAMADO" e der o horário dele, muda automaticamente para "Disparada"
+  useEffect(() => {
+    const checkScheduledDisparos = () => {
+      const now = new Date();
+      const syncQueue = [];
+
+      setCampaigns(prevCampaigns => {
+        let hasAnyChange = false;
+        const updatedCampaigns = prevCampaigns.map(camp => {
+          let campChanged = false;
+          const updatedMessages = (camp.messages || []).map(m => {
+            const st = String(m.stage || '').trim().toLowerCase();
+            const isProgramada = st.includes('program') || st.includes('agend');
+
+            if (isProgramada && m.scheduledDate) {
+              const timeStr = m.scheduledTime || '00:00';
+              const cleanTime = timeStr.length === 5 ? timeStr : timeStr.padStart(5, '0');
+              const scheduledDateTime = new Date(`${m.scheduledDate}T${cleanTime}:00`);
+
+              if (!isNaN(scheduledDateTime.getTime()) && scheduledDateTime <= now) {
+                campChanged = true;
+                hasAnyChange = true;
+                const updatedMsg = { ...m, stage: 'Disparada' };
+                syncQueue.push({ campaignId: camp.id, message: updatedMsg });
+                return updatedMsg;
+              }
+            }
+            return m;
+          });
+
+          if (campChanged) {
+            return { ...camp, messages: updatedMessages };
+          }
+          return camp;
+        });
+
+        if (hasAnyChange) {
+          return updatedCampaigns;
+        }
+        return prevCampaigns;
+      });
+
+      if (syncQueue.length > 0) {
+        syncQueue.forEach(({ campaignId, message }) => {
+          dbUpdateDisparo(message.id, message, campaignId).catch(err => {
+            console.warn('Auto-dispatch sync error:', err);
+          });
+        });
+      }
+    };
+
+    checkScheduledDisparos();
+    const interval = setInterval(checkScheduledDisparos, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleFilterByColumn = (fieldId) => {
+    const targetField = fieldId === 'date' ? 'scheduledDate' : fieldId === 'time' ? 'scheduledTime' : fieldId === 'copy' ? 'copyText' : fieldId;
+    const newRule = {
+      id: `r-${Date.now()}`,
+      field: targetField,
+      operator: targetField === 'stage' ? 'equals' : targetField === 'scheduledDate' ? 'exact_date' : 'contains',
+      value: targetField === 'stage' ? 'Programada' : '',
+      value2: ''
+    };
+    setToolbarFilter(prev => ({
+      conjunction: prev?.conjunction || 'AND',
+      rules: [...(prev?.rules || []), newRule]
+    }));
+  };
 
   // Campaign Actions
   const handleSelectCampaign = (camp, flowCategory = 'whatsapp') => {
@@ -755,6 +853,15 @@ export default function App() {
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
                   hiddenColumns={activeHiddenColumns}
                   activeFlowCategory={activeFlowCategory}
+                  onSortBy={(fieldId, dir) => {
+                    setSortBy(fieldId);
+                    setSortDirection(dir);
+                  }}
+                  onGroupBy={(fieldId) => {
+                    setGroupBy(prev => prev === fieldId ? 'none' : fieldId);
+                  }}
+                  onFilterBy={handleFilterByColumn}
+                  onToggleColumnVisibility={handleToggleColumnVisibility}
                 />
               )}
 

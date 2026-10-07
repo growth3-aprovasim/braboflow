@@ -27,12 +27,6 @@ export default function TableTabs({
       label: 'Links Predefinidos', 
       icon: LinkIcon, 
       count: linksCount 
-    },
-    { 
-      id: 'simulator', 
-      label: 'Simulador Multicanal', 
-      icon: Smartphone, 
-      count: null 
     }
   ];
 

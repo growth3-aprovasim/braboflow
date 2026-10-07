@@ -23,7 +23,13 @@ import {
   CheckSquare,
   X,
   Check,
-  Settings
+  Settings,
+  Link as LinkIcon,
+  Filter,
+  Layers,
+  EyeOff,
+  ArrowDown,
+  ArrowUp
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -219,12 +225,33 @@ export default function GridView({
   setSelectedRecordIds,
   onUpdateCustomColumns,
   hiddenColumns = [],
-  activeFlowCategory = 'whatsapp'
+  activeFlowCategory = 'whatsapp',
+  onSortBy,
+  onGroupBy,
+  onFilterBy,
+  onToggleColumnVisibility
 }) {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [newColType, setNewColType] = useState('checkbox');
+
+  // Airtable-style header context menu state
+  const [headerContextMenu, setHeaderContextMenu] = useState(null);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+
+  React.useEffect(() => {
+    const handleCloseMenu = () => setHeaderContextMenu(null);
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setHeaderContextMenu(null);
+    };
+    window.addEventListener('click', handleCloseMenu);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleCloseMenu);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // Custom columns from campaign
   const customColumns = campaign?.customColumns || [
@@ -450,12 +477,27 @@ export default function GridView({
 
   // Grouping logic
   const groupedRecords = React.useMemo(() => {
-    if (groupBy === 'none') {
+    if (!groupBy || groupBy === 'none') {
       return { 'Todos os Disparos da Campanha': records };
     }
     const groups = {};
     records.forEach(rec => {
-      const key = rec[groupBy] || 'Sem Categoria';
+      let key = 'Sem Categoria';
+      if (groupBy === 'date' || groupBy === 'scheduledDate') {
+        key = rec.scheduledDate || 'Sem Data Definida';
+      } else if (groupBy === 'stage') {
+        key = rec.stage || 'Em Rascunho';
+      } else if (groupBy === 'channel') {
+        key = rec.channel || 'Sem Canal';
+      } else if (groupBy === 'time' || groupBy === 'scheduledTime') {
+        key = rec.scheduledTime || 'Sem Horário';
+      } else if (groupBy === 'title') {
+        key = rec.title || 'Sem Nome';
+      } else if (rec[groupBy]) {
+        key = rec[groupBy];
+      } else if (rec.customFields && rec.customFields[groupBy] !== undefined) {
+        key = String(rec.customFields[groupBy] || 'Vazio');
+      }
       if (!groups[key]) groups[key] = [];
       groups[key].push(rec);
     });
@@ -496,7 +538,7 @@ export default function GridView({
         if (!list.includes('notes')) {
           const copyIdx = list.indexOf('copy');
           if (copyIdx > -1) {
-            list.splice(copyIdx + 1, 0, 'notes');
+            list.splice(copyIdx, 0, 'notes');
           } else {
             list.push('notes');
           }
@@ -576,6 +618,20 @@ export default function GridView({
     setDragOverColId(null);
   };
 
+  const handleHeaderContextMenu = (e, colId, colLabel, isCustom = false, customCol = null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHeaderContextMenu({
+      x: e.clientX || rect.left,
+      y: (e.clientY || rect.bottom) + 2,
+      colId,
+      colLabel,
+      isCustom,
+      customCol
+    });
+  };
+
   // Render individual header cell
   const renderHeaderCell = (colId) => {
     const isDragging = draggedColId === colId;
@@ -597,6 +653,26 @@ export default function GridView({
       transition: 'background 0.15s ease, border 0.15s ease'
     };
 
+    const renderHeaderContent = (label, iconElement, isCustom = false, customCol = null) => (
+      <div
+        className="grid-header-cell-inner"
+        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.35rem', overflow: 'hidden' }}
+      >
+        {iconElement}
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+          {label}
+        </span>
+        <button
+          type="button"
+          className="header-dropdown-trigger"
+          onClick={(e) => handleHeaderContextMenu(e, colId, label, isCustom, customCol)}
+          title="Opções da Coluna (Airtable)"
+        >
+          <ChevronDown size={12} />
+        </button>
+      </div>
+    );
+
     if (colId === 'title') {
       return (
         <div
@@ -604,10 +680,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.title}px`, minWidth: `${colWidths.title}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'title', 'Nome / Momento do Disparo')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Type size={13} className="cell-icon" />
-          <span>Nome / Momento do Disparo</span>
+          {renderHeaderContent('Nome / Momento do Disparo', <Type size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('title', e)} />
         </div>
       );
@@ -620,10 +696,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.stage}px`, minWidth: `${colWidths.stage}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'stage', 'Status')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Tag size={13} className="cell-icon" />
-          <span>Status</span>
+          {renderHeaderContent('Status', <Tag size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('stage', e)} />
         </div>
       );
@@ -636,10 +712,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.channel}px`, minWidth: `${colWidths.channel}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'channel', 'Canal de Disparo')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Radio size={13} className="cell-icon" />
-          <span>Canal de Disparo</span>
+          {renderHeaderContent('Canal de Disparo', <Radio size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('channel', e)} />
         </div>
       );
@@ -652,10 +728,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.date}px`, minWidth: `${colWidths.date}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'date', 'Data')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Calendar size={13} className="cell-icon" />
-          <span>Data</span>
+          {renderHeaderContent('Data', <Calendar size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('date', e)} />
         </div>
       );
@@ -668,10 +744,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.time}px`, minWidth: `${colWidths.time}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'time', 'Horário')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Clock size={13} className="cell-icon" />
-          <span>Horário</span>
+          {renderHeaderContent('Horário', <Clock size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('time', e)} />
         </div>
       );
@@ -684,10 +760,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.creative}px`, minWidth: `${colWidths.creative}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'creative', 'Criativo / Anexo')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <Paperclip size={13} className="cell-icon" />
-          <span>Criativo / Anexo</span>
+          {renderHeaderContent('Criativo / Anexo', <Paperclip size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('creative', e)} />
         </div>
       );
@@ -700,10 +776,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.copy}px`, minWidth: `${colWidths.copy}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'copy', 'Copy / Mensagem')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <AlignLeft size={13} className="cell-icon" />
-          <span>Copy / Mensagem</span>
+          {renderHeaderContent('Copy / Mensagem', <AlignLeft size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('copy', e)} />
         </div>
       );
@@ -716,10 +792,10 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.notes}px`, minWidth: `${colWidths.notes}px`, ...dragStyle }}
           {...dragProps}
-          title="Clique e arraste para reposicionar esta coluna"
+          onContextMenu={(e) => handleHeaderContextMenu(e, 'notes', 'Observações')}
+          title="Clique com botão direito para opções (Airtable)"
         >
-          <FileText size={13} className="cell-icon" />
-          <span>Observações</span>
+          {renderHeaderContent('Observações', <FileText size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('notes', e)} />
         </div>
       );
@@ -741,53 +817,27 @@ export default function GridView({
             ...dragStyle
           }}
           {...dragProps}
+          onContextMenu={(e) => handleHeaderContextMenu(e, customCol.id, customCol.name, true, customCol)}
           onDoubleClick={(e) => {
             e.stopPropagation();
             handleOpenEditColumn(customCol);
           }}
-          title={customCol.type === 'select' ? "Duplo clique para gerenciar tags e opções desta coluna" : "Duplo clique para configurar esta coluna"}
+          title="Clique com botão direito para opções (Airtable) ou duplo clique para editar"
         >
-          {customCol.type === 'checkbox' ? (
-            <CheckSquare size={13} className="cell-icon" />
-          ) : customCol.type === 'select' ? (
-            <Tag size={13} className="cell-icon" />
-          ) : customCol.type === 'date' ? (
-            <Calendar size={13} className="cell-icon" />
-          ) : (
-            <Type size={13} className="cell-icon" />
+          {renderHeaderContent(
+            customCol.name,
+            customCol.type === 'checkbox' ? (
+              <CheckSquare size={13} className="cell-icon" />
+            ) : customCol.type === 'select' ? (
+              <Tag size={13} className="cell-icon" />
+            ) : customCol.type === 'date' ? (
+              <Calendar size={13} className="cell-icon" />
+            ) : (
+              <Type size={13} className="cell-icon" />
+            ),
+            true,
+            customCol
           )}
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {customCol.name}
-          </span>
-
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '2px' }}>
-            {/* Manage tags / settings button */}
-            <button
-              className="btn-ghost"
-              style={{ padding: '0.15rem', color: '#94a3b8' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEditColumn(customCol);
-              }}
-              title="Gerenciar tags e opções desta coluna"
-            >
-              <Settings size={11} />
-            </button>
-
-            {/* Delete custom column button */}
-            <button
-              className="btn-ghost"
-              style={{ padding: '0.15rem', color: '#64748b' }}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteCustomColumn(customCol.id);
-              }}
-              title={`Excluir coluna "${customCol.name}"`}
-            >
-              <X size={11} />
-            </button>
-          </div>
-
           <div className="col-resizer" onMouseDown={(e) => startResize(customCol.id, e)} />
         </div>
       );
@@ -1658,6 +1708,137 @@ export default function GridView({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Airtable-style Header Context Menu */}
+      {headerContextMenu && (
+        <div
+          className="airtable-header-context-menu"
+          style={{
+            position: 'fixed',
+            top: `${Math.min(headerContextMenu.y, window.innerHeight - 340)}px`,
+            left: `${Math.min(headerContextMenu.x, window.innerWidth - 270)}px`,
+            zIndex: 9999
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="airtable-ctx-header">
+            <span className="airtable-ctx-title" title={headerContextMenu.colLabel}>
+              {headerContextMenu.colLabel}
+            </span>
+            {copyFeedback && <span className="airtable-ctx-copied-badge">Copiado!</span>}
+          </div>
+
+          {/* 1. Copy field URL */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              navigator.clipboard.writeText(headerContextMenu.colLabel);
+              setCopyFeedback(true);
+              setTimeout(() => {
+                setCopyFeedback(false);
+                setHeaderContextMenu(null);
+              }, 600);
+            }}
+          >
+            <LinkIcon size={14} className="airtable-ctx-icon" />
+            <span>Copy field URL</span>
+          </div>
+
+          <div className="airtable-ctx-divider" />
+
+          {/* 2. Sort First -> Last */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              if (onSortBy) onSortBy(headerContextMenu.colId, 'asc');
+              setHeaderContextMenu(null);
+            }}
+          >
+            <ArrowDown size={14} className="airtable-ctx-icon" />
+            <span>Sort First → Last</span>
+          </div>
+
+          {/* 3. Sort Last -> First */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              if (onSortBy) onSortBy(headerContextMenu.colId, 'desc');
+              setHeaderContextMenu(null);
+            }}
+          >
+            <ArrowUp size={14} className="airtable-ctx-icon" />
+            <span>Sort Last → First</span>
+          </div>
+
+          <div className="airtable-ctx-divider" />
+
+          {/* 4. Filter by this field */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              if (onFilterBy) onFilterBy(headerContextMenu.colId);
+              setHeaderContextMenu(null);
+            }}
+          >
+            <Filter size={14} className="airtable-ctx-icon" />
+            <span>Filter by this field</span>
+          </div>
+
+          {/* 5. Group by this field */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              if (onGroupBy) onGroupBy(headerContextMenu.colId);
+              setHeaderContextMenu(null);
+            }}
+          >
+            <Layers size={14} className="airtable-ctx-icon" />
+            <span>Group by this field</span>
+          </div>
+
+          <div className="airtable-ctx-divider" />
+
+          {/* 6. Hide field */}
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              if (onToggleColumnVisibility) onToggleColumnVisibility(headerContextMenu.colId);
+              setHeaderContextMenu(null);
+            }}
+          >
+            <EyeOff size={14} className="airtable-ctx-icon" />
+            <span>Hide field</span>
+          </div>
+
+          {/* 7. Custom Column Extras */}
+          {headerContextMenu.isCustom && (
+            <>
+              <div className="airtable-ctx-divider" />
+              <div
+                className="airtable-ctx-item"
+                onClick={() => {
+                  if (headerContextMenu.customCol) handleOpenEditColumn(headerContextMenu.customCol);
+                  setHeaderContextMenu(null);
+                }}
+              >
+                <Settings size={14} className="airtable-ctx-icon" />
+                <span>Configurar Coluna / Tags</span>
+              </div>
+              <div
+                className="airtable-ctx-item text-danger"
+                style={{ color: '#f87171' }}
+                onClick={() => {
+                  handleDeleteCustomColumn(headerContextMenu.colId);
+                  setHeaderContextMenu(null);
+                }}
+              >
+                <Trash2 size={14} className="airtable-ctx-icon" color="#f87171" />
+                <span>Excluir Coluna</span>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

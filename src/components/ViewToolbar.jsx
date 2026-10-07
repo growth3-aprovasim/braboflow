@@ -69,10 +69,30 @@ export default function ViewToolbar({
     ...customCols
   ];
 
+  const [isViewsExpanded, setIsViewsExpanded] = useState(false);
+  const [isChannelsExpanded, setIsChannelsExpanded] = useState(false);
+
+  const VIEW_OPTIONS = [
+    { id: 'grid', label: 'Grid View', icon: Table, title: 'Visão de Planilha Airtable' },
+    { id: 'flow', label: 'Fluxo Visual', icon: Workflow, title: 'Fluxograma Visual Interativo (Estilo Unnichat / Dias)' },
+    { id: 'kanban', label: 'Kanban por Status', icon: Kanban, title: 'Quadro Kanban por Status do Disparo' },
+    { id: 'calendar', label: 'Calendário', icon: CalendarIcon, title: 'Cronograma de Disparos' },
+    { id: 'simulator', label: 'Simulador', icon: Smartphone, title: 'Simulador de Mensagens em Tempo Real' }
+  ];
+
+  const CHANNEL_OPTIONS = [
+    { id: 'whatsapp', label: 'WhatsApp', icon: Smartphone, color: '#22c55e', cls: 'wa', count: flowCounts.whatsapp || 0 },
+    { id: 'email', label: 'Email', icon: Mail, color: '#a78bfa', cls: 'email', count: flowCounts.email || 0 },
+    { id: 'youtube', label: 'YouTube', icon: YouTubeIcon, color: '#ef4444', cls: 'youtube', count: flowCounts.youtube || 0 },
+    { id: 'all', label: 'Todos', icon: Layers, color: '#60a5fa', cls: 'all', count: flowCounts.all || 0 }
+  ];
+
   useEffect(() => {
     function handleClickOutside(event) {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setOpenMenu(null);
+        setIsViewsExpanded(false);
+        setIsChannelsExpanded(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -204,135 +224,125 @@ export default function ViewToolbar({
 
   return (
     <div className="views-toolbar" ref={menuRef}>
-      {/* 1. Flow Category Segmented Selector (WhatsApp | Email | YouTube) */}
-      <div className="flow-category-group">
-        <button
-          type="button"
-          className={`flow-cat-btn ${activeFlowCategory === 'whatsapp' ? 'active wa' : ''}`}
-          onClick={() => {
-            setActiveFlowCategory('whatsapp');
-            setFilterChannel('All');
-          }}
-          title="Ver somente fluxo de mensagens WhatsApp"
-        >
-          <Smartphone size={13} color="#22c55e" />
-          <span>WhatsApp</span>
-          <span className="flow-cat-badge">{flowCounts.whatsapp || 0}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`flow-cat-btn ${activeFlowCategory === 'email' ? 'active email' : ''}`}
-          onClick={() => {
-            setActiveFlowCategory('email');
-            setFilterChannel('All');
-          }}
-          title="Ver somente fluxo de Emails"
-        >
-          <Mail size={13} color="#a78bfa" />
-          <span>Email</span>
-          <span className="flow-cat-badge">{flowCounts.email || 0}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`flow-cat-btn ${activeFlowCategory === 'youtube' ? 'active youtube' : ''}`}
-          onClick={() => {
-            setActiveFlowCategory('youtube');
-            setFilterChannel('All');
-          }}
-          title="Ver somente fluxo da Comunidade YouTube"
-        >
-          <YouTubeIcon size={13} color="#ef4444" />
-          <span>YouTube</span>
-          <span className="flow-cat-badge">{flowCounts.youtube || 0}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`flow-cat-btn ${activeFlowCategory === 'all' ? 'active all' : ''}`}
-          onClick={() => {
-            setActiveFlowCategory('all');
-            setFilterChannel('All');
-          }}
-          title="Ver todos os canais juntos"
-        >
-          <Layers size={13} />
-          <span>Todos</span>
-          <span className="flow-cat-badge">{flowCounts.all || 0}</span>
-        </button>
+      {/* 1. Canais Minimalista Expansível */}
+      <div className={`expandable-group ${isChannelsExpanded ? 'expanded' : ''}`}>
+        {!isChannelsExpanded ? (
+          <button
+            type="button"
+            className="expandable-trigger-btn"
+            onClick={() => {
+              setIsChannelsExpanded(true);
+              setIsViewsExpanded(false);
+            }}
+            title="Filtrar por canal de disparo (Clique para abrir opções)"
+          >
+            <Smartphone size={13} color="#22c55e" />
+            <span className="expandable-title">Canais</span>
+            <span className="expandable-active-indicator">
+              {CHANNEL_OPTIONS.find(c => c.id === activeFlowCategory)?.label || 'WhatsApp'}
+              <span className="expandable-pill-count">
+                {flowCounts[activeFlowCategory] || 0}
+              </span>
+            </span>
+            <ChevronDown size={12} color="var(--text-muted)" />
+          </button>
+        ) : (
+          <div className="expandable-panel">
+            <button
+              type="button"
+              className="expandable-trigger-btn active-open"
+              onClick={() => setIsChannelsExpanded(false)}
+              title="Recolher opções de canais"
+            >
+              <Smartphone size={13} color="#22c55e" />
+              <span className="expandable-title">Canais</span>
+            </button>
+            <div className="expandable-items-row">
+              {CHANNEL_OPTIONS.map(c => {
+                const Icon = c.icon;
+                const isActive = activeFlowCategory === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`flow-cat-btn ${isActive ? `active ${c.cls}` : ''}`}
+                    onClick={() => {
+                      setActiveFlowCategory(c.id);
+                      setFilterChannel('All');
+                      setIsChannelsExpanded(false);
+                    }}
+                    title={`Ver somente fluxo de ${c.label}`}
+                  >
+                    <Icon size={13} color={c.color} />
+                    <span>{c.label}</span>
+                    <span className="flow-cat-badge">{c.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      <div style={{ width: '1px', height: '20px', background: 'var(--border-color)', margin: '0 0.25rem' }} />
+      <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 0.2rem' }} />
 
-      {/* 2. View Switcher buttons (Grid, Kanban, Calendar, Simulator, Flow) */}
-      <div className="view-selector-group">
-        <button
-          className={`view-btn ${activeView === 'grid' ? 'active gold-tint' : ''}`}
-          onClick={() => setActiveView('grid')}
-          id="view-grid"
-          title="Visão de Planilha Airtable"
-        >
-          <Table size={14} />
-          <span>Grid View</span>
-        </button>
-
-        <button
-          className={`view-btn ${activeView === 'flow' ? 'active gold-tint' : ''}`}
-          onClick={() => setActiveView('flow')}
-          id="view-flow"
-          title="Fluxograma Visual Interativo (Estilo Unnichat / Dias)"
-        >
-          <Workflow size={14} />
-          <span>Fluxo Visual</span>
-        </button>
-
-        <button
-          className={`view-btn ${activeView === 'kanban' ? 'active' : ''}`}
-          onClick={() => setActiveView('kanban')}
-          id="view-kanban"
-          title="Quadro Kanban por Status do Disparo"
-        >
-          <Kanban size={14} />
-          <span>Kanban por Status</span>
-        </button>
-
-        <button
-          className={`view-btn ${activeView === 'calendar' ? 'active' : ''}`}
-          onClick={() => setActiveView('calendar')}
-          id="view-calendar"
-          title="Cronograma de Disparos"
-        >
-          <CalendarIcon size={14} />
-          <span>Calendário</span>
-        </button>
-
-        <button
-          className={`view-btn ${activeView === 'simulator' ? 'active' : ''}`}
-          onClick={() => setActiveView('simulator')}
-          id="view-simulator"
-          title="Simulador de Mensagens em Tempo Real"
-        >
-          <Smartphone size={14} />
-          <span>Simulador</span>
-        </button>
+      {/* 2. Visualizações Minimalista Expansível */}
+      <div className={`expandable-group ${isViewsExpanded ? 'expanded' : ''}`}>
+        {!isViewsExpanded ? (
+          <button
+            type="button"
+            className="expandable-trigger-btn"
+            onClick={() => {
+              setIsViewsExpanded(true);
+              setIsChannelsExpanded(false);
+            }}
+            title="Modos de Visualização (Clique para abrir opções)"
+          >
+            <Table size={13} color="var(--accent-primary)" />
+            <span className="expandable-title">Visualizações</span>
+            <span className="expandable-active-indicator">
+              {VIEW_OPTIONS.find(v => v.id === activeView)?.label || 'Grid View'}
+            </span>
+            <ChevronDown size={12} color="var(--text-muted)" />
+          </button>
+        ) : (
+          <div className="expandable-panel">
+            <button
+              type="button"
+              className="expandable-trigger-btn active-open"
+              onClick={() => setIsViewsExpanded(false)}
+              title="Recolher modos de visualização"
+            >
+              <Table size={13} color="var(--accent-primary)" />
+              <span className="expandable-title">Visualizações</span>
+            </button>
+            <div className="expandable-items-row">
+              {VIEW_OPTIONS.map(v => {
+                const Icon = v.icon;
+                const isActive = activeView === v.id;
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className={`view-btn ${isActive ? 'active gold-tint' : ''}`}
+                    onClick={() => {
+                      setActiveView(v.id);
+                      setIsViewsExpanded(false);
+                    }}
+                    title={v.title}
+                  >
+                    <Icon size={13} />
+                    <span>{v.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Toolbar Controls */}
       <div className="toolbar-controls">
-        {/* Edit Campaign Button */}
-        {campaign && onOpenEditCampaign && (
-          <button
-            className="toolbar-pill-btn"
-            onClick={onOpenEditCampaign}
-            title="Editar informações da campanha (Nome, Datas de Início/Fim, Status, etc)"
-            style={{ borderColor: 'rgba(245, 158, 11, 0.4)', color: '#f59e0b' }}
-          >
-            <Edit3 size={13} />
-            <span>Editar Campanha</span>
-          </button>
-        )}
-
         {/* Manage Links Button */}
         {campaign && (
           <button
