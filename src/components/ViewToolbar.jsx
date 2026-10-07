@@ -347,18 +347,6 @@ export default function ViewToolbar({
 
       {/* 3. Toolbar Controls */}
       <div className="toolbar-controls">
-        {/* Manage Links Button */}
-        {campaign && (
-          <button
-            className="toolbar-pill-btn"
-            onClick={() => onOpenLinksModal(campaign)}
-            title="Gerenciar links predefinidos desta campanha"
-          >
-            <LinkIcon size={13} />
-            <span>Links ({campaign.predefinedLinks?.length || 0})</span>
-          </button>
-        )}
-
         {/* Dynamic Filter Popover */}
         <div style={{ position: 'relative' }}>
           <button
@@ -691,36 +679,6 @@ export default function ViewToolbar({
           )}
         </div>
 
-        {/* Group Popover */}
-        <div style={{ position: 'relative' }}>
-          <button
-            className={`toolbar-pill-btn ${groupBy !== 'none' ? 'active-filter' : ''}`}
-            onClick={() => setOpenMenu(openMenu === 'group' ? null : 'group')}
-          >
-            <Layers size={13} />
-            <span>{groupBy === 'none' ? 'Agrupar' : 'Agrupado por Canal'}</span>
-          </button>
-
-          {openMenu === 'group' && (
-            <div className="popover-menu" style={{ width: '210px' }}>
-              <div className="popover-title">Agrupar Linhas</div>
-              <div
-                className="popover-item"
-                onClick={() => { setGroupBy('none'); setOpenMenu(null); }}
-              >
-                <span>Sem Agrupamento</span>
-                {groupBy === 'none' && <Check size={14} color="#f59e0b" />}
-              </div>
-              <div
-                className="popover-item"
-                onClick={() => { setGroupBy('channel'); setOpenMenu(null); }}
-              >
-                <span>Por Canal de Disparo</span>
-                {groupBy === 'channel' && <Check size={14} color="#f59e0b" />}
-              </div>
-            </div>
-          )}
-        </div>
 
         {/* Sort Popover */}
         <div style={{ position: 'relative' }}>
@@ -760,38 +718,6 @@ export default function ViewToolbar({
                   </div>
                 </div>
               )}
-            </div>
-          )}
-        </div>
-
-        {/* Row Density */}
-        <div style={{ position: 'relative' }}>
-          <button
-            className="toolbar-pill-btn"
-            onClick={() => setOpenMenu(openMenu === 'density' ? null : 'density')}
-            title="Altura da Linha"
-          >
-            <Maximize2 size={13} />
-            <span style={{ textTransform: 'capitalize' }}>{rowDensity}</span>
-          </button>
-
-          {openMenu === 'density' && (
-            <div className="popover-menu" style={{ width: '180px' }}>
-              <div className="popover-title">Densidade das Linhas</div>
-              {[
-                { id: 'compact', label: 'Compacto' },
-                { id: 'standard', label: 'Padrão' },
-                { id: 'large', label: 'Amplo (Copy Completa)' },
-              ].map(opt => (
-                <div
-                  key={opt.id}
-                  className="popover-item"
-                  onClick={() => { setRowDensity(opt.id); setOpenMenu(null); }}
-                >
-                  <span>{opt.label}</span>
-                  {rowDensity === opt.id && <Check size={14} color="#f59e0b" />}
-                </div>
-              ))}
             </div>
           )}
         </div>
