@@ -17,7 +17,11 @@ import {
   Trash2,
   X,
   Edit3,
-  Workflow
+  Workflow,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { BRABO_CHANNELS, FLOW_CATEGORIES, DISPARO_STAGES, getChannelsByCategory } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
