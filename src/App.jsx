@@ -1011,6 +1011,8 @@ export default function App() {
         onDuplicateRecord={handleDuplicateRecord}
         onOpenLinksModal={handleOpenLinksModal}
         activeFlowCategory={activeFlowCategory}
+        hiddenColumns={activeHiddenColumns}
+        onToggleColumnVisibility={handleToggleColumnVisibility}
       />
 
       {/* 6. Campaign Predefined Links Modal */}

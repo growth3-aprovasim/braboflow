@@ -1552,3 +1552,92 @@ textarea.form-control {
     transform: translateY(0);
   }
 }
+
+/* ==========================================================================
+   AIRTABLE RECORD DETAIL MODAL (VERTICAL FIELD LAYOUT)
+   ========================================================================== */
+.airtable-record-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1.25rem 1.5rem;
+  overflow-y: auto;
+  background: var(--bg-app);
+}
+
+.airtable-field-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  position: relative;
+  padding: 0.25rem 0;
+  transition: background var(--transition-fast);
+}
+
+.airtable-field-label-col {
+  width: 140px;
+  min-width: 140px;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding-top: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  user-select: none;
+}
+
+.airtable-field-label-col .field-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.airtable-field-hide-btn {
+  opacity: 0;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
+  margin-left: auto;
+}
+
+.airtable-field-row:hover .airtable-field-hide-btn {
+  opacity: 1;
+}
+
+.airtable-field-hide-btn:hover {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+.airtable-field-value-col {
+  flex: 1;
+  min-width: 0;
+}
+
+.airtable-hidden-toggle-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  margin: 0.75rem 0 0.25rem 0;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  user-select: none;
+}
+
+.airtable-hidden-toggle-bar:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+}
