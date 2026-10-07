@@ -107,7 +107,7 @@ export async function fetchAllCampaignsFromDb() {
 
     const safeLinks = links || [];
     const safeCols = cols || [];
-    const safeDisparos = disparos || [];
+    const safeDisparos = (disparos || []).filter(d => d && d.id && String(d.id).trim() !== '');
 
     return camps.map(c => {
       const campLinks = safeLinks.filter(l => l.campaign_id === c.id);

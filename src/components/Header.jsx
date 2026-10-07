@@ -247,20 +247,6 @@ export default function Header({
                   <Upload size={14} color="#3b82f6" /> Importar Backup JSON
                 </span>
               </div>
-              <div 
-                className="popover-item"
-                style={{ borderTop: '1px solid #232b3a', marginTop: '0.35rem', paddingTop: '0.5rem', color: '#f87171' }}
-                onClick={() => { 
-                  if (window.confirm('Atenção: deseja realmente limpar todas as campanhas do Supabase e do armazenamento local?')) {
-                    onResetData();
-                  }
-                  setShowExportMenu(false);
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <RotateCcw size={14} /> Limpar Banco / Resetar
-                </span>
-              </div>
             </div>
           )}
         </div>

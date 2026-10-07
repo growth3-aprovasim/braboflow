@@ -36,6 +36,63 @@ import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getC
 import { YouTubeIcon } from './ChannelPreview';
 import { triggerFileDownload, getAttachmentUrl } from '../services/attachmentStorage';
 
+// Smooth local-state editable input to avoid re-render stuttering while typing
+function EditableCellInput({ value, placeholder, className, style, onChange }) {
+  const [localVal, setLocalVal] = useState(value || '');
+  const timerRef = React.useRef(null);
+  const isFocusedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!isFocusedRef.current) {
+      setLocalVal(value || '');
+    }
+  }, [value]);
+
+  const handleChange = (e) => {
+    const newVal = e.target.value;
+    setLocalVal(newVal);
+
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (newVal !== value) {
+        onChange(newVal);
+      }
+    }, 350);
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (localVal !== value) {
+      onChange(localVal);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.target.blur();
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      className={className || 'cell-input'}
+      value={localVal}
+      placeholder={placeholder}
+      style={style}
+      onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+    />
+  );
+}
+
 // Compact Attachment Thumbnail Preview Component for Grid Cells (Single or Multiple)
 function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
   const atts = normalizeAttachments(attachment || record?.attachment);
@@ -261,7 +318,8 @@ export default function GridView({
 
   // Column Resizing State
   const defaultWidths = {
-    select: 60,
+    select: 38,
+    expand: 30,
     title: 270,
     stage: 140,
     channel: 200,
@@ -941,11 +999,9 @@ export default function GridView({
           className="grid-cell"
           style={{ width: `${colWidths.title}px`, minWidth: `${colWidths.title}px`, fontWeight: 600, color: 'var(--text-main)' }}
         >
-          <input
-            type="text"
-            className="cell-input"
+          <EditableCellInput
             value={record.title}
-            onChange={(e) => onUpdateRecord(record.id, { title: e.target.value })}
+            onChange={(val) => onUpdateRecord(record.id, { title: val })}
           />
         </div>
       );
@@ -1125,13 +1181,11 @@ export default function GridView({
           className="grid-cell"
           style={{ width: `${colWidths.notes}px`, minWidth: `${colWidths.notes}px` }}
         >
-          <input
-            type="text"
-            className="cell-input"
+          <EditableCellInput
             value={record.notes || ''}
             placeholder="Adicionar notas..."
-            onChange={(e) => onUpdateRecord(record.id, { notes: e.target.value })}
             style={{ fontSize: '0.78rem', color: '#94a3b8' }}
+            onChange={(val) => onUpdateRecord(record.id, { notes: val })}
           />
         </div>
       );
@@ -1213,16 +1267,14 @@ export default function GridView({
               style={{ colorScheme: 'dark', fontSize: '0.76rem' }}
             />
           ) : (
-            <input
-              type="text"
-              className="cell-input"
+            <EditableCellInput
               value={val || ''}
               placeholder="Preencher..."
-              onChange={(e) => {
-                const updatedCustom = { ...(record.customFields || {}), [customCol.id]: e.target.value };
+              style={{ fontSize: '0.78rem' }}
+              onChange={(text) => {
+                const updatedCustom = { ...(record.customFields || {}), [customCol.id]: text };
                 onUpdateRecord(record.id, { customFields: updatedCustom });
               }}
-              style={{ fontSize: '0.78rem' }}
             />
           )}
         </div>
@@ -1238,10 +1290,10 @@ export default function GridView({
     <div className={`airtable-grid row-${rowDensity}`}>
       {/* Column Headers with Resizer Handles and Drag & Drop Reordering */}
       <div className="grid-header-row">
-        {/* Index / Select / Expand (Fixed at left) */}
+        {/* Index / Select (Fixed at left) */}
         <div
           className="grid-header-cell"
-          style={{ width: `${colWidths.select}px`, minWidth: `${colWidths.select}px`, justifyContent: 'center' }}
+          style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0 }}
         >
           <input
             type="checkbox"
@@ -1250,8 +1302,13 @@ export default function GridView({
             title="Selecionar Todos"
             style={{ cursor: 'pointer' }}
           />
-          <div className="col-resizer" onMouseDown={(e) => startResize('select', e)} />
         </div>
+
+        {/* Expand Column Spacer (No line, no title, clean spacing) */}
+        <div
+          className="grid-header-cell"
+          style={{ width: `${colWidths.expand || 30}px`, minWidth: `${colWidths.expand || 30}px`, borderRight: 'none', padding: 0, justifyContent: 'center' }}
+        />
 
         {/* Dynamic Reorderable Columns */}
         {visibleColumns.map(colId => renderHeaderCell(colId))}
@@ -1330,10 +1387,10 @@ export default function GridView({
                   key={record.id}
                   className={`grid-row ${isSelected ? 'selected' : ''}`}
                 >
-                  {/* Index / Expand Cell */}
+                  {/* Select Checkbox */}
                   <div
-                    className="grid-cell row-index"
-                    style={{ width: `${colWidths.select}px`, minWidth: `${colWidths.select}px` }}
+                    className="grid-cell"
+                    style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0 }}
                   >
                     <input
                       type="checkbox"
@@ -1341,10 +1398,18 @@ export default function GridView({
                       onChange={() => toggleSelectRecord(record.id)}
                       style={{ cursor: 'pointer' }}
                     />
+                  </div>
+
+                  {/* Expand Record Button (Clean column with spacing, no line) */}
+                  <div
+                    className="grid-cell"
+                    style={{ width: `${colWidths.expand || 30}px`, minWidth: `${colWidths.expand || 30}px`, justifyContent: 'center', padding: 0, borderRight: 'none' }}
+                  >
                     <button
                       className="expand-btn"
                       onClick={() => onOpenRecord(record)}
                       title="Expandir Registro"
+                      style={{ margin: 0 }}
                     >
                       <Maximize2 size={13} />
                     </button>

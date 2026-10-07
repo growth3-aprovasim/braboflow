@@ -851,20 +851,27 @@ body {
 }
 
 .expand-btn {
-  opacity: 0;
+  opacity: 0.35;
   cursor: pointer;
   color: var(--text-secondary);
-  transition: opacity var(--transition-fast);
+  transition: opacity var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
   background: transparent;
   border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: 4px;
 }
 
 .grid-row:hover .expand-btn {
-  opacity: 1;
+  opacity: 0.85;
 }
 
 .expand-btn:hover {
-  color: #ffffff;
+  opacity: 1 !important;
+  color: var(--accent-primary);
+  background: rgba(59, 130, 246, 0.15);
 }
 
 /* Row height modifiers */

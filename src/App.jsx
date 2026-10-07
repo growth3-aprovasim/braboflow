@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Header from './components/Header';
 import TableTabs from './components/TableTabs';
 import ViewToolbar from './components/ViewToolbar';
@@ -84,21 +84,31 @@ export default function App() {
     }
   }, []);
 
+  const realtimeTimerRef = useRef(null);
+
   useEffect(() => {
     loadDataFromSupabase();
+
+    const debouncedReload = () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+      realtimeTimerRef.current = setTimeout(() => {
+        fetchAllCampaignsFromDb().then(data => {
+          if (data && data.length > 0) {
+            setCampaigns(data);
+          }
+        }).catch(err => console.warn('Realtime fetch error:', err));
+      }, 1000);
+    };
 
     // Supabase Realtime Subscription for Live Collab
     const channel = supabase
       .channel('bflow-realtime-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bflow_campaigns' }, () => {
-        fetchAllCampaignsFromDb().then(data => { if (data?.length) setCampaigns(data); });
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'bflow_disparos' }, () => {
-        fetchAllCampaignsFromDb().then(data => { if (data?.length) setCampaigns(data); });
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bflow_campaigns' }, debouncedReload)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bflow_disparos' }, debouncedReload)
       .subscribe();
 
     return () => {
+      if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       supabase.removeChannel(channel);
     };
   }, [loadDataFromSupabase]);
@@ -543,6 +553,8 @@ export default function App() {
     setIsLinksModalOpen(true);
   };
 
+  const updateDisparoTimerRef = useRef({});
+
   // Message Actions within active campaign
   const handleUpdateRecord = (messageId, updates) => {
     if (!activeCampaign) return;
@@ -575,11 +587,18 @@ export default function App() {
     }));
 
     if (finalMessageToSync) {
-      dbUpdateDisparo(messageId, finalMessageToSync, activeCampaign.id).catch(err => console.warn('Sync disparo error:', err));
+      if (updateDisparoTimerRef.current[messageId]) {
+        clearTimeout(updateDisparoTimerRef.current[messageId]);
+      }
+      updateDisparoTimerRef.current[messageId] = setTimeout(() => {
+        dbUpdateDisparo(messageId, finalMessageToSync, activeCampaign.id).catch(err => console.warn('Sync disparo error:', err));
+        delete updateDisparoTimerRef.current[messageId];
+      }, 300);
     }
 
     if (selectedRecord && selectedRecord.id === messageId) {
       setSelectedRecord(prev => {
+        if (!prev) return null;
         if ('stage' in updates) {
           return { ...prev, ...updates };
         }
@@ -627,7 +646,8 @@ export default function App() {
 
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
-        return { ...c, messages: [newMsg, ...(c.messages || [])] };
+        const remaining = (c.messages || []).filter(m => m.id !== newId);
+        return { ...c, messages: [newMsg, ...remaining] };
       }
       return c;
     }));
