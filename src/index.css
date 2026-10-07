@@ -70,23 +70,51 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Subtle Minimal Scrollbars */
+/* Enhanced Scrollbars - Clear, comfortable & easy to grab */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 13px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(15, 23, 42, 0.4);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #252d3f;
-  border-radius: 3px;
+  background: #334155;
+  border-radius: 6px;
+  border: 2px solid #0f172a;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #364157;
+  background: #475569;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent-primary);
+}
+
+::-webkit-scrollbar:horizontal {
+  height: 14px;
+}
+
+::-webkit-scrollbar-track:horizontal {
+  background: rgba(10, 14, 23, 0.7);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb:horizontal {
+  background: #3b4861;
+  border-radius: 7px;
+  border: 2px solid #0b0f19;
+}
+
+::-webkit-scrollbar-thumb:horizontal:hover {
+  background: #60a5fa;
+}
+
+::-webkit-scrollbar-thumb:horizontal:active {
+  background: #38bdf8;
 }
 
 /* App Container */
