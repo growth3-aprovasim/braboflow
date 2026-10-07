@@ -188,7 +188,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterChannel, setFilterChannel] = useState('All');
   const [groupBy, setGroupBy] = useState('none');
-  const [sortBy, setSortBy] = useState('default');
+  const [sortBy, setSortBy] = useState('date');
   const [sortDirection, setSortDirection] = useState('asc');
   const [rowDensity, setRowDensity] = useState('standard');
 
@@ -373,12 +373,14 @@ export default function App() {
 
       return true;
     }).sort((a, b) => {
-      if (sortBy === 'default' || !sortBy) return 0;
-
       let valA, valB;
-      if (sortBy === 'date' || sortBy === 'scheduledDate') {
-        const dateA = new Date(`${a.scheduledDate || '1970-01-01'}T${a.scheduledTime || '00:00'}`).getTime();
-        const dateB = new Date(`${b.scheduledDate || '1970-01-01'}T${b.scheduledTime || '00:00'}`).getTime();
+      if (sortBy === 'default' || sortBy === 'date' || sortBy === 'scheduledDate') {
+        const timeA = a.scheduledTime || '00:00';
+        const timeB = b.scheduledTime || '00:00';
+        const cleanTimeA = timeA.length === 5 ? timeA : timeA.padStart(5, '0');
+        const cleanTimeB = timeB.length === 5 ? timeB : timeB.padStart(5, '0');
+        const dateA = new Date(`${a.scheduledDate || '1970-01-01'}T${cleanTimeA}:00`).getTime();
+        const dateB = new Date(`${b.scheduledDate || '1970-01-01'}T${cleanTimeB}:00`).getTime();
         return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
       }
       if (sortBy === 'time' || sortBy === 'scheduledTime') {

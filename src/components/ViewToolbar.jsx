@@ -683,7 +683,7 @@ export default function ViewToolbar({
         {/* Sort Popover */}
         <div style={{ position: 'relative' }}>
           <button
-            className={`toolbar-pill-btn ${sortBy !== 'default' ? 'active-filter' : ''}`}
+            className={`toolbar-pill-btn ${sortBy && sortBy !== 'date' ? 'active-filter' : ''}`}
             onClick={() => setOpenMenu(openMenu === 'sort' ? null : 'sort')}
           >
             <ArrowUpDown size={13} />
@@ -691,12 +691,12 @@ export default function ViewToolbar({
           </button>
 
           {openMenu === 'sort' && (
-            <div className="popover-menu" style={{ width: '230px' }}>
+            <div className="popover-menu" style={{ width: '240px' }}>
               <div className="popover-title">Ordenar Disparos</div>
               {[
-                { id: 'default', label: 'Ordem Original' },
-                { id: 'date', label: 'Data & Hora do Disparo' },
-                { id: 'title', label: 'Nome / Identificação' },
+                { id: 'date', label: 'Data & Hora do Disparo (Padrão)' },
+                { id: 'title', label: 'Nome do Disparo' },
+                { id: 'stage', label: 'Status' },
                 { id: 'channel', label: 'Canal' },
               ].map(opt => (
                 <div
@@ -708,16 +708,14 @@ export default function ViewToolbar({
                   {sortBy === opt.id && <Check size={14} color="#f59e0b" />}
                 </div>
               ))}
-              {sortBy !== 'default' && (
-                <div style={{ marginTop: '0.5rem', borderTop: '1px solid #232b3a', paddingTop: '0.5rem' }}>
-                  <div
-                    className="popover-item"
-                    onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
-                  >
-                    <span>Sentido: {sortDirection === 'asc' ? 'Crescente ↑' : 'Decrescente ↓'}</span>
-                  </div>
+              <div style={{ marginTop: '0.5rem', borderTop: '1px solid #232b3a', paddingTop: '0.5rem' }}>
+                <div
+                  className="popover-item"
+                  onClick={() => setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')}
+                >
+                  <span>Sentido: {sortDirection === 'asc' ? 'Crescente ↑' : 'Decrescente ↓'}</span>
                 </div>
-              )}
+              </div>
             </div>
           )}
         </div>
