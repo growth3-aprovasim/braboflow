@@ -29,7 +29,8 @@ import {
   Layers,
   EyeOff,
   ArrowDown,
-  ArrowUp
+  ArrowUp,
+  Edit3
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -342,7 +343,7 @@ export default function GridView({
   const [newTagLabel, setNewTagLabel] = useState('');
   const [newTagColor, setNewTagColor] = useState('#38bdf8');
 
-  // State for Editing/Managing Tags on an existing custom column
+  // State for Editing/Managing Tags on an existing custom or standard column
   const [isEditColumnModalOpen, setIsEditColumnModalOpen] = useState(false);
   const [editingColId, setEditingColId] = useState(null);
   const [editColName, setEditColName] = useState('');
@@ -350,6 +351,7 @@ export default function GridView({
   const [editColTags, setEditColTags] = useState([]);
   const [editNewTagLabel, setEditNewTagLabel] = useState('');
   const [editNewTagColor, setEditNewTagColor] = useState('#38bdf8');
+  const [editingTagId, setEditingTagId] = useState(null);
 
   // 16 rich color tones including soft pastels and classics
   const colorPresets = [
@@ -389,33 +391,103 @@ export default function GridView({
     setColTagOptions(prev => prev.filter(o => o.id !== optId));
   };
 
-  // Open Edit Modal for a custom column (called on double click or edit button)
-  const handleOpenEditColumn = (customCol) => {
-    if (!customCol) return;
-    setEditingColId(customCol.id);
-    setEditColName(customCol.name || '');
-    setEditColType(customCol.type || 'text');
-    setEditColTags(customCol.options ? [...customCol.options] : []);
+  // Open Edit Modal for a custom or standard column
+  const handleOpenEditColumn = (customColOrColId, fallbackLabel = '') => {
+    let col = customColOrColId;
+    if (typeof customColOrColId === 'string') {
+      col = customColumns.find(c => c.id === customColOrColId);
+      if (!col) {
+        const colId = customColOrColId;
+        let initialTags = [];
+        if (colId === 'stage') {
+          initialTags = DISPARO_STAGES.map((s, idx) => ({
+            id: `st-${idx}`,
+            label: s.label,
+            color: s.color,
+            bg: s.bg,
+            border: s.border
+          }));
+        } else if (colId === 'channel') {
+          initialTags = BRABO_CHANNELS.map((ch, idx) => ({
+            id: `ch-${idx}`,
+            label: ch.label,
+            color: ch.color,
+            bg: ch.bg,
+            border: ch.color
+          }));
+        }
+
+        col = {
+          id: colId,
+          name: fallbackLabel || colId,
+          type: initialTags.length > 0 ? 'select' : 'text',
+          options: initialTags,
+          isStandard: true
+        };
+      }
+    }
+    if (!col) return;
+
+    setEditingColId(col.id);
+    setEditColName(col.name || '');
+    setEditColType(col.type || 'text');
+    setEditColTags(col.options ? [...col.options] : []);
     setEditNewTagLabel('');
+    setEditingTagId(null);
     setEditNewTagColor(colorPresets[0].color);
     setIsEditColumnModalOpen(true);
+  };
+
+  const handleStartEditTag = (opt) => {
+    setEditingTagId(opt.id);
+    setEditNewTagLabel(opt.label);
+    setEditNewTagColor(opt.color);
+  };
+
+  const handleCancelEditTag = () => {
+    setEditingTagId(null);
+    setEditNewTagLabel('');
   };
 
   const handleAddEditTagOption = () => {
     if (!editNewTagLabel.trim()) return;
     const preset = colorPresets.find(p => p.color === editNewTagColor) || colorPresets[0];
-    const newOption = {
-      id: `opt-${Date.now()}`,
-      label: editNewTagLabel.trim(),
-      color: preset.color,
-      bg: preset.bg,
-      border: preset.border
-    };
-    setEditColTags(prev => [...prev, newOption]);
-    setEditNewTagLabel('');
+
+    if (editingTagId) {
+      // Editing existing tag
+      setEditColTags(prev => prev.map(t => {
+        if (t.id === editingTagId) {
+          return {
+            ...t,
+            label: editNewTagLabel.trim(),
+            color: preset.color,
+            bg: preset.bg,
+            border: preset.border
+          };
+        }
+        return t;
+      }));
+      setEditingTagId(null);
+      setEditNewTagLabel('');
+    } else {
+      // Adding new tag
+      const newOption = {
+        id: `opt-${Date.now()}`,
+        label: editNewTagLabel.trim(),
+        color: preset.color,
+        bg: preset.bg,
+        border: preset.border
+      };
+      setEditColTags(prev => [...prev, newOption]);
+      setEditNewTagLabel('');
+    }
   };
 
   const handleRemoveEditTagOption = (optId) => {
+    if (editingTagId === optId) {
+      setEditingTagId(null);
+      setEditNewTagLabel('');
+    }
     setEditColTags(prev => prev.filter(o => o.id !== optId));
   };
 
@@ -423,16 +495,30 @@ export default function GridView({
     e.preventDefault();
     if (!editColName.trim() || !editingColId) return;
 
-    const updatedCols = customColumns.map(col => {
-      if (col.id === editingColId) {
-        return {
-          ...col,
-          name: editColName.trim(),
-          options: col.type === 'select' ? editColTags : col.options
-        };
-      }
-      return col;
-    });
+    const isExistingCustom = customColumns.some(col => col.id === editingColId);
+    let updatedCols;
+
+    if (isExistingCustom) {
+      updatedCols = customColumns.map(col => {
+        if (col.id === editingColId) {
+          return {
+            ...col,
+            name: editColName.trim(),
+            options: col.type === 'select' ? editColTags : col.options
+          };
+        }
+        return col;
+      });
+    } else {
+      const newCustomCol = {
+        id: `col_${Date.now()}_${editingColId}`,
+        name: editColName.trim(),
+        type: editColType,
+        width: 140,
+        options: editColTags
+      };
+      updatedCols = [...customColumns, newCustomCol];
+    }
 
     if (onUpdateCustomColumns) {
       onUpdateCustomColumns(updatedCols);
@@ -1561,67 +1647,92 @@ export default function GridView({
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label className="form-label" style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-main)', fontWeight: 600 }}>
-                      🏷️ Gerenciar Tags desta Coluna ({editColTags.length})
+                      🏷️ Opções / Tags desta Coluna ({editColTags.length})
                     </label>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      style={{ fontSize: '0.68rem', padding: '0.1rem 0.4rem', color: '#38bdf8' }}
-                      onClick={() => setEditColTags([
-                        { id: 'opt-1', label: 'Pendente', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.15)', border: 'rgba(251, 146, 60, 0.35)' },
-                        { id: 'opt-2', label: 'Em Revisão', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', border: 'rgba(56, 189, 248, 0.35)' },
-                        { id: 'opt-3', label: 'Aprovado', color: '#34d399', bg: 'rgba(52, 211, 153, 0.15)', border: 'rgba(52, 211, 153, 0.35)' },
-                        { id: 'opt-4', label: 'Ajustar', color: '#fb7185', bg: 'rgba(251, 113, 133, 0.15)', border: 'rgba(251, 113, 133, 0.35)' }
-                      ])}
-                    >
-                      Restaurar padrão pastel
-                    </button>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      Clique em qualquer tag para editá-la
+                    </span>
                   </div>
 
                   {/* List of current tags */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', minHeight: '36px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem', minHeight: '36px', alignItems: 'center' }}>
                     {editColTags.length === 0 ? (
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        Nenhuma tag nesta coluna. Adicione novas opções abaixo:
+                        Nenhuma tag ou opção nesta coluna. Adicione opções abaixo:
                       </span>
                     ) : (
-                      editColTags.map(opt => (
-                        <span
-                          key={opt.id}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: '5px',
-                            background: opt.bg,
-                            border: `1px solid ${opt.border}`,
-                            color: opt.color,
-                            fontSize: '0.75rem',
-                            fontWeight: 600
-                          }}
-                        >
-                          ● {opt.label}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveEditTagOption(opt.id)}
-                            style={{ background: 'transparent', border: 'none', color: opt.color, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-                            title="Remover esta tag"
+                      editColTags.map(opt => {
+                        const isBeingEdited = editingTagId === opt.id;
+                        return (
+                          <div
+                            key={opt.id}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              padding: '0.25rem 0.6rem',
+                              borderRadius: '6px',
+                              background: opt.bg,
+                              border: isBeingEdited ? `2px solid #fff` : `1px solid ${opt.border}`,
+                              color: opt.color,
+                              fontSize: '0.76rem',
+                              fontWeight: 600,
+                              boxShadow: isBeingEdited ? `0 0 8px ${opt.color}` : 'none',
+                              transition: 'all 0.15s ease'
+                            }}
                           >
-                            <X size={12} />
-                          </button>
-                        </span>
-                      ))
+                            <span 
+                              style={{ cursor: 'pointer' }}
+                              onClick={() => handleStartEditTag(opt)}
+                              title="Clique para editar o nome ou a cor desta opção"
+                            >
+                              ● {opt.label}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleStartEditTag(opt)}
+                              style={{ background: 'transparent', border: 'none', color: opt.color, cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center', opacity: 0.8 }}
+                              title="Editar esta opção"
+                            >
+                              <Edit3 size={11} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveEditTagOption(opt.id)}
+                              style={{ background: 'transparent', border: 'none', color: opt.color, cursor: 'pointer', padding: '0 2px', display: 'flex', alignItems: 'center', opacity: 0.8 }}
+                              title="Remover esta opção"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
 
-                  {/* Add Tag Input and Color Picker */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', paddingTop: '0.6rem', borderTop: '1px solid var(--border-subtle)' }}>
+                  {/* Add / Edit Tag Input and Color Picker */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border-subtle)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.72rem', color: editingTagId ? '#fbbf24' : 'var(--text-secondary)', fontWeight: 600 }}>
+                        {editingTagId ? '✏️ Editando opção selecionada:' : '➕ Adicionar nova opção / tag:'}
+                      </span>
+                      {editingTagId && (
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={handleCancelEditTag}
+                          style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem', color: '#94a3b8' }}
+                        >
+                          Cancelar Edição
+                        </button>
+                      )}
+                    </div>
+
                     <div style={{ display: 'flex', gap: '0.4rem' }}>
                       <input
                         type="text"
                         className="form-control"
-                        placeholder="Nome da nova tag..."
+                        placeholder="Nome da tag ou opção..."
                         value={editNewTagLabel}
                         onChange={(e) => setEditNewTagLabel(e.target.value)}
                         style={{ fontSize: '0.76rem', flex: 1 }}
@@ -1634,17 +1745,26 @@ export default function GridView({
                       />
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className={editingTagId ? "btn-primary" : "btn-secondary"}
                         onClick={handleAddEditTagOption}
                         disabled={!editNewTagLabel.trim()}
-                        style={{ fontSize: '0.74rem', padding: '0.3rem 0.6rem' }}
+                        style={{ fontSize: '0.74rem', padding: '0.3rem 0.75rem', whiteSpace: 'nowrap' }}
                       >
-                        <Plus size={13} />
-                        <span>Adicionar Tag</span>
+                        {editingTagId ? (
+                          <>
+                            <Check size={13} />
+                            <span>Atualizar Tag</span>
+                          </>
+                        ) : (
+                          <>
+                            <Plus size={13} />
+                            <span>Adicionar Opção</span>
+                          </>
+                        )}
                       </button>
                     </div>
 
-                    {/* Color selection palette (16 tones) */}
+                    {/* Color selection palette */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                       <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>Escolha o tom da cor:</span>
                       <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1711,14 +1831,14 @@ export default function GridView({
         </div>
       )}
 
-      {/* Airtable-style Header Context Menu */}
+      {/* Airtable-style Header Context Menu (100% Português-BR) */}
       {headerContextMenu && (
         <div
           className="airtable-header-context-menu"
           style={{
             position: 'fixed',
-            top: `${Math.min(headerContextMenu.y, window.innerHeight - 340)}px`,
-            left: `${Math.min(headerContextMenu.x, window.innerWidth - 270)}px`,
+            top: `${Math.min(headerContextMenu.y, window.innerHeight - 360)}px`,
+            left: `${Math.min(headerContextMenu.x, window.innerWidth - 280)}px`,
             zIndex: 9999
           }}
           onClick={(e) => e.stopPropagation()}
@@ -1730,7 +1850,7 @@ export default function GridView({
             {copyFeedback && <span className="airtable-ctx-copied-badge">Copiado!</span>}
           </div>
 
-          {/* 1. Copy field URL */}
+          {/* 1. Copiar identificador / URL do campo */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1743,12 +1863,12 @@ export default function GridView({
             }}
           >
             <LinkIcon size={14} className="airtable-ctx-icon" />
-            <span>Copy field URL</span>
+            <span>Copiar URL / Nome do Campo</span>
           </div>
 
           <div className="airtable-ctx-divider" />
 
-          {/* 2. Sort First -> Last */}
+          {/* 2. Classificar de A -> Z (Crescente) */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1757,10 +1877,10 @@ export default function GridView({
             }}
           >
             <ArrowDown size={14} className="airtable-ctx-icon" />
-            <span>Sort First → Last</span>
+            <span>Classificar de A → Z (Crescente)</span>
           </div>
 
-          {/* 3. Sort Last -> First */}
+          {/* 3. Classificar de Z -> A (Decrescente) */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1769,12 +1889,12 @@ export default function GridView({
             }}
           >
             <ArrowUp size={14} className="airtable-ctx-icon" />
-            <span>Sort Last → First</span>
+            <span>Classificar de Z → A (Decrescente)</span>
           </div>
 
           <div className="airtable-ctx-divider" />
 
-          {/* 4. Filter by this field */}
+          {/* 4. Filtrar por este campo */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1783,10 +1903,10 @@ export default function GridView({
             }}
           >
             <Filter size={14} className="airtable-ctx-icon" />
-            <span>Filter by this field</span>
+            <span>Filtrar por este campo</span>
           </div>
 
-          {/* 5. Group by this field */}
+          {/* 5. Agrupar por este campo */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1795,12 +1915,12 @@ export default function GridView({
             }}
           >
             <Layers size={14} className="airtable-ctx-icon" />
-            <span>Group by this field</span>
+            <span>Agrupar por este campo</span>
           </div>
 
           <div className="airtable-ctx-divider" />
 
-          {/* 6. Hide field */}
+          {/* 6. Ocultar este campo */}
           <div
             className="airtable-ctx-item"
             onClick={() => {
@@ -1809,35 +1929,35 @@ export default function GridView({
             }}
           >
             <EyeOff size={14} className="airtable-ctx-icon" />
-            <span>Hide field</span>
+            <span>Ocultar este campo</span>
           </div>
 
-          {/* 7. Custom Column Extras */}
+          {/* 7. Editar campos / opções da coluna */}
+          <div className="airtable-ctx-divider" />
+          <div
+            className="airtable-ctx-item"
+            onClick={() => {
+              handleOpenEditColumn(headerContextMenu.customCol || headerContextMenu.colId, headerContextMenu.colLabel);
+              setHeaderContextMenu(null);
+            }}
+          >
+            <Settings size={14} className="airtable-ctx-icon" color="var(--accent-primary)" />
+            <span style={{ color: '#60a5fa', fontWeight: 600 }}>Editar campos / opções da coluna</span>
+          </div>
+
+          {/* 8. Excluir Coluna (se customizada) */}
           {headerContextMenu.isCustom && (
-            <>
-              <div className="airtable-ctx-divider" />
-              <div
-                className="airtable-ctx-item"
-                onClick={() => {
-                  if (headerContextMenu.customCol) handleOpenEditColumn(headerContextMenu.customCol);
-                  setHeaderContextMenu(null);
-                }}
-              >
-                <Settings size={14} className="airtable-ctx-icon" />
-                <span>Configurar Coluna / Tags</span>
-              </div>
-              <div
-                className="airtable-ctx-item text-danger"
-                style={{ color: '#f87171' }}
-                onClick={() => {
-                  handleDeleteCustomColumn(headerContextMenu.colId);
-                  setHeaderContextMenu(null);
-                }}
-              >
-                <Trash2 size={14} className="airtable-ctx-icon" color="#f87171" />
-                <span>Excluir Coluna</span>
-              </div>
-            </>
+            <div
+              className="airtable-ctx-item text-danger"
+              style={{ color: '#f87171' }}
+              onClick={() => {
+                handleDeleteCustomColumn(headerContextMenu.colId);
+                setHeaderContextMenu(null);
+              }}
+            >
+              <Trash2 size={14} className="airtable-ctx-icon" color="#f87171" />
+              <span>Excluir esta coluna</span>
+            </div>
           )}
         </div>
       )}
