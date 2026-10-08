@@ -29,7 +29,8 @@ import {
   Layers,
   CheckSquare,
   Type,
-  Users
+  Users,
+  Edit3
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail } from '../services/attachmentStorage';
