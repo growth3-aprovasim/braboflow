@@ -31,7 +31,7 @@ import {
   Type,
   Users
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail } from '../services/attachmentStorage';
 import { uploadAttachmentToSupabase } from '../services/supabaseService';
 import ChannelPreview from './ChannelPreview';
@@ -45,6 +45,7 @@ export default function RecordDetailModal({
   onDeleteRecord,
   onDuplicateRecord,
   onOpenLinksModal,
+  onOpenTagsModal,
   activeFlowCategory = 'whatsapp',
   hiddenColumns = [],
   onToggleColumnVisibility
@@ -259,7 +260,7 @@ export default function RecordDetailModal({
   };
 
   const getFullResolvedText = () => {
-    return resolveCopyVariables(formData.copyText, formData.variables, predefinedLinks);
+    return resolveCopyVariables(formData.copyText, formData.variables, predefinedLinks, campaign?.customPlaceholders);
   };
 
   const handleCopyFullText = () => {
@@ -290,6 +291,17 @@ export default function RecordDetailModal({
     ...detectedVarKeys,
     ...Object.keys(formData.variables || {})
   ])).sort((a, b) => Number(a) - Number(b));
+
+  // Extract all bracket tags [TAG] present in copy
+  const detectedBracketTags = extractBracketVariables(formData.copyText || '');
+
+  const handleReplaceBracketTagInCopy = (tagKey, replacementText) => {
+    if (!replacementText) return;
+    const cleanKey = tagKey.replace(/^\[/, '').replace(/\]$/, '').trim();
+    const rawTag = `[${cleanKey}]`;
+    const newCopy = (formData.copyText || '').split(rawTag).join(replacementText);
+    handleChange('copyText', newCopy);
+  };
 
   // ----------------------------------------------------
   // AIRTABLE VERTICAL FIELDS REGISTRY
@@ -774,6 +786,165 @@ export default function RecordDetailModal({
                             onChange={(e) => handleVariableChange(varKey, { mode: 'text', text: e.target.value })}
                           />
                         </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Tags [ ] no texto */}
+          {detectedBracketTags.length > 0 && (
+            <div style={{
+              background: 'rgba(56, 189, 248, 0.05)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              borderRadius: '6px',
+              padding: '0.65rem 0.8rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.45rem',
+              marginTop: '0.35rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Edit3 size={12} /> Tags [ ] Detectadas ({detectedBracketTags.length})
+                </span>
+                {onOpenTagsModal && (
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#38bdf8' }}
+                    onClick={() => onOpenTagsModal(campaign)}
+                  >
+                    ⚡ Central de Tags [ ] da Campanha
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                {detectedBracketTags.map(tagKey => {
+                  const rawTag = `[${tagKey}]`;
+                  const campCfg = (campaign?.customPlaceholders || {})[rawTag] || (campaign?.customPlaceholders || {})[tagKey] || {};
+                  const localCfg = (formData.variables || {})[rawTag] || (formData.variables || {})[tagKey] || {};
+                  const activeCfg = { ...campCfg, ...localCfg };
+                  const isLinkMode = activeCfg.mode === 'link';
+
+                  let currentReplacementVal = '';
+                  if (isLinkMode && activeCfg.linkId) {
+                    const found = predefinedLinks.find(l => l.id === activeCfg.linkId);
+                    if (found) currentReplacementVal = found.url;
+                  } else if (activeCfg.text) {
+                    currentReplacementVal = activeCfg.text;
+                  }
+
+                  return (
+                    <div
+                      key={tagKey}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        padding: '0.35rem 0.5rem',
+                        borderRadius: '4px',
+                        border: '1px solid var(--border-subtle)',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <span style={{
+                        background: 'rgba(56, 189, 248, 0.15)',
+                        border: '1px solid rgba(56, 189, 248, 0.3)',
+                        color: '#38bdf8',
+                        fontWeight: 700,
+                        fontSize: '0.72rem',
+                        padding: '0.15rem 0.45rem',
+                        borderRadius: '4px',
+                        flexShrink: 0,
+                        fontFamily: 'monospace'
+                      }}>
+                        {rawTag}
+                      </span>
+
+                      {/* Mode Toggle */}
+                      <div style={{ display: 'flex', gap: '0.2rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '0.15rem 0.35rem',
+                            borderRadius: '3px',
+                            background: isLinkMode ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                            color: isLinkMode ? '#38bdf8' : 'var(--text-muted)',
+                            fontWeight: isLinkMode ? 700 : 400
+                          }}
+                          onClick={() => handleVariableChange(rawTag, { mode: 'link' })}
+                        >
+                          Link
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '0.15rem 0.35rem',
+                            borderRadius: '3px',
+                            background: !isLinkMode ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                            color: !isLinkMode ? '#38bdf8' : 'var(--text-muted)',
+                            fontWeight: !isLinkMode ? 700 : 400
+                          }}
+                          onClick={() => handleVariableChange(rawTag, { mode: 'text', linkId: null })}
+                        >
+                          Texto
+                        </button>
+                      </div>
+
+                      {/* Value Input */}
+                      {isLinkMode ? (
+                        <div style={{ flex: 1, minWidth: '160px' }}>
+                          <select
+                            className="form-control"
+                            style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.45rem', background: 'transparent' }}
+                            value={activeCfg.linkId || ''}
+                            onChange={(e) => {
+                              const lnkId = e.target.value;
+                              const found = predefinedLinks.find(l => l.id === lnkId);
+                              handleVariableChange(rawTag, { mode: 'link', linkId: lnkId, text: found ? found.url : '' });
+                            }}
+                          >
+                            <option value="">-- Selecionar Link --</option>
+                            {predefinedLinks.map(lnk => (
+                              <option key={lnk.id} value={lnk.id} style={{ background: '#161b26' }}>
+                                🔗 {lnk.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      ) : (
+                        <div style={{ flex: 1, minWidth: '160px' }}>
+                          <input
+                            type="text"
+                            className="form-control"
+                            style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.45rem', background: 'transparent' }}
+                            placeholder="Texto substituto..."
+                            value={activeCfg.text || ''}
+                            onChange={(e) => handleVariableChange(rawTag, { mode: 'text', text: e.target.value })}
+                          />
+                        </div>
+                      )}
+
+                      {/* Quick inline replace button */}
+                      {currentReplacementVal && (
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)', flexShrink: 0 }}
+                          onClick={() => handleReplaceBracketTagInCopy(rawTag, currentReplacementVal)}
+                          title={`Substituir permanentemente ${rawTag} pelo valor nesta mensagem`}
+                        >
+                          Substituir nesta Copy
+                        </button>
                       )}
                     </div>
                   );

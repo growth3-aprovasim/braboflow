@@ -1,5 +1,5 @@
 import React from 'react';
-import { Send, FolderKanban, Link as LinkIcon, Smartphone } from 'lucide-react';
+import { Send, FolderKanban, Link as LinkIcon, Smartphone, Edit3 } from 'lucide-react';
 
 export default function TableTabs({ 
   activeTable, 
@@ -7,6 +7,7 @@ export default function TableTabs({
   campaignCount, 
   messagesCount, 
   linksCount,
+  tagsCount,
   activeCampaign 
 }) {
   const tabs = [
@@ -27,6 +28,12 @@ export default function TableTabs({
       label: 'Links Predefinidos', 
       icon: LinkIcon, 
       count: linksCount 
+    },
+    { 
+      id: 'tags', 
+      label: 'Variáveis & Tags [ ]', 
+      icon: Edit3, 
+      count: tagsCount 
     }
   ];
 

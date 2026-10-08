@@ -394,8 +394,8 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
   const predefinedLinks = campaign?.predefinedLinks || [];
   const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
 
-  // Resolve copy text with variables {{1}}, {{2}}
-  const resolvedText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks);
+  // Resolve copy text with variables {{1}}, {{2}} and tags [TAG]
+  const resolvedText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
 
   // Normalize attachments (support single or multiple)
   const allAttachments = normalizeAttachments(record.attachment);

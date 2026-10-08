@@ -159,7 +159,7 @@ export default function KanbanView({
               ) : (
                 stageRecords.map(record => {
                   const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
-                  const resolvedSnippet = resolveCopyVariables(record.copyText, record.variables, predefinedLinks);
+                  const resolvedSnippet = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
 
                   return (
                     <div

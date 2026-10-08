@@ -31,6 +31,7 @@ export default function CampaignsManager({
   onUpdateCampaign,
   onDeleteCampaign,
   onOpenLinksModal,
+  onOpenTagsModal,
   onUpdateCampaignLinks
 }) {
   const [isCreating, setIsCreating] = useState(false);
@@ -290,6 +291,17 @@ export default function CampaignsManager({
                   >
                     <LinkIcon size={15} />
                   </button>
+
+                  {onOpenTagsModal && (
+                    <button
+                      className="btn-ghost"
+                      style={{ padding: '0.3rem', color: '#38bdf8' }}
+                      onClick={() => onOpenTagsModal(campaign)}
+                      title="Configurar Tags & Variáveis [ ] desta Campanha"
+                    >
+                      <Sparkles size={15} />
+                    </button>
+                  )}
 
                   <button
                     className="btn-ghost"

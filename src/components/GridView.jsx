@@ -1380,7 +1380,7 @@ export default function GridView({
               const isSelected = selectedRecordIds.includes(record.id);
               const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
               const stageObj = getStageObj(record.stage);
-              const resolvedCopy = resolveCopyVariables(record.copyText, record.variables, predefinedLinks);
+              const resolvedCopy = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
 
               return (
                 <div

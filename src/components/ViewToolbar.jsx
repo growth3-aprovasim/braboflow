@@ -44,6 +44,8 @@ export default function ViewToolbar({
   recordsCount,
   campaign,
   onOpenLinksModal,
+  onOpenTagsModal,
+  tagsCount = 0,
   onOpenEditCampaign,
   hiddenColumns = [],
   onToggleColumnVisibility,
@@ -719,6 +721,19 @@ export default function ViewToolbar({
             </div>
           )}
         </div>
+
+        {/* Tags [ ] Button */}
+        {onOpenTagsModal && campaign && (
+          <button
+            className="toolbar-pill-btn"
+            onClick={() => onOpenTagsModal(campaign)}
+            title="Alterar todas as tags [ ] em um só lugar"
+            style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.08)' }}
+          >
+            <Edit3 size={13} />
+            <span>Tags [ ] ({tagsCount})</span>
+          </button>
+        )}
 
         {/* Records Count Badge */}
         <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.5rem' }}>

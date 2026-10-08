@@ -9,12 +9,13 @@ import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
 import CampaignLinksModal from './components/CampaignLinksModal';
+import CampaignTagsModal from './components/CampaignTagsModal';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
 import EditCampaignModal from './components/EditCampaignModal';
 
-import { matchRecordWithFilter } from './data/initialData';
+import { matchRecordWithFilter, extractAllCampaignBracketTags } from './data/initialData';
 import {
   fetchAllCampaignsFromDb,
   dbClearAllData,
@@ -259,6 +260,17 @@ export default function App() {
   // Campaign Links Modal state
   const [isLinksModalOpen, setIsLinksModalOpen] = useState(false);
   const [linksModalCampaign, setLinksModalCampaign] = useState(null);
+
+  // Campaign Tags Modal state
+  const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
+  const [tagsModalCampaign, setTagsModalCampaign] = useState(null);
+
+  // Active Campaign Tags Count
+  const activeTagsCount = useMemo(() => {
+    if (!activeCampaign?.messages) return 0;
+    const detected = extractAllCampaignBracketTags(activeCampaign.messages);
+    return detected.length;
+  }, [activeCampaign?.messages]);
 
   // Global Airtable CSV Import Modal state
   const [isGlobalImportModalOpen, setIsGlobalImportModalOpen] = useState(false);
@@ -555,6 +567,60 @@ export default function App() {
     setIsLinksModalOpen(true);
   };
 
+  const handleOpenTagsModal = (camp) => {
+    setTagsModalCampaign(camp || activeCampaign);
+    setIsTagsModalOpen(true);
+  };
+
+  const handleUpdateCampaignPlaceholders = (campaignId, updatedPlaceholders) => {
+    setCampaigns(prev => prev.map(c => {
+      if (c.id === campaignId) {
+        return { ...c, customPlaceholders: updatedPlaceholders };
+      }
+      return c;
+    }));
+  };
+
+  const handleBatchReplaceTags = (campaignId, replacementsMap) => {
+    if (!replacementsMap || Object.keys(replacementsMap).length === 0) return 0;
+    
+    let affectedCount = 0;
+    let updatedCampaignMessages = [];
+
+    setCampaigns(prev => prev.map(c => {
+      if (c.id === campaignId) {
+        const newMsgs = (c.messages || []).map(m => {
+          let text = m.copyText || '';
+          let changed = false;
+
+          Object.keys(replacementsMap).forEach(tagPattern => {
+            const val = replacementsMap[tagPattern];
+            if (val && text.includes(tagPattern)) {
+              text = text.split(tagPattern).join(val);
+              changed = true;
+            }
+          });
+
+          if (changed) {
+            affectedCount += 1;
+            return { ...m, copyText: text };
+          }
+          return m;
+        });
+
+        updatedCampaignMessages = newMsgs;
+        return { ...c, messages: newMsgs };
+      }
+      return c;
+    }));
+
+    if (updatedCampaignMessages.length > 0) {
+      dbBatchUpdateDisparos(updatedCampaignMessages, campaignId).catch(err => console.warn('Sync batch replace error:', err));
+    }
+
+    return affectedCount;
+  };
+
   const updateDisparoTimerRef = useRef({});
 
   // Message Actions within active campaign
@@ -782,6 +848,8 @@ export default function App() {
         onSelectCampaign={handleSelectCampaign}
         onOpenCampaignsManager={() => setActiveTable('campanhas')}
         onOpenLinksModal={handleOpenLinksModal}
+        onOpenTagsModal={handleOpenTagsModal}
+        tagsCount={activeTagsCount}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onNewMessage={() => handleAddNewMessage()}
@@ -812,6 +880,8 @@ export default function App() {
           recordsCount={filteredMessages.length}
           campaign={activeCampaign}
           onOpenLinksModal={handleOpenLinksModal}
+          onOpenTagsModal={handleOpenTagsModal}
+          tagsCount={activeTagsCount}
           onOpenEditCampaign={() => setIsEditActiveCampaignModalOpen(true)}
           hiddenColumns={activeHiddenColumns}
           onToggleColumnVisibility={handleToggleColumnVisibility}
@@ -924,6 +994,7 @@ export default function App() {
             onUpdateCampaign={handleUpdateCampaign}
             onDeleteCampaign={handleDeleteCampaign}
             onOpenLinksModal={handleOpenLinksModal}
+            onOpenTagsModal={handleOpenTagsModal}
             onUpdateCampaignLinks={handleUpdateCampaignLinks}
           />
         )}
@@ -989,6 +1060,101 @@ export default function App() {
           </div>
         )}
 
+        {/* Table: Tags e Variáveis [ ] */}
+        {activeTable === 'tags' && activeCampaign && (
+          <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Campanha: {activeCampaign.name}
+                </span>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
+                  Variáveis & Tags [ ] desta Campanha
+                </h2>
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
+                  Altere em um só lugar tudo o que estiver entre colchetes como <code style={{ color: '#38bdf8' }}>[LINK]</code>, <code style={{ color: '#fbbf24' }}>[DATA]</code>, <code style={{ color: '#c084fc' }}>[CUPOM]</code> em todas as mensagens.
+                </p>
+              </div>
+
+              <button
+                className="btn-primary"
+                onClick={() => handleOpenTagsModal(activeCampaign)}
+                style={{ background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' }}
+              >
+                <span>⚡ Abrir Central de Substituição [ ]</span>
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              {activeTags.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA] ou [LINK_CHECKOUT] nas copies para gerenciá-los aqui.</p>
+                  <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
+                    + Cadastrar Tag Manualmente
+                  </button>
+                </div>
+              ) : (
+                activeTags.map(tag => {
+                  const rawKey = tag.rawTag;
+                  const cfg = (activeCampaign.customPlaceholders || {})[rawKey] || (activeCampaign.customPlaceholders || {})[tag.key];
+                  const hasVal = cfg && ((cfg.mode === 'link' && cfg.linkId) || (cfg.text && cfg.text.trim()));
+
+                  return (
+                    <div
+                      key={tag.key}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '1.15rem 1.35rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{
+                          background: 'rgba(56, 189, 248, 0.15)',
+                          border: '1px solid rgba(56, 189, 248, 0.35)',
+                          color: '#38bdf8',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          padding: '0.25rem 0.65rem',
+                          borderRadius: '6px',
+                          fontFamily: 'monospace'
+                        }}>
+                          {rawKey}
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                            {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
+                          </span>
+                          {hasVal && (
+                            <span style={{ fontSize: '0.74rem', color: '#4ade80' }}>
+                              Valor configurado: {cfg.mode === 'link' ? `🔗 Link da Campanha` : `"${cfg.text}"`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <button
+                        className="btn-secondary"
+                        onClick={() => handleOpenTagsModal(activeCampaign)}
+                        style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                      >
+                        Alterar / Substituir
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Table: Simulador Direto */}
         {activeTable === 'simulator' && (
           <WhatsAppSimulatorView
@@ -1012,6 +1178,7 @@ export default function App() {
         onDeleteRecord={handleDeleteRecord}
         onDuplicateRecord={handleDuplicateRecord}
         onOpenLinksModal={handleOpenLinksModal}
+        onOpenTagsModal={handleOpenTagsModal}
         activeFlowCategory={activeFlowCategory}
         hiddenColumns={activeHiddenColumns}
         onToggleColumnVisibility={handleToggleColumnVisibility}
@@ -1028,7 +1195,20 @@ export default function App() {
         onUpdateCampaignLinks={handleUpdateCampaignLinks}
       />
 
-      {/* 7. Global Airtable CSV Import Modal */}
+      {/* 7. Campaign Tags & Placeholders [ ] Modal */}
+      <CampaignTagsModal
+        isOpen={isTagsModalOpen}
+        onClose={() => {
+          setIsTagsModalOpen(false);
+          setTagsModalCampaign(null);
+        }}
+        campaign={tagsModalCampaign || activeCampaign}
+        onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
+        onBatchReplaceTags={handleBatchReplaceTags}
+        onOpenLinksModal={handleOpenLinksModal}
+      />
+
+      {/* 8. Global Airtable CSV Import Modal */}
       <ImportCsvModal
         isOpen={isGlobalImportModalOpen}
         onClose={() => setIsGlobalImportModalOpen(false)}
@@ -1038,7 +1218,7 @@ export default function App() {
         }}
       />
 
-      {/* 8. Active Campaign Edit Modal */}
+      {/* 9. Active Campaign Edit Modal */}
       {activeCampaign && (
         <EditCampaignModal
           isOpen={isEditActiveCampaignModalOpen}

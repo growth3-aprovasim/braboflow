@@ -63,6 +63,59 @@ export function extractCopyVariables(copyText) {
   return Array.from(nums).sort((a, b) => Number(a) - Number(b));
 }
 
+export function extractBracketVariables(copyText) {
+  if (!copyText) return [];
+  // Match content inside [...] ignoring single characters or invalid line breaks
+  const matches = [...copyText.matchAll(/\[([^\]\r\n]+)\]/g)];
+  const tags = new Set();
+  for (const match of matches) {
+    const rawContent = match[1].trim();
+    if (rawContent) {
+      tags.add(rawContent);
+    }
+  }
+  return Array.from(tags);
+}
+
+export function extractAllCampaignBracketTags(messages = []) {
+  const tagMap = new Map();
+
+  messages.forEach(msg => {
+    if (!msg?.copyText) return;
+    const matches = [...msg.copyText.matchAll(/\[([^\]\r\n]+)\]/g)];
+    matches.forEach(match => {
+      const tagContent = match[1].trim();
+      if (!tagContent) return;
+
+      const rawTag = `[${tagContent}]`;
+      if (!tagMap.has(tagContent)) {
+        tagMap.set(tagContent, {
+          rawTag: rawTag,
+          key: tagContent,
+          count: 0,
+          messages: [],
+          messageIds: new Set()
+        });
+      }
+      const entry = tagMap.get(tagContent);
+      entry.count += 1;
+      if (!entry.messageIds.has(msg.id)) {
+        entry.messageIds.add(msg.id);
+        entry.messages.push({
+          id: msg.id,
+          title: msg.title || 'Mensagem sem título',
+          channel: msg.channel,
+          stage: msg.stage,
+          scheduledDate: msg.scheduledDate,
+          copySnippet: msg.copyText
+        });
+      }
+    });
+  });
+
+  return Array.from(tagMap.values());
+}
+
 export function normalizeAttachments(attachmentField) {
   if (!attachmentField) return [];
   if (Array.isArray(attachmentField)) return attachmentField.filter(Boolean);
@@ -72,21 +125,60 @@ export function normalizeAttachments(attachmentField) {
   return [];
 }
 
-export function resolveCopyVariables(copyText, variables = {}, predefinedLinks = []) {
+export function resolveCopyVariables(copyText, variables = {}, predefinedLinks = [], customPlaceholders = {}) {
   if (!copyText) return '';
   let text = copyText;
 
-  return text.replace(/\{\{(\d+)\}\}/g, (match, p1) => {
+  // 1. Resolve {{1}}, {{2}} template numbers
+  text = text.replace(/\{\{(\d+)\}\}/g, (match, p1) => {
     const varConfig = variables?.[p1];
     if (varConfig) {
       if (varConfig.linkId) {
         const found = predefinedLinks.find(l => l.id === varConfig.linkId);
         if (found && found.url) return found.url;
       }
-      if (varConfig.text) return varConfig.text;
+      if (varConfig.text !== undefined && varConfig.text !== null && varConfig.text !== '') return varConfig.text;
     }
     return match;
   });
+
+  // 2. Resolve [TAG_NAME] placeholders
+  text = text.replace(/\[([^\]\r\n]+)\]/g, (match, p1) => {
+    const key = p1.trim();
+    const raw = match;
+
+    // A. Check in local message variables first
+    const localConfig = variables?.[raw] || variables?.[key];
+    if (localConfig) {
+      if (typeof localConfig === 'string' && localConfig.trim()) return localConfig;
+      if (typeof localConfig === 'object') {
+        if (localConfig.linkId) {
+          const found = predefinedLinks.find(l => l.id === localConfig.linkId);
+          if (found && found.url) return found.url;
+        }
+        if (localConfig.text !== undefined && localConfig.text !== null && localConfig.text !== '') return localConfig.text;
+        if (localConfig.value !== undefined && localConfig.value !== null && localConfig.value !== '') return localConfig.value;
+      }
+    }
+
+    // B. Check in campaign-level customPlaceholders
+    const campVal = customPlaceholders?.[raw] || customPlaceholders?.[key];
+    if (campVal !== undefined && campVal !== null) {
+      if (typeof campVal === 'string' && campVal.trim()) return campVal;
+      if (typeof campVal === 'object') {
+        if (campVal.linkId) {
+          const found = predefinedLinks.find(l => l.id === campVal.linkId);
+          if (found && found.url) return found.url;
+        }
+        if (campVal.text !== undefined && campVal.text !== null && campVal.text !== '') return campVal.text;
+        if (campVal.value !== undefined && campVal.value !== null && campVal.value !== '') return campVal.value;
+      }
+    }
+
+    return match;
+  });
+
+  return text;
 }
 
 function evaluateSingleRule(item, rule) {
@@ -292,6 +384,10 @@ export const initialCampaigns = [
     customColumns: [
       { id: 'col_verif', name: 'Verificação', type: 'checkbox', width: 110 }
     ],
+    customPlaceholders: {
+      '[DATA DA LIVE]': { mode: 'text', text: 'Hoje às 20h00' },
+      '[CUPOM]': { mode: 'text', text: 'BRABO40' }
+    },
     messages: [
       {
         id: 'msg-101',
@@ -314,7 +410,7 @@ export const initialCampaigns = [
         variables: {
           '1': { linkId: 'lnk-4', text: 'https://youtube.com/live/brabo-pf-inaugural' }
         },
-        copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\nHoje às 20h teremos nossa Live Exclusiva de Abertura da *Operação PF* com o Delegado e mentores da Brabo.\n\nVamos destrinchar o plano de estudos pós-autorização e como antecipar os pontos mais cobrados de Direito e RLM.\n\nToque no link abaixo e ative o lembrete agora:\n{{1}}`,
+        copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\n[DATA DA LIVE] teremos nossa Live Exclusiva de Abertura da *Operação PF* com o Delegado e mentores da Brabo.\n\nVamos destrinchar o plano de estudos pós-autorização e como antecipar os pontos mais cobrados de Direito e RLM.\n\nToque no link abaixo e ative o lembrete agora:\n{{1}}`,
         notes: 'Enviar 1 hora antes da transmissão.'
       },
       {
@@ -358,7 +454,7 @@ export const initialCampaigns = [
         variables: {
           '1': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa no link abaixo:\n{{1}}`,
+        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora usando o cupom *[CUPOM]*!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa no link abaixo:\n{{1}}`,
         notes: 'Disparo direto 1 a 1 via Z-API / Evolution.'
       },
       {
@@ -372,7 +468,7 @@ export const initialCampaigns = [
         variables: {
           '1': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Aos veteranos do Grupo VIP Antigo! ⚡\n\nComo vocês já confiam no método Brabo, liberamos um link com a mesma condição de primeira turma para quem quiser renovar para o ciclo PF 2026.\n\nAcesso imediato no link:\n{{1}}`,
+        copyText: `Aos veteranos do Grupo VIP Antigo! ⚡\n\nComo vocês já confiam no método Brabo, liberamos um link com a mesma condição de primeira turma para quem quiser renovar para o ciclo PF 2026 com o cupom *[CUPOM]*.\n\nAcesso imediato no link:\n{{1}}`,
         notes: 'Apenas para quem já esteve nos grupos de 2025.'
       },
       {

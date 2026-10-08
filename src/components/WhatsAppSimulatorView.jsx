@@ -28,7 +28,7 @@ export default function WhatsAppSimulatorView({ records, campaign, onOpenRecord 
   // Resolve final text with {{1}}, {{2}} and predefined links
   const getFullText = () => {
     if (!currentRecord) return '';
-    return resolveCopyVariables(currentRecord.copyText, currentRecord.variables, predefinedLinks);
+    return resolveCopyVariables(currentRecord.copyText, currentRecord.variables, predefinedLinks, campaign?.customPlaceholders);
   };
 
   const handleCopyFullText = () => {

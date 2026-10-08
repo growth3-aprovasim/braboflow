@@ -22,6 +22,8 @@ export default function Header({
   onSelectCampaign,
   onOpenCampaignsManager,
   onOpenLinksModal,
+  onOpenTagsModal,
+  tagsCount = 0,
   searchQuery, 
   setSearchQuery, 
   onNewMessage, 
@@ -116,6 +118,28 @@ export default function Header({
           >
             <LinkIcon size={12} />
             <span>Links ({activeCampaign.predefinedLinks?.length || 0})</span>
+          </button>
+        )}
+
+        {/* Campaign Predefined Tags [ ] Quick Button */}
+        {activeCampaign && (
+          <button 
+            className="btn-ghost"
+            style={{ 
+              fontSize: '0.76rem', 
+              color: '#38bdf8', 
+              background: 'rgba(56, 189, 248, 0.08)', 
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              padding: '0.25rem 0.55rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem'
+            }}
+            onClick={() => onOpenTagsModal && onOpenTagsModal(activeCampaign)}
+            title="Gerenciar e alterar todas as Tags e Variáveis [ ] das mensagens da campanha"
+          >
+            <Edit3 size={12} />
+            <span>Tags [ ] ({tagsCount})</span>
           </button>
         )}
       </div>

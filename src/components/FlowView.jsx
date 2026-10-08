@@ -939,7 +939,7 @@ export default function FlowView({
                   {day.messages.map((record) => {
                     const stageObj = getStageObj(record.stage);
                     const channelMeta = getChannelMeta(record.channel);
-                    const fullText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks);
+                    const fullText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
 
                     const isDispatched = stageObj.value === 'Disparada';
                     const isScheduled = stageObj.value === 'Programada';
