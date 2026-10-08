@@ -129,16 +129,55 @@ export function resolveCopyVariables(copyText, variables = {}, predefinedLinks =
   if (!copyText) return '';
   let text = copyText;
 
-  // 1. Resolve {{1}}, {{2}} template numbers
-  text = text.replace(/\{\{(\d+)\}\}/g, (match, p1) => {
-    const varConfig = variables?.[p1];
+  // 1. Resolve {{1}}, {{2}}, {{N}} template variables directly from Predefined Links
+  text = text.replace(/\{\{([^}]+)\}\}/g, (match, p1) => {
+    const varKey = p1.trim();
+
+    // A. Check if explicitly overridden in local message variables
+    const varConfig = variables?.[varKey] || variables?.[match];
     if (varConfig) {
-      if (varConfig.linkId) {
-        const found = predefinedLinks.find(l => l.id === varConfig.linkId);
-        if (found && found.url) return found.url;
+      if (typeof varConfig === 'string' && varConfig.trim()) return varConfig;
+      if (typeof varConfig === 'object') {
+        if (varConfig.linkId) {
+          const found = predefinedLinks.find(l => l.id === varConfig.linkId);
+          if (found && found.url) return found.url;
+        }
+        if (varConfig.text !== undefined && varConfig.text !== null && varConfig.text !== '') return varConfig.text;
+        if (varConfig.url !== undefined && varConfig.url !== null && varConfig.url !== '') return varConfig.url;
       }
-      if (varConfig.text !== undefined && varConfig.text !== null && varConfig.text !== '') return varConfig.text;
     }
+
+    // B. Direct Predefined Links matching by variable key (e.g. key="1", "2") or ID
+    const foundLink = predefinedLinks.find(l => {
+      const cleanKey = String(l.key || '').replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+      const cleanVar = String(l.variableKey || '').replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
+      return cleanKey === varKey || cleanVar === varKey || l.id === `lnk-${varKey}` || l.id === varKey;
+    });
+
+    if (foundLink && foundLink.url) {
+      return foundLink.url;
+    }
+
+    // C. Fallback: Numeric index (e.g. {{1}} picks predefinedLinks[0])
+    const num = Number(varKey);
+    if (!isNaN(num) && num >= 1 && predefinedLinks[num - 1]?.url) {
+      return predefinedLinks[num - 1].url;
+    }
+
+    // D. Fallback: customPlaceholders if mapped
+    const campVal = customPlaceholders?.[match] || customPlaceholders?.[varKey];
+    if (campVal) {
+      if (typeof campVal === 'string' && campVal.trim()) return campVal;
+      if (typeof campVal === 'object') {
+        if (campVal.linkId) {
+          const found = predefinedLinks.find(l => l.id === campVal.linkId);
+          if (found && found.url) return found.url;
+        }
+        if (campVal.text) return campVal.text;
+        if (campVal.url) return campVal.url;
+      }
+    }
+
     return match;
   });
 

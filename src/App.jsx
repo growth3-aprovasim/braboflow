@@ -999,63 +999,115 @@ export default function App() {
           />
         )}
 
-        {/* Table: Links Predefinidos */}
+        {/* Table: Links & Variáveis Predefinidas */}
         {activeTable === 'links' && activeCampaign && (
-          <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
                 <span style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase' }}>
                   Campanha: {activeCampaign.name}
                 </span>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff' }}>
-                  Links Predefinidos desta Campanha
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
+                  Links & Variáveis Pré-definidas ({'{{ }}'})
                 </h2>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8' }}>
-                  Todos os links cadastrados aqui ficam disponíveis para escolha nas mensagens.
+                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
+                  Cada link cadastrado aqui substitui automaticamente a variável correspondente (<code style={{ color: '#fbbf24' }}>{'{{1}}'}</code>, <code style={{ color: '#fbbf24' }}>{'{{2}}'}</code>) em todas as mensagens da campanha.
                 </p>
               </div>
 
               <button
                 className="btn-primary"
                 onClick={() => handleOpenLinksModal(activeCampaign)}
+                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
               >
-                <span>+ Gerenciar / Adicionar Links</span>
+                <span>+ Adicionar / Gerenciar Variáveis {'{{ }}'}</span>
               </button>
             </div>
 
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {(activeCampaign.predefinedLinks || []).map(lnk => (
-                <div
-                  key={lnk.id}
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
-                  }}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                    <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#fbbf24' }}>
-                      🔗 {lnk.label}
-                    </span>
-                    <a
-                      href={lnk.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ fontSize: '0.8rem', color: '#60a5fa', textDecoration: 'none' }}
-                    >
-                      {lnk.url}
-                    </a>
-                  </div>
-
-                  <span style={{ fontSize: '0.75rem', color: '#4ade80', background: 'rgba(34, 197, 94, 0.15)', padding: '0.25rem 0.6rem', borderRadius: '6px' }}>
-                    Ativo nas Mensagens
-                  </span>
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              {(activeCampaign.predefinedLinks || []).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link pré-definido cadastrado ainda nesta campanha.</p>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre variáveis como {'{{1}}'} = seu-link.com para preencher todas as mensagens automaticamente.</p>
+                  <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenLinksModal(activeCampaign)}>
+                    + Cadastrar Link {'{{1}}'}
+                  </button>
                 </div>
-              ))}
+              ) : (
+                (activeCampaign.predefinedLinks || []).map((lnk, idx) => {
+                  const varKey = lnk.key || lnk.variableKey || String(idx + 1);
+                  const pattern = `{{${varKey}}}`;
+                  const occurrences = (activeCampaign.messages || []).filter(m => m.copyText && m.copyText.includes(pattern)).length;
+
+                  return (
+                    <div
+                      key={lnk.id}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '1.15rem 1.35rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
+                        <span style={{
+                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
+                          border: '1px solid rgba(245, 158, 11, 0.5)',
+                          color: '#fbbf24',
+                          fontWeight: 800,
+                          fontSize: '0.95rem',
+                          padding: '0.3rem 0.75rem',
+                          borderRadius: '8px',
+                          fontFamily: 'monospace',
+                          flexShrink: 0
+                        }}>
+                          &#123;&#123;{varKey}&#125;&#125;
+                        </span>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+                            {lnk.label || `Link {{${varKey}}}`}
+                          </span>
+                          <a
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ fontSize: '0.8rem', color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                          >
+                            {lnk.url}
+                          </a>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{
+                          fontSize: '0.74rem',
+                          color: occurrences > 0 ? '#4ade80' : '#94a3b8',
+                          background: occurrences > 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                          padding: '0.25rem 0.6rem',
+                          borderRadius: '6px',
+                          fontWeight: 600
+                        }}>
+                          {occurrences > 0 ? `Substituindo em ${occurrences} ${occurrences === 1 ? 'mensagem' : 'mensagens'}` : 'Cadastrado na Campanha'}
+                        </span>
+
+                        <button
+                          className="btn-secondary"
+                          onClick={() => handleOpenLinksModal(activeCampaign)}
+                          style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                        >
+                          Editar Link
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         )}
