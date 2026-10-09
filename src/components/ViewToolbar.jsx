@@ -370,7 +370,7 @@ export default function ViewToolbar({
           </button>
 
           {openMenu === 'filter' && (
-            <div className="popover-menu" style={{ width: '580px', maxWidth: '92vw', left: 0, padding: '1rem' }}>
+            <div className="popover-menu" style={{ width: '580px', maxWidth: 'min(580px, calc(100vw - 32px))', right: 0, left: 'auto', padding: '1rem', zIndex: 100 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Filter size={15} color="var(--accent-primary)" />
@@ -611,7 +611,7 @@ export default function ViewToolbar({
           </button>
 
           {openMenu === 'columns' && (
-            <div className="popover-menu" style={{ width: '290px', left: 0 }}>
+            <div className="popover-menu" style={{ width: '290px', maxWidth: 'min(290px, calc(100vw - 32px))', right: 0, left: 'auto', zIndex: 100 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <span className="popover-title" style={{ margin: 0 }}>Ocultar / Exibir Colunas</span>
                 <button
@@ -693,7 +693,7 @@ export default function ViewToolbar({
           </button>
 
           {openMenu === 'sort' && (
-            <div className="popover-menu" style={{ width: '240px' }}>
+            <div className="popover-menu" style={{ width: '240px', maxWidth: 'min(240px, calc(100vw - 32px))', right: 0, left: 'auto', zIndex: 100 }}>
               <div className="popover-title">Ordenar Disparos</div>
               {[
                 { id: 'date', label: 'Data & Hora do Disparo (Padrão)' },
@@ -721,19 +721,6 @@ export default function ViewToolbar({
             </div>
           )}
         </div>
-
-        {/* Tags [ ] Button */}
-        {onOpenTagsModal && campaign && (
-          <button
-            className="toolbar-pill-btn"
-            onClick={() => onOpenTagsModal(campaign)}
-            title="Alterar todas as tags [ ] em um só lugar"
-            style={{ color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.35)', background: 'rgba(56, 189, 248, 0.08)' }}
-          >
-            <Edit3 size={13} />
-            <span>Tags [ ] ({tagsCount})</span>
-          </button>
-        )}
 
         {/* Records Count Badge */}
         <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.5rem' }}>
