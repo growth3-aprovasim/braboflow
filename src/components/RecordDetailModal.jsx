@@ -30,7 +30,8 @@ import {
   CheckSquare,
   Type,
   Users,
-  Edit3
+  Edit3,
+  Plus
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, processAttachmentFiles } from '../services/attachmentStorage';

@@ -9,7 +9,7 @@ import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
 import CampaignTagsModal from './components/CampaignTagsModal';
-import { Link as LinkIcon, Sparkles, Plus, Edit3 } from 'lucide-react';
+import { Link as LinkIcon, Sparkles, Plus } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
