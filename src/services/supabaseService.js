@@ -324,7 +324,7 @@ export async function uploadAttachmentToSupabase(file, messageId) {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `${messageId || 'temp'}/${Date.now()}_${cleanFileName}`;
 
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
         cacheControl: '3600',

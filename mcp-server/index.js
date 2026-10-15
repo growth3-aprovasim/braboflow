@@ -109,7 +109,7 @@ function createBraboMcpServer() {
     },
     async (args) => {
       const campaignId = `camp-${Date.now()}`;
-      const { data, error } = await supabase.from('bflow_campaigns').insert({
+      const { error } = await supabase.from('bflow_campaigns').insert({
         id: campaignId,
         name: args.name.trim(),
         tagline: args.tagline?.trim() || 'Criada via Claude MCP',

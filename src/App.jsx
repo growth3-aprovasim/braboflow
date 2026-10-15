@@ -114,6 +114,19 @@ export default function App() {
     };
   }, [loadDataFromSupabase]);
 
+  // Prevent accidental file drops outside designated dropzones from navigating away
+  useEffect(() => {
+    const preventDragDropNav = (e) => {
+      e.preventDefault();
+    };
+    window.addEventListener('dragover', preventDragDropNav);
+    window.addEventListener('drop', preventDragDropNav);
+    return () => {
+      window.removeEventListener('dragover', preventDragDropNav);
+      window.removeEventListener('drop', preventDragDropNav);
+    };
+  }, []);
+
   // Save to LocalStorage safely (stripping any heavy dataUrls to prevent QuotaExceededError crash)
   useEffect(() => {
     try {
@@ -121,8 +134,19 @@ export default function App() {
         ...c,
         messages: (c.messages || []).map(m => {
           if (!m.attachment) return m;
-          const { dataUrl, ...safeAttachment } = m.attachment;
-          return { ...m, attachment: safeAttachment };
+          if (Array.isArray(m.attachment)) {
+            const cleanList = m.attachment.map(a => {
+              if (!a) return a;
+              const { dataUrl: _dataUrl, ...safe } = a;
+              return safe;
+            });
+            return { ...m, attachment: cleanList };
+          }
+          if (typeof m.attachment === 'object') {
+            const { dataUrl: _dataUrl, ...safeAttachment } = m.attachment;
+            return { ...m, attachment: safeAttachment };
+          }
+          return m;
         })
       }));
       localStorage.setItem('brabo_airtable_campaigns_real', JSON.stringify(cleanCampaigns));

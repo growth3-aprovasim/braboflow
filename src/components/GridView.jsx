@@ -30,11 +30,13 @@ import {
   EyeOff,
   ArrowDown,
   ArrowUp,
-  Edit3
+  Edit3,
+  UploadCloud,
+  Loader2
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
-import { triggerFileDownload, getAttachmentUrl } from '../services/attachmentStorage';
+import { triggerFileDownload, getAttachmentUrl, processAttachmentFiles, MAX_ATTACHMENT_SIZE_LABEL } from '../services/attachmentStorage';
 
 // Smooth local-state editable input to avoid re-render stuttering while typing
 function EditableCellInput({ value, placeholder, className, style, onChange }) {
@@ -93,9 +95,14 @@ function EditableCellInput({ value, placeholder, className, style, onChange }) {
   );
 }
 
-// Compact Attachment Thumbnail Preview Component for Grid Cells (Single or Multiple)
-function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
-  const atts = normalizeAttachments(attachment || record?.attachment);
+// Compact Interactive Creative Grid Cell with Drag & Drop directly onto the column
+function CreativeGridCell({ record, onOpenRecord, onUpdateRecord, colWidth }) {
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const dragCounterRef = React.useRef(0);
+  const fileInputRef = React.useRef(null);
+
+  const atts = normalizeAttachments(record?.attachment);
   const firstAtt = atts[0] || null;
 
   const [mediaUrl, setMediaUrl] = useState(
@@ -123,148 +130,307 @@ function AttachmentThumbnail({ attachment, onOpenRecord, record }) {
     };
   }, [firstAtt]);
 
-  if (!firstAtt || atts.length === 0) {
-    return (
-      <div
-        className="grid-empty-creative"
-        onClick={() => onOpenRecord(record)}
-        title="Nenhum anexo/criativo. Clique para abrir e adicionar foto ou vídeo."
-      >
-        <Paperclip size={12} />
-      </div>
-    );
-  }
+  const handleUploadFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setIsUploading(true);
+    try {
+      const { items, errors } = await processAttachmentFiles(files, record?.id);
+      if (errors && errors.length > 0) {
+        alert(errors.join('\n'));
+      }
+      if (items && items.length > 0) {
+        const current = normalizeAttachments(record?.attachment);
+        const updated = [...current, ...items];
+        onUpdateRecord(record.id, { attachment: updated });
+      }
+    } catch (err) {
+      console.error('Erro ao processar anexo:', err);
+      alert('Erro ao processar arquivo(s): ' + (err.message || ''));
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-  const { type, name, size } = firstAtt;
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current++;
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      e.dataTransfer.dropEffect = 'copy';
+    } catch {
+      // ignore
+    }
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current--;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setIsDraggingOver(false);
+    }
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounterRef.current = 0;
+    setIsDraggingOver(false);
+
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      await handleUploadFiles(files);
+      return;
+    }
+
+    // Support dragging image URLs directly from web / browser
+    const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+    if (droppedUrl && (droppedUrl.startsWith('http://') || droppedUrl.startsWith('https://'))) {
+      const urlClean = droppedUrl.trim();
+      const isLikelyImage = /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(urlClean) || urlClean.includes('unsplash') || urlClean.includes('image');
+      if (isLikelyImage) {
+        const newAtt = {
+          id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          name: urlClean.split('/').pop().split('?')[0] || 'imagem_web',
+          size: 'Web',
+          type: 'image',
+          position: 'before',
+          previewUrl: urlClean,
+          publicUrl: urlClean,
+          thumbnailUrl: urlClean
+        };
+        const current = normalizeAttachments(record.attachment);
+        onUpdateRecord(record.id, { attachment: [...current, newAtt] });
+      }
+    }
+  };
+
+  const handleFileInputChange = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      await handleUploadFiles(files);
+    }
+    e.target.value = '';
+  };
+
   const extraCount = atts.length - 1;
-
   const extraBadge = extraCount > 0 ? (
-    <span style={{
-      fontSize: '0.62rem',
-      fontWeight: 800,
-      color: '#fbbf24',
-      background: 'rgba(251, 191, 36, 0.15)',
-      border: '1px solid rgba(251, 191, 36, 0.35)',
-      borderRadius: '4px',
-      padding: '0.05rem 0.3rem',
-      marginLeft: '0.2rem',
-      flexShrink: 0
-    }} title={`${atts.length} anexos vinculados`}>
+    <span
+      style={{
+        fontSize: '0.62rem',
+        fontWeight: 800,
+        color: '#fbbf24',
+        background: 'rgba(251, 191, 36, 0.15)',
+        border: '1px solid rgba(251, 191, 36, 0.35)',
+        borderRadius: '4px',
+        padding: '0.05rem 0.3rem',
+        marginLeft: '0.2rem',
+        flexShrink: 0
+      }}
+      title={`${atts.length} anexos vinculados`}
+    >
       +{extraCount}
     </span>
   ) : null;
 
-  if (type === 'image') {
-    return (
-      <div
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
-        onClick={() => onOpenRecord(record)}
-        title={`Imagem: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para expandir`}
-      >
-        <div className="grid-creative-thumb" style={{ border: '1px solid rgba(56, 189, 248, 0.4)' }}>
-          {mediaUrl ? (
-            <img
-              src={mediaUrl}
-              alt={name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <ImageIcon size={14} color="#38bdf8" />
-          )}
-        </div>
-        <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {name}
-        </span>
-        {extraBadge}
-      </div>
-    );
-  }
+  return (
+    <div
+      key="creative"
+      className={`grid-cell grid-cell-creative ${isDraggingOver ? 'drag-active' : ''}`}
+      style={{
+        width: `${colWidth}px`,
+        minWidth: `${colWidth}px`,
+        padding: '0.2rem 0.45rem',
+        overflow: 'hidden'
+      }}
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Hidden file input for clicking to browse */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        multiple
+        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+        onChange={handleFileInputChange}
+      />
 
-  if (type === 'video') {
-    return (
-      <div
-        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
-        onClick={() => onOpenRecord(record)}
-        title={`Vídeo: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para expandir`}
-      >
-        <div className="grid-creative-thumb" style={{ border: '1px solid rgba(168, 85, 247, 0.4)' }}>
-          {mediaUrl ? (
-            <img
-              src={mediaUrl}
-              alt={name}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-            />
-          ) : (
-            <Play size={12} fill="#a855f7" color="#a855f7" />
-          )}
+      {isDraggingOver ? (
+        <div className="grid-drop-indicator" title="Solte a imagem, vídeo ou doc aqui (máximo 100MB)">
+          <UploadCloud size={13} />
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            Solte aqui (máx 100MB)
+          </span>
+        </div>
+      ) : isUploading ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.72rem', fontWeight: 600 }}>
+          <Loader2 size={13} className="animate-spin" />
+          <span style={{ whiteSpace: 'nowrap' }}>Salvando...</span>
+        </div>
+      ) : !firstAtt || atts.length === 0 ? (
+        <div
+          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', maxWidth: '100%' }}
+        >
           <div
+            className="grid-empty-creative"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            title="Arraste uma imagem, vídeo ou doc diretamente aqui (máx. 100MB) ou clique para anexar"
+          >
+            <Paperclip size={12} />
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', maxWidth: '100%', overflow: 'hidden' }}>
+          {firstAtt.type === 'image' && (
+            <div
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
+              onClick={() => onOpenRecord(record)}
+              title={`Imagem: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para abrir ou arraste outro arquivo (máx 100MB)`}
+            >
+              <div className="grid-creative-thumb" style={{ border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+                {mediaUrl ? (
+                  <img
+                    src={mediaUrl}
+                    alt={firstAtt.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <ImageIcon size={14} color="#38bdf8" />
+                )}
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {firstAtt.name}
+              </span>
+              {extraBadge}
+            </div>
+          )}
+
+          {firstAtt.type === 'video' && (
+            <div
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', cursor: 'pointer', maxWidth: '100%' }}
+              onClick={() => onOpenRecord(record)}
+              title={`Vídeo: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para abrir ou arraste outro arquivo (máx 100MB)`}
+            >
+              <div className="grid-creative-thumb" style={{ border: '1px solid rgba(168, 85, 247, 0.4)' }}>
+                {mediaUrl ? (
+                  <img
+                    src={mediaUrl}
+                    alt={firstAtt.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <Play size={12} fill="#a855f7" color="#a855f7" />
+                )}
+                <div
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.35)'
+                  }}
+                >
+                  <Play size={10} fill="#fff" color="#fff" style={{ marginLeft: '1px' }} />
+                </div>
+              </div>
+              <span style={{ fontSize: '0.72rem', color: '#c084fc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {firstAtt.name}
+              </span>
+              {extraBadge}
+            </div>
+          )}
+
+          {firstAtt.type === 'audio' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                cursor: 'pointer',
+                padding: '0.15rem 0.4rem',
+                background: 'rgba(234, 179, 8, 0.1)',
+                border: '1px solid rgba(234, 179, 8, 0.25)',
+                borderRadius: '5px',
+                maxWidth: '100%'
+              }}
+              onClick={() => onOpenRecord(record)}
+              title={`Áudio: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
+            >
+              <Music size={12} color="#eab308" />
+              <span style={{ fontSize: '0.7rem', color: '#eab308', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {firstAtt.name}
+              </span>
+              {extraBadge}
+            </div>
+          )}
+
+          {firstAtt.type !== 'image' && firstAtt.type !== 'video' && firstAtt.type !== 'audio' && (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                cursor: 'pointer',
+                padding: '0.15rem 0.4rem',
+                background: 'rgba(148, 163, 184, 0.1)',
+                border: '1px solid rgba(148, 163, 184, 0.25)',
+                borderRadius: '5px',
+                maxWidth: '100%'
+              }}
+              onClick={() => onOpenRecord(record)}
+              title={`Documento: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
+            >
+              <FileText size={12} color="#94a3b8" />
+              <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {firstAtt.name}
+              </span>
+              {extraBadge}
+            </div>
+          )}
+
+          {/* Plus button to add additional files */}
+          <button
+            type="button"
+            className="btn-ghost"
             style={{
-              position: 'absolute',
-              inset: 0,
+              padding: '2px',
+              borderRadius: '4px',
+              color: 'var(--text-muted)',
+              opacity: 0.6,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'rgba(0,0,0,0.35)'
+              flexShrink: 0
             }}
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            title="Adicionar outro arquivo (arraste ou clique, máx 100MB)"
           >
-            <Play size={10} fill="#fff" color="#fff" style={{ marginLeft: '1px' }} />
-          </div>
+            <Plus size={11} />
+          </button>
         </div>
-        <span style={{ fontSize: '0.72rem', color: '#c084fc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {name}
-        </span>
-        {extraBadge}
-      </div>
-    );
-  }
-
-  if (type === 'audio') {
-    return (
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '0.35rem',
-          cursor: 'pointer',
-          padding: '0.15rem 0.4rem',
-          background: 'rgba(234, 179, 8, 0.1)',
-          border: '1px solid rgba(234, 179, 8, 0.25)',
-          borderRadius: '5px',
-          maxWidth: '100%'
-        }}
-        onClick={() => onOpenRecord(record)}
-        title={`Áudio: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
-      >
-        <Music size={12} color="#eab308" />
-        <span style={{ fontSize: '0.7rem', color: '#eab308', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {name}
-        </span>
-        {extraBadge}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '0.35rem',
-        cursor: 'pointer',
-        padding: '0.15rem 0.4rem',
-        background: 'rgba(148, 163, 184, 0.1)',
-        border: '1px solid rgba(148, 163, 184, 0.25)',
-        borderRadius: '5px',
-        maxWidth: '100%'
-      }}
-      onClick={() => onOpenRecord(record)}
-      title={`Documento: ${name} (${size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
-    >
-      <FileText size={12} color="#94a3b8" />
-      <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {name}
-      </span>
-      {extraBadge}
+      )}
     </div>
   );
 }
@@ -905,7 +1071,7 @@ export default function GridView({
           style={{ width: `${colWidths.creative}px`, minWidth: `${colWidths.creative}px`, ...dragStyle }}
           {...dragProps}
           onContextMenu={(e) => handleHeaderContextMenu(e, 'creative', 'Criativo / Anexo')}
-          title="Clique com botão direito para opções (Airtable)"
+          title="Criativo / Anexo: Arraste arquivos (imagens, vídeos, docs até 100MB) diretamente para as células desta coluna"
         >
           {renderHeaderContent('Criativo / Anexo', <Paperclip size={13} className="cell-icon" />)}
           <div className="col-resizer" onMouseDown={(e) => startResize('creative', e)} />
@@ -1124,22 +1290,13 @@ export default function GridView({
 
     if (colId === 'creative') {
       return (
-        <div
+        <CreativeGridCell
           key="creative"
-          className="grid-cell"
-          style={{
-            width: `${colWidths.creative}px`,
-            minWidth: `${colWidths.creative}px`,
-            padding: '0.2rem 0.5rem',
-            overflow: 'hidden'
-          }}
-        >
-          <AttachmentThumbnail
-            attachment={record.attachment}
-            onOpenRecord={onOpenRecord}
-            record={record}
-          />
-        </div>
+          record={record}
+          onOpenRecord={onOpenRecord}
+          onUpdateRecord={onUpdateRecord}
+          colWidth={colWidths.creative}
+        />
       );
     }
 

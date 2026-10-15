@@ -947,16 +947,55 @@ body {
   width: 26px;
   height: 26px;
   border-radius: 5px;
-  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border: 1px dashed rgba(255, 255, 255, 0.18);
   color: var(--text-muted);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .grid-empty-creative:hover {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-  background: rgba(59, 130, 246, 0.08);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  transform: scale(1.05);
+}
+
+.grid-cell-creative {
+  position: relative;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.grid-cell-creative.drag-active {
+  background: rgba(56, 189, 248, 0.18) !important;
+  box-shadow: inset 0 0 0 1.5px #38bdf8 !important;
+}
+
+.grid-drop-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  height: 28px;
+  border-radius: 5px;
+  border: 1.5px dashed #38bdf8;
+  background: rgba(56, 189, 248, 0.22);
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 700;
+  pointer-events: none;
+  animation: pulse-creative-drop 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse-creative-drop {
+  0%, 100% {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+  }
+  50% {
+    background: rgba(56, 189, 248, 0.4);
+    border-color: #93c5fd;
+  }
 }
 
 /* Editable Cell input */

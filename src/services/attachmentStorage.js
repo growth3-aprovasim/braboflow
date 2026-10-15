@@ -1,5 +1,18 @@
+import { uploadAttachmentToSupabase } from './supabaseService';
+
 // IndexedDB storage service for file attachments (audio, video, image, PDF, docs)
-// Prevents localStorage quota exceeded crashes while supporting large files.
+// Prevents localStorage quota exceeded crashes while supporting large files up to 100MB.
+
+export const MAX_ATTACHMENT_SIZE_BYTES = 100 * 1024 * 1024; // 100 MB
+export const MAX_ATTACHMENT_SIZE_LABEL = '100 MB';
+
+export function formatFileSize(bytes) {
+  if (!bytes || isNaN(bytes)) return '0 KB';
+  if (bytes >= 1024 * 1024) {
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
 
 const DB_NAME = 'flux_attachment_storage_v1';
 const STORE_NAME = 'attachments';
@@ -280,5 +293,88 @@ export function generateVideoThumbnail(file) {
       resolve(null);
     }
   });
+}
+
+/**
+ * Validates and processes a single file (image, video, audio, doc).
+ * Strictly enforces maximum 100MB size limit.
+ * Saves locally in IndexedDB and uploads to Supabase Storage if configured.
+ */
+export async function processAttachmentFile(file, recordId = null) {
+  if (!file) throw new Error('Nenhum arquivo fornecido.');
+
+  // Check 100MB size limit
+  if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    throw new Error(`O arquivo "${file.name}" possui ${sizeMb} MB e ultrapassa o limite máximo permitido de ${MAX_ATTACHMENT_SIZE_LABEL}.`);
+  }
+
+  const attachmentId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+  let type = 'document';
+  if (file.type.startsWith('image/')) type = 'image';
+  else if (file.type.startsWith('video/')) type = 'video';
+  else if (file.type.startsWith('audio/')) type = 'audio';
+
+  // 1. Salvar binário localmente no IndexedDB
+  await saveAttachmentFile(attachmentId, file);
+  const blobUrl = await getAttachmentUrl(attachmentId);
+
+  // 2. Upload assíncrono para o Supabase Storage se configurado
+  let publicUrl = null;
+  let storagePath = null;
+  try {
+    const storageResult = await uploadAttachmentToSupabase(file, recordId || attachmentId);
+    if (storageResult) {
+      publicUrl = storageResult.publicUrl;
+      storagePath = storageResult.storagePath;
+    }
+  } catch (err) {
+    console.warn('Storage upload fallback:', err);
+  }
+
+  // 3. Extrair capa se for vídeo ou usar preview se for imagem
+  let thumbnailUrl = null;
+  if (type === 'video') {
+    try {
+      thumbnailUrl = await generateVideoThumbnail(file);
+    } catch {
+      thumbnailUrl = null;
+    }
+  } else if (type === 'image') {
+    thumbnailUrl = publicUrl || blobUrl;
+  }
+
+  return {
+    id: attachmentId,
+    name: file.name,
+    size: formatFileSize(file.size),
+    type,
+    position: 'before',
+    previewUrl: publicUrl || blobUrl,
+    publicUrl,
+    storagePath,
+    thumbnailUrl: thumbnailUrl || (type === 'image' ? (publicUrl || blobUrl) : null)
+  };
+}
+
+/**
+ * Processes a list of files with 100MB limit check.
+ * Returns { items: Array, errors: Array }
+ */
+export async function processAttachmentFiles(files, recordId = null) {
+  const fileList = Array.from(files || []);
+  const items = [];
+  const errors = [];
+
+  for (const file of fileList) {
+    try {
+      const item = await processAttachmentFile(file, recordId);
+      items.push(item);
+    } catch (err) {
+      errors.push(err.message || `Erro ao processar o arquivo "${file.name}".`);
+    }
+  }
+
+  return { items, errors };
 }
 

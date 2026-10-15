@@ -33,7 +33,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
-import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail } from '../services/attachmentStorage';
+import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail, processAttachmentFiles, MAX_ATTACHMENT_SIZE_LABEL } from '../services/attachmentStorage';
 import { uploadAttachmentToSupabase } from '../services/supabaseService';
 import ChannelPreview from './ChannelPreview';
 
@@ -166,64 +166,31 @@ export default function RecordDetailModal({
     handleChange('copyText', newCopyText, { variables: updatedVars });
   };
 
+  const [isDraggingModalAtt, setIsDraggingModalAtt] = useState(false);
+  const modalDragCounter = useRef(0);
+
   const currentAttachments = normalizeAttachments(formData.attachment);
+
+  const handleProcessAndAddFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    try {
+      const { items, errors } = await processAttachmentFiles(files, record?.id);
+      if (errors && errors.length > 0) {
+        alert(errors.join('\n'));
+      }
+      if (items && items.length > 0) {
+        const updatedList = [...currentAttachments, ...items];
+        handleChange('attachment', updatedList);
+      }
+    } catch (err) {
+      console.error('Erro ao processar anexos:', err);
+      alert('Erro ao processar arquivo(s): ' + (err.message || ''));
+    }
+  };
 
   const handleFilesSelected = async (e) => {
     const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-
-    const newItems = [];
-    for (const file of files) {
-      const attachmentId = `att-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-      let type = 'document';
-      if (file.type.startsWith('image/')) type = 'image';
-      else if (file.type.startsWith('video/')) type = 'video';
-      else if (file.type.startsWith('audio/')) type = 'audio';
-
-      // Salvar binário localmente no IndexedDB
-      await saveAttachmentFile(attachmentId, file);
-      const blobUrl = await getAttachmentUrl(attachmentId);
-
-      // Upload assíncrono para o Supabase Storage se configurado
-      let publicUrl = null;
-      let storagePath = null;
-      try {
-        const storageResult = await uploadAttachmentToSupabase(file, record?.id || attachmentId);
-        if (storageResult) {
-          publicUrl = storageResult.publicUrl;
-          storagePath = storageResult.storagePath;
-        }
-      } catch (err) {
-        console.warn('Storage upload fallback:', err);
-      }
-
-      // Extract video cover thumbnail or use image preview
-      let thumbnailUrl = null;
-      if (type === 'video') {
-        thumbnailUrl = await generateVideoThumbnail(file);
-      } else if (type === 'image') {
-        thumbnailUrl = publicUrl || blobUrl;
-      }
-
-      const formattedSize = file.size > 1024 * 1024
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${(file.size / 1024).toFixed(1)} KB`;
-
-      newItems.push({
-        id: attachmentId,
-        name: file.name,
-        size: formattedSize,
-        type,
-        position: 'before',
-        previewUrl: publicUrl || blobUrl,
-        publicUrl,
-        storagePath,
-        thumbnailUrl
-      });
-    }
-
-    const updatedList = [...currentAttachments, ...newItems];
-    handleChange('attachment', updatedList);
+    await handleProcessAndAddFiles(files);
     e.target.value = '';
   };
 
@@ -429,14 +396,55 @@ export default function RecordDetailModal({
       label: 'Criativo',
       icon: <Paperclip size={14} className="field-icon" />,
       render: () => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            width: '100%',
+            position: 'relative'
+          }}
+          onDragEnter={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            modalDragCounter.current++;
+            if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+              setIsDraggingModalAtt(true);
+            }
+          }}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try { e.dataTransfer.dropEffect = 'copy'; } catch { /* ignore */ }
+            if (!isDraggingModalAtt) setIsDraggingModalAtt(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            modalDragCounter.current--;
+            if (modalDragCounter.current <= 0) {
+              modalDragCounter.current = 0;
+              setIsDraggingModalAtt(false);
+            }
+          }}
+          onDrop={async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            modalDragCounter.current = 0;
+            setIsDraggingModalAtt(false);
+            const files = Array.from(e.dataTransfer.files || []);
+            if (files.length > 0) {
+              await handleProcessAndAddFiles(files);
+            }
+          }}
+        >
           {/* Hidden File Input */}
           <input
             type="file"
             ref={fileInputRef}
             style={{ display: 'none' }}
             multiple
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx"
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
             onChange={handleFilesSelected}
           />
 
@@ -444,12 +452,12 @@ export default function RecordDetailModal({
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: '1px dashed #2d3748',
+                border: isDraggingModalAtt ? '2px dashed #38bdf8' : '1px dashed #2d3748',
                 borderRadius: '6px',
-                padding: '1rem',
+                padding: '1.2rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: 'rgba(255, 255, 255, 0.02)',
+                background: isDraggingModalAtt ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.02)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -457,17 +465,23 @@ export default function RecordDetailModal({
                 transition: 'var(--transition-fast)'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = '#4a5568';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                if (!isDraggingModalAtt) {
+                  e.currentTarget.style.borderColor = '#4a5568';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = '#2d3748';
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                if (!isDraggingModalAtt) {
+                  e.currentTarget.style.borderColor = '#2d3748';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                }
               }}
             >
-              <Upload size={15} color="var(--text-muted)" />
-              <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Drop files here or click to browse (Imagens, PDFs, Áudios, Vídeos)
+              <Upload size={16} color={isDraggingModalAtt ? '#38bdf8' : 'var(--text-muted)'} />
+              <span style={{ fontSize: '0.78rem', color: isDraggingModalAtt ? '#38bdf8' : 'var(--text-muted)', fontWeight: isDraggingModalAtt ? 700 : 500 }}>
+                {isDraggingModalAtt
+                  ? 'Solte os arquivos aqui (máx. 100MB)'
+                  : 'Arraste e solte arquivos aqui ou clique para selecionar (Imagens, Vídeos, Docs até 100MB)'}
               </span>
             </div>
           ) : (
@@ -603,6 +617,28 @@ export default function RecordDetailModal({
                 );
               })}
 
+              {isDraggingModalAtt && (
+                <div
+                  style={{
+                    border: '2px dashed #38bdf8',
+                    borderRadius: '6px',
+                    padding: '0.8rem',
+                    textAlign: 'center',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    color: '#38bdf8',
+                    fontSize: '0.78rem',
+                    fontWeight: 700
+                  }}
+                >
+                  <Upload size={16} />
+                  <span>Solte aqui para anexar mais arquivos (máx. 100MB)</span>
+                </div>
+              )}
+
               <button
                 type="button"
                 className="btn-ghost"
@@ -617,7 +653,7 @@ export default function RecordDetailModal({
                 }}
                 onClick={() => fileInputRef.current?.click()}
               >
-                + Adicionar Outro Arquivo
+                + Adicionar Outro Arquivo (máx. 100MB)
               </button>
             </div>
           )}

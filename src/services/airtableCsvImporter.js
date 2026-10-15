@@ -519,7 +519,7 @@ export async function syncAirtableAttachmentsToSupabase(campaign) {
       const cleanFileName = msg.attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const storagePath = `${campaign.id}/${msg.id}_${Date.now()}_${cleanFileName}`;
 
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('bflow-attachments')
         .upload(storagePath, blob, {
           contentType: blob.type || 'image/jpeg',
