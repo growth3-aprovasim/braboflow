@@ -33,8 +33,7 @@ import {
   Edit3
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
-import { saveAttachmentFile, deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, generateVideoThumbnail, processAttachmentFiles, MAX_ATTACHMENT_SIZE_LABEL } from '../services/attachmentStorage';
-import { uploadAttachmentToSupabase } from '../services/supabaseService';
+import { deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, processAttachmentFiles } from '../services/attachmentStorage';
 import ChannelPreview from './ChannelPreview';
 
 export default function RecordDetailModal({
@@ -55,6 +54,8 @@ export default function RecordDetailModal({
   const [copiedFull, setCopiedFull] = useState(false);
   const [showHiddenFields, setShowHiddenFields] = useState(false);
   const fileInputRef = useRef(null);
+  const [isDraggingModalAtt, setIsDraggingModalAtt] = useState(false);
+  const modalDragCounter = useRef(0);
 
   // Sync only when opening or switching to another record
   useEffect(() => {
@@ -165,9 +166,6 @@ export default function RecordDetailModal({
 
     handleChange('copyText', newCopyText, { variables: updatedVars });
   };
-
-  const [isDraggingModalAtt, setIsDraggingModalAtt] = useState(false);
-  const modalDragCounter = useRef(0);
 
   const currentAttachments = normalizeAttachments(formData.attachment);
 
