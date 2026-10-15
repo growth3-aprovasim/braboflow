@@ -107,7 +107,10 @@ export function extractAllCampaignBracketTags(messages = []) {
           channel: msg.channel,
           stage: msg.stage,
           scheduledDate: msg.scheduledDate,
-          copySnippet: msg.copyText
+          scheduledTime: msg.scheduledTime,
+          copyText: msg.copyText,
+          copySnippet: msg.copyText,
+          rawRecord: msg
         });
       }
     });

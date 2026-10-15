@@ -24,12 +24,6 @@ export default function TableTabs({
       count: messagesCount 
     },
     { 
-      id: 'links', 
-      label: 'Links Predefinidos', 
-      icon: LinkIcon, 
-      count: linksCount 
-    },
-    { 
       id: 'tags', 
       label: 'Variáveis & Tags [ ]', 
       icon: Edit3, 

@@ -288,19 +288,26 @@ export default function App() {
   // Campaign Tags Modal state
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [tagsModalCampaign, setTagsModalCampaign] = useState(null);
+  const [tagsModalInitialTab, setTagsModalInitialTab] = useState('tags');
 
-  // Active Campaign Tags Count
-  const activeTagsCount = useMemo(() => {
-    if (!activeCampaign?.messages) return 0;
-    const detected = extractAllCampaignBracketTags(activeCampaign.messages);
-    return detected.length;
+  // Active Campaign Tags & Count
+  const activeTags = useMemo(() => {
+    if (!activeCampaign?.messages) return [];
+    return extractAllCampaignBracketTags(activeCampaign.messages);
   }, [activeCampaign?.messages]);
+
+  const activeTagsCount = activeTags.length;
 
   // Global Airtable CSV Import Modal state
   const [isGlobalImportModalOpen, setIsGlobalImportModalOpen] = useState(false);
 
   // Active Campaign Edit Modal state
   const [isEditActiveCampaignModalOpen, setIsEditActiveCampaignModalOpen] = useState(false);
+
+  // Active Table Tags View Tabs & Message Expand state
+  const [tagsViewTab, setTagsViewTab] = useState('tags'); // 'tags' | 'links'
+  const [expandedPageTagKey, setExpandedPageTagKey] = useState(null);
+  const [expandedPageMessageIds, setExpandedPageMessageIds] = useState({});
 
   // Active Custom Filter Object
   const activeCustomFilter = useMemo(() => {
@@ -587,12 +594,14 @@ export default function App() {
   };
 
   const handleOpenLinksModal = (camp) => {
-    setLinksModalCampaign(camp || activeCampaign);
-    setIsLinksModalOpen(true);
+    setTagsModalCampaign(camp || activeCampaign);
+    setTagsModalInitialTab('links');
+    setIsTagsModalOpen(true);
   };
 
-  const handleOpenTagsModal = (camp) => {
+  const handleOpenTagsModal = (camp, tab = 'tags') => {
     setTagsModalCampaign(camp || activeCampaign);
+    setTagsModalInitialTab(tab);
     setIsTagsModalOpen(true);
   };
 
@@ -1023,121 +1032,8 @@ export default function App() {
           />
         )}
 
-        {/* Table: Links & Variáveis Predefinidas */}
-        {activeTable === 'links' && activeCampaign && (
-          <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-              <div>
-                <span style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Campanha: {activeCampaign.name}
-                </span>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
-                  Links & Variáveis Pré-definidas ({'{{ }}'})
-                </h2>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
-                  Cada link cadastrado aqui substitui automaticamente a variável correspondente (<code style={{ color: '#fbbf24' }}>{'{{1}}'}</code>, <code style={{ color: '#fbbf24' }}>{'{{2}}'}</code>) em todas as mensagens da campanha.
-                </p>
-              </div>
-
-              <button
-                className="btn-primary"
-                onClick={() => handleOpenLinksModal(activeCampaign)}
-                style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
-              >
-                <span>+ Adicionar / Gerenciar Variáveis {'{{ }}'}</span>
-              </button>
-            </div>
-
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
-              {(activeCampaign.predefinedLinks || []).length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link pré-definido cadastrado ainda nesta campanha.</p>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre variáveis como {'{{1}}'} = seu-link.com para preencher todas as mensagens automaticamente.</p>
-                  <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenLinksModal(activeCampaign)}>
-                    + Cadastrar Link {'{{1}}'}
-                  </button>
-                </div>
-              ) : (
-                (activeCampaign.predefinedLinks || []).map((lnk, idx) => {
-                  const varKey = lnk.key || lnk.variableKey || String(idx + 1);
-                  const pattern = `{{${varKey}}}`;
-                  const occurrences = (activeCampaign.messages || []).filter(m => m.copyText && m.copyText.includes(pattern)).length;
-
-                  return (
-                    <div
-                      key={lnk.id}
-                      style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        padding: '1.15rem 1.35rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '1rem',
-                        flexWrap: 'wrap'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
-                        <span style={{
-                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
-                          border: '1px solid rgba(245, 158, 11, 0.5)',
-                          color: '#fbbf24',
-                          fontWeight: 800,
-                          fontSize: '0.95rem',
-                          padding: '0.3rem 0.75rem',
-                          borderRadius: '8px',
-                          fontFamily: 'monospace',
-                          flexShrink: 0
-                        }}>
-                          &#123;&#123;{varKey}&#125;&#125;
-                        </span>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
-                            {lnk.label || `Link {{${varKey}}}`}
-                          </span>
-                          <a
-                            href={lnk.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: '0.8rem', color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                          >
-                            {lnk.url}
-                          </a>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{
-                          fontSize: '0.74rem',
-                          color: occurrences > 0 ? '#4ade80' : '#94a3b8',
-                          background: occurrences > 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.04)',
-                          padding: '0.25rem 0.6rem',
-                          borderRadius: '6px',
-                          fontWeight: 600
-                        }}>
-                          {occurrences > 0 ? `Substituindo em ${occurrences} ${occurrences === 1 ? 'mensagem' : 'mensagens'}` : 'Cadastrado na Campanha'}
-                        </span>
-
-                        <button
-                          className="btn-secondary"
-                          onClick={() => handleOpenLinksModal(activeCampaign)}
-                          style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
-                        >
-                          Editar Link
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Table: Tags e Variáveis [ ] */}
-        {activeTable === 'tags' && activeCampaign && (
+        {/* Table: Central de Tags & Links da Campanha */}
+        {(activeTable === 'tags' || activeTable === 'links') && activeCampaign && (
           <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
@@ -1145,89 +1041,334 @@ export default function App() {
                   Campanha: {activeCampaign.name}
                 </span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
-                  Variáveis & Tags [ ] desta Campanha
+                  {tagsViewTab === 'tags' ? 'Variáveis & Tags [ ] desta Campanha' : 'Links & Variáveis Pré-definidas ({{ }})'}
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
-                  Altere em um só lugar tudo o que estiver entre colchetes como <code style={{ color: '#38bdf8' }}>[LINK]</code>, <code style={{ color: '#fbbf24' }}>[DATA]</code>, <code style={{ color: '#c084fc' }}>[CUPOM]</code> em todas as mensagens.
+                  {tagsViewTab === 'tags' 
+                    ? 'Altere em um só lugar tudo o que estiver entre colchetes como [LINK], [DATA], [CUPOM] em todas as mensagens.'
+                    : 'Cada link cadastrado aqui substitui automaticamente a variável correspondente ({{1}}, {{2}}) em todas as mensagens da campanha.'}
                 </p>
               </div>
 
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {tagsViewTab === 'tags' ? (
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}
+                    style={{ background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' }}
+                  >
+                    <span>⚡ Central de Substituição [ ]</span>
+                  </button>
+                ) : (
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleOpenLinksModal(activeCampaign)}
+                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
+                  >
+                    <span>+ Gerenciar Variáveis {'{{ }}'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Sub-tabs: Tags vs Links */}
+            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
               <button
-                className="btn-primary"
-                onClick={() => handleOpenTagsModal(activeCampaign)}
-                style={{ background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' }}
+                type="button"
+                onClick={() => setTagsViewTab('tags')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.45rem 1rem',
+                  borderRadius: '8px',
+                  border: tagsViewTab === 'tags' ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid transparent',
+                  background: tagsViewTab === 'tags' ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
+                  color: tagsViewTab === 'tags' ? '#38bdf8' : '#94a3b8',
+                  fontWeight: tagsViewTab === 'tags' ? 700 : 500,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
               >
-                <span>⚡ Abrir Central de Substituição [ ]</span>
+                <span>🏷️ Tags & Variáveis [ ]</span>
+                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'tags' ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'tags' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
+                  {activeTags.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTagsViewTab('links')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.45rem 1rem',
+                  borderRadius: '8px',
+                  border: tagsViewTab === 'links' ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
+                  background: tagsViewTab === 'links' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                  color: tagsViewTab === 'links' ? '#fbbf24' : '#94a3b8',
+                  fontWeight: tagsViewTab === 'links' ? 700 : 500,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>🔗 Links Pré-definidos {'{{ }}'}</span>
+                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'links' ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'links' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
+                  {(activeCampaign.predefinedLinks || []).length}
+                </span>
               </button>
             </div>
 
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
-              {activeTags.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA] ou [LINK_CHECKOUT] nas copies para gerenciá-los aqui.</p>
-                  <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
-                    + Cadastrar Tag Manualmente
-                  </button>
-                </div>
-              ) : (
-                activeTags.map(tag => {
-                  const rawKey = tag.rawTag;
-                  const cfg = (activeCampaign.customPlaceholders || {})[rawKey] || (activeCampaign.customPlaceholders || {})[tag.key];
-                  const hasVal = cfg && ((cfg.mode === 'link' && cfg.linkId) || (cfg.text && cfg.text.trim()));
+            {/* Content for Tags Sub-tab */}
+            {tagsViewTab === 'tags' && (
+              <div style={{ display: 'grid', gap: '0.85rem' }}>
+                {activeTags.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
+                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA] ou [LINK_CHECKOUT] nas copies para gerenciá-los aqui.</p>
+                    <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
+                      + Cadastrar Tag Manualmente
+                    </button>
+                  </div>
+                ) : (
+                  activeTags.map(tag => {
+                    const rawKey = tag.rawTag;
+                    const cfg = (activeCampaign.customPlaceholders || {})[rawKey] || (activeCampaign.customPlaceholders || {})[tag.key];
+                    const hasVal = cfg && ((cfg.mode === 'link' && cfg.linkId) || (cfg.text && cfg.text.trim()));
+                    const isPageExpanded = expandedPageTagKey === tag.key;
 
-                  return (
-                    <div
-                      key={tag.key}
-                      style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '10px',
-                        padding: '1.15rem 1.35rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '1rem',
-                        flexWrap: 'wrap'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <span style={{
-                          background: 'rgba(56, 189, 248, 0.15)',
-                          border: '1px solid rgba(56, 189, 248, 0.35)',
-                          color: '#38bdf8',
-                          fontWeight: 700,
-                          fontSize: '0.9rem',
-                          padding: '0.25rem 0.65rem',
-                          borderRadius: '6px',
-                          fontFamily: 'monospace'
-                        }}>
-                          {rawKey}
-                        </span>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
-                            {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
-                          </span>
-                          {hasVal && (
-                            <span style={{ fontSize: '0.74rem', color: '#4ade80' }}>
-                              Valor configurado: {cfg.mode === 'link' ? `🔗 Link da Campanha` : `"${cfg.text}"`}
+                    return (
+                      <div
+                        key={tag.key}
+                        style={{
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '10px',
+                          padding: '1.15rem 1.35rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.85rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <span style={{
+                              background: 'rgba(56, 189, 248, 0.15)',
+                              border: '1px solid rgba(56, 189, 248, 0.35)',
+                              color: '#38bdf8',
+                              fontWeight: 700,
+                              fontSize: '0.9rem',
+                              padding: '0.25rem 0.65rem',
+                              borderRadius: '6px',
+                              fontFamily: 'monospace'
+                            }}>
+                              {rawKey}
                             </span>
-                          )}
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                                {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
+                              </span>
+                              {hasVal && (
+                                <span style={{ fontSize: '0.74rem', color: '#4ade80' }}>
+                                  Valor configurado: {cfg.mode === 'link' ? `🔗 Link da Campanha` : `"${cfg.text}"`}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {tag.messages.length > 0 && (
+                              <button
+                                className="btn-ghost"
+                                onClick={() => setExpandedPageTagKey(isPageExpanded ? null : tag.key)}
+                                style={{
+                                  fontSize: '0.76rem',
+                                  padding: '0.35rem 0.65rem',
+                                  color: isPageExpanded ? '#38bdf8' : '#94a3b8',
+                                  background: isPageExpanded ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                                  borderRadius: '6px'
+                                }}
+                              >
+                                {isPageExpanded ? 'Ocultar Mensagens' : `Ver Mensagens (${tag.messages.length})`}
+                              </button>
+                            )}
+                            <button
+                              className="btn-secondary"
+                              onClick={() => handleOpenTagsModal(activeCampaign)}
+                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                            >
+                              Alterar / Substituir
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Expandable Messages in Page View */}
+                        {isPageExpanded && tag.messages.length > 0 && (
+                          <div style={{
+                            background: 'rgba(0, 0, 0, 0.35)',
+                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            borderRadius: '8px',
+                            padding: '0.85rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.6rem'
+                          }}>
+                            <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                              Ocorrências nas Mensagens ({tag.messages.length}):
+                            </span>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                              {tag.messages.map(m => {
+                                const isMsgExpanded = !!expandedPageMessageIds[m.id];
+                                return (
+                                  <div
+                                    key={m.id}
+                                    style={{
+                                      background: isMsgExpanded ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.02)',
+                                      border: isMsgExpanded ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-subtle)',
+                                      borderRadius: '6px',
+                                      padding: '0.65rem 0.85rem',
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '0.35rem'
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{m.title}</strong>
+                                      <button
+                                        type="button"
+                                        className="btn-ghost"
+                                        onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: !p[m.id] }))}
+                                        style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', color: '#38bdf8' }}
+                                      >
+                                        {isMsgExpanded ? 'Recolher' : 'Expandir Mensagem'}
+                                      </button>
+                                    </div>
+
+                                    {!isMsgExpanded ? (
+                                      <p 
+                                        onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
+                                        style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                      >
+                                        {m.copyText || m.copySnippet}
+                                      </p>
+                                    ) : (
+                                      <div style={{
+                                        background: 'rgba(0, 0, 0, 0.5)',
+                                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                                        borderRadius: '6px',
+                                        padding: '0.85rem',
+                                        color: '#f1f5f9',
+                                        fontSize: '0.82rem',
+                                        lineHeight: '1.6',
+                                        whiteSpace: 'pre-wrap',
+                                        fontFamily: 'inherit'
+                                      }}>
+                                        {m.copyText || m.copySnippet}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* Content for Links Sub-tab */}
+            {tagsViewTab === 'links' && (
+              <div style={{ display: 'grid', gap: '0.85rem' }}>
+                {(activeCampaign.predefinedLinks || []).length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
+                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link pré-definido cadastrado ainda nesta campanha.</p>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre variáveis como {'{{1}}'} = seu-link.com para preencher todas as mensagens automaticamente.</p>
+                    <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenLinksModal(activeCampaign)}>
+                      + Cadastrar Link {'{{1}}'}
+                    </button>
+                  </div>
+                ) : (
+                  (activeCampaign.predefinedLinks || []).map((lnk, idx) => {
+                    const varKey = lnk.key || lnk.variableKey || String(idx + 1);
+                    const pattern = `{{${varKey}}}`;
+                    const occurrences = (activeCampaign.messages || []).filter(m => m.copyText && m.copyText.includes(pattern)).length;
+
+                    return (
+                      <div
+                        key={lnk.id}
+                        style={{
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: '10px',
+                          padding: '1.15rem 1.35rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
+                          <span style={{
+                            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
+                            border: '1px solid rgba(245, 158, 11, 0.5)',
+                            color: '#fbbf24',
+                            fontWeight: 800,
+                            fontSize: '0.95rem',
+                            padding: '0.3rem 0.75rem',
+                            borderRadius: '8px',
+                            fontFamily: 'monospace',
+                            flexShrink: 0
+                          }}>
+                            &#123;&#123;{varKey}&#125;&#125;
+                          </span>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
+                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+                              {lnk.label || `Link {{${varKey}}}`}
+                            </span>
+                            <a
+                              href={lnk.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontSize: '0.8rem', color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                            >
+                              {lnk.url}
+                            </a>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{
+                            fontSize: '0.74rem',
+                            color: occurrences > 0 ? '#4ade80' : '#94a3b8',
+                            background: occurrences > 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                            padding: '0.25rem 0.6rem',
+                            borderRadius: '6px',
+                            fontWeight: 600
+                          }}>
+                            {occurrences > 0 ? `Substituindo em ${occurrences} ${occurrences === 1 ? 'mensagem' : 'mensagens'}` : 'Cadastrado na Campanha'}
+                          </span>
+
+                          <button
+                            className="btn-secondary"
+                            onClick={() => handleOpenLinksModal(activeCampaign)}
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                          >
+                            Editar Link
+                          </button>
                         </div>
                       </div>
-
-                      <button
-                        className="btn-secondary"
-                        onClick={() => handleOpenTagsModal(activeCampaign)}
-                        style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
-                      >
-                        Alterar / Substituir
-                      </button>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1260,28 +1401,20 @@ export default function App() {
         onToggleColumnVisibility={handleToggleColumnVisibility}
       />
 
-      {/* 6. Campaign Predefined Links Modal */}
-      <CampaignLinksModal
-        isOpen={isLinksModalOpen}
-        onClose={() => {
-          setIsLinksModalOpen(false);
-          setLinksModalCampaign(null);
-        }}
-        campaign={linksModalCampaign || activeCampaign}
-        onUpdateCampaignLinks={handleUpdateCampaignLinks}
-      />
-
-      {/* 7. Campaign Tags & Placeholders [ ] Modal */}
+      {/* 6. Unified Campaign Tags & Links Modal */}
       <CampaignTagsModal
-        isOpen={isTagsModalOpen}
+        isOpen={isTagsModalOpen || isLinksModalOpen}
+        initialTab={isLinksModalOpen ? 'links' : tagsModalInitialTab}
         onClose={() => {
           setIsTagsModalOpen(false);
+          setIsLinksModalOpen(false);
           setTagsModalCampaign(null);
+          setLinksModalCampaign(null);
         }}
-        campaign={tagsModalCampaign || activeCampaign}
+        campaign={tagsModalCampaign || linksModalCampaign || activeCampaign}
         onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
         onBatchReplaceTags={handleBatchReplaceTags}
-        onOpenLinksModal={handleOpenLinksModal}
+        onUpdateCampaignLinks={handleUpdateCampaignLinks}
       />
 
       {/* 8. Global Airtable CSV Import Modal */}

@@ -103,26 +103,7 @@ export default function Header({
           )}
         </div>
 
-        {/* Campaign Predefined Links Quick Button */}
-        {activeCampaign && (
-          <button 
-            className="btn-ghost"
-            style={{ 
-              fontSize: '0.76rem', 
-              color: 'var(--text-secondary)', 
-              background: 'rgba(255, 255, 255, 0.04)', 
-              border: '1px solid var(--border-color)',
-              padding: '0.25rem 0.55rem'
-            }}
-            onClick={() => onOpenLinksModal(activeCampaign)}
-            title="Ver e cadastrar links pré-definidos desta campanha"
-          >
-            <LinkIcon size={12} />
-            <span>Links ({activeCampaign.predefinedLinks?.length || 0})</span>
-          </button>
-        )}
-
-        {/* Campaign Predefined Tags [ ] Quick Button */}
+        {/* Campaign Predefined Tags [ ] & Links Unified Quick Button */}
         {activeCampaign && (
           <button 
             className="btn-ghost"
@@ -131,16 +112,38 @@ export default function Header({
               color: '#38bdf8', 
               background: 'rgba(56, 189, 248, 0.08)', 
               border: '1px solid rgba(56, 189, 248, 0.3)',
-              padding: '0.25rem 0.55rem',
+              padding: '0.25rem 0.6rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.35rem'
+              gap: '0.4rem',
+              cursor: 'pointer'
             }}
             onClick={() => onOpenTagsModal && onOpenTagsModal(activeCampaign)}
-            title="Gerenciar e alterar todas as Tags e Variáveis [ ] das mensagens da campanha"
+            title="Gerenciar Tags [ ] e Links desta campanha"
+            id="header-tags-btn"
           >
             <Edit3 size={12} />
             <span>Tags [ ] ({tagsCount})</span>
+            {activeCampaign.predefinedLinks?.length > 0 && (
+              <span 
+                style={{ 
+                  fontSize: '0.68rem', 
+                  color: '#fbbf24', 
+                  background: 'rgba(245, 158, 11, 0.15)', 
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  padding: '0.05rem 0.35rem', 
+                  borderRadius: '4px',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem'
+                }}
+                title={`${activeCampaign.predefinedLinks.length} links pré-definidos cadastrados`}
+              >
+                <LinkIcon size={10} />
+                <span>{activeCampaign.predefinedLinks.length}</span>
+              </span>
+            )}
           </button>
         )}
       </div>

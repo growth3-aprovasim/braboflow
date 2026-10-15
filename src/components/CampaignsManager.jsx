@@ -283,21 +283,12 @@ export default function CampaignsManager({
                     <Edit3 size={15} />
                   </button>
 
-                  <button
-                    className="btn-ghost"
-                    style={{ padding: '0.3rem', color: '#94a3b8' }}
-                    onClick={() => onOpenLinksModal(campaign)}
-                    title="Configurar Links Predefinidos desta Campanha"
-                  >
-                    <LinkIcon size={15} />
-                  </button>
-
                   {onOpenTagsModal && (
                     <button
                       className="btn-ghost"
                       style={{ padding: '0.3rem', color: '#38bdf8' }}
                       onClick={() => onOpenTagsModal(campaign)}
-                      title="Configurar Tags & Variáveis [ ] desta Campanha"
+                      title="Configurar Tags [ ] e Links desta Campanha"
                     >
                       <Sparkles size={15} />
                     </button>
