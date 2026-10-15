@@ -103,42 +103,42 @@ export default function Header({
           )}
         </div>
 
-        {/* Campaign Predefined Tags [ ] & Links Unified Quick Button */}
+        {/* Campaign Tags [ ] & Links Unified Quick Button (Yellow Tone) */}
         {activeCampaign && (
           <button 
             className="btn-ghost"
             style={{ 
               fontSize: '0.76rem', 
-              color: '#38bdf8', 
-              background: 'rgba(56, 189, 248, 0.08)', 
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              padding: '0.25rem 0.6rem',
+              color: '#fbbf24', 
+              background: 'rgba(245, 158, 11, 0.1)', 
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              padding: '0.25rem 0.65rem',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
+              gap: '0.45rem',
               cursor: 'pointer'
             }}
             onClick={() => onOpenTagsModal && onOpenTagsModal(activeCampaign)}
-            title="Gerenciar Tags [ ] e Links desta campanha"
+            title="Gerenciar Tags [ ] e Links da Campanha"
             id="header-tags-btn"
           >
-            <Edit3 size={12} />
-            <span>Tags [ ] ({tagsCount})</span>
+            <Edit3 size={13} color="#fbbf24" />
+            <span style={{ fontWeight: 600 }}>Tags [ ] ({tagsCount})</span>
             {activeCampaign.predefinedLinks?.length > 0 && (
               <span 
                 style={{ 
-                  fontSize: '0.68rem', 
-                  color: '#fbbf24', 
-                  background: 'rgba(245, 158, 11, 0.15)', 
-                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                  fontSize: '0.66rem', 
+                  color: '#f59e0b', 
+                  background: 'rgba(245, 158, 11, 0.18)', 
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
                   padding: '0.05rem 0.35rem', 
                   borderRadius: '4px',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.2rem'
                 }}
-                title={`${activeCampaign.predefinedLinks.length} links pré-definidos cadastrados`}
+                title={`${activeCampaign.predefinedLinks.length} links cadastrados`}
               >
                 <LinkIcon size={10} />
                 <span>{activeCampaign.predefinedLinks.length}</span>

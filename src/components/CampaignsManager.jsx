@@ -286,7 +286,7 @@ export default function CampaignsManager({
                   {onOpenTagsModal && (
                     <button
                       className="btn-ghost"
-                      style={{ padding: '0.3rem', color: '#38bdf8' }}
+                      style={{ padding: '0.3rem', color: '#fbbf24' }}
                       onClick={() => onOpenTagsModal(campaign)}
                       title="Configurar Tags [ ] e Links desta Campanha"
                     >

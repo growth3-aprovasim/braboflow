@@ -25,7 +25,7 @@ export default function TableTabs({
     },
     { 
       id: 'tags', 
-      label: 'Variáveis & Tags [ ]', 
+      label: 'Tags [ ]', 
       icon: Edit3, 
       count: tagsCount 
     }

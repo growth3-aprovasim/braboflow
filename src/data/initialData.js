@@ -428,7 +428,11 @@ export const initialCampaigns = [
     ],
     customPlaceholders: {
       '[DATA DA LIVE]': { mode: 'text', text: 'Hoje às 20h00' },
-      '[CUPOM]': { mode: 'text', text: 'BRABO40' }
+      '[CUPOM]': { mode: 'text', text: 'BRABO40' },
+      '[LINK_LIVE]': { mode: 'link', linkId: 'lnk-4', text: 'https://youtube.com/live/brabo-pf-inaugural' },
+      '[LINK_SIMULADO]': { mode: 'link', linkId: 'lnk-3', text: 'https://braboconcursos.com.br/simulado-pf-gratis' },
+      '[LINK_CHECKOUT]': { mode: 'link', linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' },
+      '[LINK_GRUPO]': { mode: 'link', linkId: 'lnk-2', text: 'https://chat.whatsapp.com/brabo-pf-vip' }
     },
     messages: [
       {
@@ -450,9 +454,9 @@ export const initialCampaigns = [
           thumbnailUrl: 'https://images.unsplash.com/photo-1577495508048-b635879837f1?w=400&auto=format&fit=crop&q=80'
         },
         variables: {
-          '1': { linkId: 'lnk-4', text: 'https://youtube.com/live/brabo-pf-inaugural' }
+          '[LINK_LIVE]': { linkId: 'lnk-4', text: 'https://youtube.com/live/brabo-pf-inaugural' }
         },
-        copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\n[DATA DA LIVE] teremos nossa Live Exclusiva de Abertura da *Operação PF* com o Delegado e mentores da Brabo.\n\nVamos destrinchar o plano de estudos pós-autorização e como antecipar os pontos mais cobrados de Direito e RLM.\n\nToque no link abaixo e ative o lembrete agora:\n{{1}}`,
+        copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\n[DATA DA LIVE] teremos nossa Live Exclusiva de Abertura da *Operação PF* com o Delegado e mentores da Brabo.\n\nVamos destrinchar o plano de estudos pós-autorização e como antecipar os pontos mais cobrados de Direito e RLM.\n\nToque no link abaixo e ative o lembrete agora:\n[LINK_LIVE]`,
         notes: 'Enviar 1 hora antes da transmissão.'
       },
       {
@@ -471,9 +475,9 @@ export const initialCampaigns = [
           position: 'before'
         },
         variables: {
-          '1': { linkId: 'lnk-3', text: 'https://braboconcursos.com.br/simulado-pf-gratis' }
+          '[LINK_SIMULADO]': { linkId: 'lnk-3', text: 'https://braboconcursos.com.br/simulado-pf-gratis' }
         },
-        copyText: `Atenção concurseiros! 🚨\n\nO *Simulado Diagnóstico PF* da Brabo Concursos já está liberado gratuitamente na plataforma.\n\nDescubra agora sua pontuação líquida projetada estilo Cespe e veja onde você está perdendo pontos preciosos.\n\n👇 *Acesse o simulado agora:*\n{{1}}`,
+        copyText: `Atenção concurseiros! 🚨\n\nO *Simulado Diagnóstico PF* da Brabo Concursos já está liberado gratuitamente na plataforma.\n\nDescubra agora sua pontuação líquida projetada estilo Cespe e veja onde você está perdendo pontos preciosos.\n\n👇 *Acesse o simulado agora:*\n[LINK_SIMULADO]`,
         notes: 'Disparo simultâneo em todos os grupos normais.'
       },
       {
@@ -494,9 +498,9 @@ export const initialCampaigns = [
           thumbnailUrl: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=400&auto=format&fit=crop&q=80'
         },
         variables: {
-          '1': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
+          '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora usando o cupom *[CUPOM]*!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa no link abaixo:\n{{1}}`,
+        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora usando o cupom *[CUPOM]*!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa no link abaixo:\n[LINK_CHECKOUT]`,
         notes: 'Disparo direto 1 a 1 via Z-API / Evolution.'
       },
       {
@@ -508,9 +512,9 @@ export const initialCampaigns = [
         scheduledTime: '16:00',
         selectedLinkId: 'lnk-1',
         variables: {
-          '1': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
+          '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Aos veteranos do Grupo VIP Antigo! ⚡\n\nComo vocês já confiam no método Brabo, liberamos um link com a mesma condição de primeira turma para quem quiser renovar para o ciclo PF 2026 com o cupom *[CUPOM]*.\n\nAcesso imediato no link:\n{{1}}`,
+        copyText: `Aos veteranos do Grupo VIP Antigo! ⚡\n\nComo vocês já confiam no método Brabo, liberamos um link com a mesma condição de primeira turma para quem quiser renovar para o ciclo PF 2026 com o cupom *[CUPOM]*.\n\nAcesso imediato no link:\n[LINK_CHECKOUT]`,
         notes: 'Apenas para quem já esteve nos grupos de 2025.'
       },
       {
@@ -522,9 +526,9 @@ export const initialCampaigns = [
         scheduledTime: '18:00',
         selectedLinkId: 'lnk-2',
         variables: {
-          '1': { linkId: 'lnk-2', text: 'https://chat.whatsapp.com/brabo-pf-vip' }
+          '[LINK_GRUPO]': { linkId: 'lnk-2', text: 'https://chat.whatsapp.com/brabo-pf-vip' }
         },
-        copyText: `E aí, futuros federais! 🚔\n\nEstamos fechando o Grupo VIP onde os professores estão tirando dúvidas ao vivo da preparação da PF.\n\nQuem ainda não entrou, o link direto está aqui: {{1}}`,
+        copyText: `E aí, futuros federais! 🚔\n\nEstamos fechando o Grupo VIP onde os professores estão tirando dúvidas ao vivo da preparação da PF.\n\nQuem ainda não entrou, o link direto está aqui: [LINK_GRUPO]`,
         notes: 'Post na aba Comunidade do canal oficial.'
       },
       {
@@ -536,9 +540,9 @@ export const initialCampaigns = [
         scheduledTime: '10:00',
         selectedLinkId: 'lnk-1',
         variables: {
-          '1': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
+          '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Brabo Concursos: {primeiro_nome}, identificamos que restam menos de 10 vagas no Lote 1 da Operacao PF. Finalize sua inscricao com condicao especial: {{1}}`,
+        copyText: `Brabo Concursos: {primeiro_nome}, identificamos que restam menos de 10 vagas no Lote 1 da Operacao PF. Finalize sua inscricao com condicao especial: [LINK_CHECKOUT]`,
         notes: 'HSM pré-aprovado na Meta para número fora da janela de 24h.'
       }
     ]
@@ -556,6 +560,11 @@ export const initialCampaigns = [
       { id: 'lnk-pc2', label: 'Grupo Tático PC-SP Telegram/WhatsApp', url: 'https://chat.whatsapp.com/brabo-pcsp' },
       { id: 'lnk-pc3', label: 'Planilha Verticalizada Vunesp', url: 'https://braboconcursos.com.br/edital-verticalizado-pcsp' }
     ],
+    customPlaceholders: {
+      '[LINK_PLANILHA]': { mode: 'link', linkId: 'lnk-pc3', text: 'https://braboconcursos.com.br/edital-verticalizado-pcsp' },
+      '[LINK_CUPOM]': { mode: 'link', linkId: 'lnk-pc1', text: 'https://braboconcursos.com.br/reta-final-pcsp' },
+      '[LINK_GRUPO]': { mode: 'link', linkId: 'lnk-pc2', text: 'https://chat.whatsapp.com/brabo-pcsp' }
+    },
     messages: [
       {
         id: 'msg-201',
@@ -566,9 +575,9 @@ export const initialCampaigns = [
         scheduledTime: '10:00',
         selectedLinkId: 'lnk-pc3',
         variables: {
-          '1': { linkId: 'lnk-pc3', text: 'https://braboconcursos.com.br/edital-verticalizado-pcsp' }
+          '[LINK_PLANILHA]': { linkId: 'lnk-pc3', text: 'https://braboconcursos.com.br/edital-verticalizado-pcsp' }
         },
-        copyText: `Saiu a planilha com o *Edital Verticalizado da Polícia Civil de SP*!\n\nVeja quais tópicos do Direito Penal e Criminologia têm mais de 70% de incidência nas últimas provas da Vunesp.\n\nBaixe gratuitamente no link:\n{{1}}`,
+        copyText: `Saiu a planilha com o *Edital Verticalizado da Polícia Civil de SP*!\n\nVeja quais tópicos do Direito Penal e Criminologia têm mais de 70% de incidência nas últimas provas da Vunesp.\n\nBaixe gratuitamente no link:\n[LINK_PLANILHA]`,
         notes: 'Atrair leads quentes para compra do combo.'
       },
       {
@@ -580,9 +589,9 @@ export const initialCampaigns = [
         scheduledTime: '15:30',
         selectedLinkId: 'lnk-pc1',
         variables: {
-          '1': { linkId: 'lnk-pc1', text: 'https://braboconcursos.com.br/reta-final-pcsp' }
+          '[LINK_CUPOM]': { linkId: 'lnk-pc1', text: 'https://braboconcursos.com.br/reta-final-pcsp' }
         },
-        copyText: `*{primeiro_nome}*, falta pouco para a prova da PC-SP.\n\nCriamos um cupom de 50% para quem precisa acelerar a revisão nesta reta final com o time que mais aprova policiais em SP.\n\nClique e ative o desconto:\n{{1}}`,
+        copyText: `*{primeiro_nome}*, falta pouco para a prova da PC-SP.\n\nCriamos um cupom de 50% para quem precisa acelerar a revisão nesta reta final com o time que mais aprova policiais em SP.\n\nClique e ative o desconto:\n[LINK_CUPOM]`,
         notes: 'Disparo via ActiveCampaign / RD.'
       },
       {
@@ -594,9 +603,9 @@ export const initialCampaigns = [
         scheduledTime: '19:00',
         selectedLinkId: 'lnk-pc2',
         variables: {
-          '1': { linkId: 'lnk-pc2', text: 'https://chat.whatsapp.com/brabo-pcsp' }
+          '[LINK_GRUPO]': { linkId: 'lnk-pc2', text: 'https://chat.whatsapp.com/brabo-pcsp' }
         },
-        copyText: `Guerreiros da PC-SP! 🚨\n\nHoje às 20h tem plantão exclusivo no grupo com foco em Escolas Criminológicas: {{1}}\n\nEstejam a postos com caderno na mão!`,
+        copyText: `Guerreiros da PC-SP! 🚨\n\nHoje às 20h tem plantão exclusivo no grupo com foco em Escolas Criminológicas: [LINK_GRUPO]\n\nEstejam a postos com caderno na mão!`,
         notes: ''
       }
     ]
@@ -613,6 +622,9 @@ export const initialCampaigns = [
       { id: 'lnk-prf1', label: 'Ranking Oficial do Simulado PRF', url: 'https://braboconcursos.com.br/ranking-prf' },
       { id: 'lnk-prf2', label: 'Mentoria Prática de Trânsito CTB', url: 'https://braboconcursos.com.br/mentoria-ctb-prf' }
     ],
+    customPlaceholders: {
+      '[LINK_SIMULADO]': { mode: 'link', linkId: 'lnk-prf1', text: 'https://braboconcursos.com.br/ranking-prf' }
+    },
     messages: [
       {
         id: 'msg-301',
@@ -623,9 +635,9 @@ export const initialCampaigns = [
         scheduledTime: '12:00',
         selectedLinkId: 'lnk-prf1',
         variables: {
-          '1': { linkId: 'lnk-prf1', text: 'https://braboconcursos.com.br/ranking-prf' }
+          '[LINK_SIMULADO]': { linkId: 'lnk-prf1', text: 'https://braboconcursos.com.br/ranking-prf' }
         },
-        copyText: `O maior simulado do Brasil para a *Polícia Rodoviária Federal* está de volta!\n\nMais de 20 mil inscritos previstos. Inscreva-se sem custo no link: {{1}}`,
+        copyText: `O maior simulado do Brasil para a *Polícia Rodoviária Federal* está de volta!\n\nMais de 20 mil inscritos previstos. Inscreva-se sem custo no link: [LINK_SIMULADO]`,
         notes: 'Reaquecimento da base antiga.'
       }
     ]

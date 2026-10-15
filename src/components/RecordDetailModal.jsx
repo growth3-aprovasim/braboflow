@@ -124,45 +124,29 @@ export default function RecordDetailModal({
     handleChange('variables', updatedVars);
   };
 
-  // Automatically increment variable number: {{1}}, {{2}}, {{3}}...
-  const handleInsertNextVariable = () => {
+  // Insert bracket tag into copyText at cursor position
+  const handleInsertTag = (tag = '[LINK]') => {
     const text = formData.copyText || '';
-    const matches = [...text.matchAll(/\{\{(\d+)\}\}/g)];
-    const existingNums = matches.map(m => parseInt(m[1], 10));
-
-    Object.keys(formData.variables || {}).forEach(k => {
-      const n = parseInt(k, 10);
-      if (!isNaN(n)) existingNums.push(n);
-    });
-
-    let nextNum = 1;
-    while (existingNums.includes(nextNum)) {
-      nextNum++;
-    }
-
-    const varTag = `{{${nextNum}}}`;
-    const defaultLink = predefinedLinks[0];
-
-    const currentVars = formData.variables || {};
-    const updatedVars = {
-      ...currentVars,
-      [nextNum]: {
-        mode: defaultLink ? 'link' : 'text',
-        linkId: defaultLink?.id || '',
-        text: defaultLink?.url || ''
-      }
-    };
-
-    // Insert tag at cursor in textarea if focused, or append at end
     const textarea = document.getElementById('record-copy-textarea');
     let newCopyText = text;
     if (textarea && textarea.selectionStart !== undefined) {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd;
-      newCopyText = text.substring(0, start) + varTag + text.substring(end);
+      newCopyText = text.substring(0, start) + tag + text.substring(end);
     } else {
-      newCopyText = text ? `${text} ${varTag}` : varTag;
+      newCopyText = text ? `${text}\n${tag}` : tag;
     }
+
+    const defaultLink = predefinedLinks[0];
+    const currentVars = formData.variables || {};
+    const updatedVars = {
+      ...currentVars,
+      [tag]: currentVars[tag] || {
+        mode: defaultLink ? 'link' : 'text',
+        linkId: defaultLink?.id || '',
+        text: defaultLink?.url || ''
+      }
+    };
 
     handleChange('copyText', newCopyText, { variables: updatedVars });
   };
@@ -670,16 +654,21 @@ export default function RecordDetailModal({
               className="btn-ghost"
               style={{
                 fontSize: '0.72rem',
-                padding: '0.2rem 0.5rem',
-                background: 'rgba(59, 130, 246, 0.08)',
-                color: '#93c5fd',
-                border: '1px solid rgba(59, 130, 246, 0.2)',
-                borderRadius: '4px'
+                padding: '0.2rem 0.55rem',
+                background: 'rgba(245, 158, 11, 0.1)',
+                color: '#fbbf24',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                fontWeight: 600
               }}
-              onClick={handleInsertNextVariable}
-              title="Inserir variável dinâmica (ex: {{1}}, {{2}}...)"
+              onClick={() => handleInsertTag('[LINK]')}
+              title="Inserir tag de link [LINK] na copy"
             >
-              + Inserir Variável
+              <Plus size={11} />
+              <span>+ Inserir Tag [LINK]</span>
             </button>
           </div>
 
@@ -701,13 +690,11 @@ export default function RecordDetailModal({
             }}
           />
 
-
-
           {/* Tags [ ] no texto */}
           {detectedBracketTags.length > 0 && (
             <div style={{
-              background: 'rgba(56, 189, 248, 0.05)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
+              background: 'rgba(245, 158, 11, 0.05)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
               borderRadius: '6px',
               padding: '0.65rem 0.8rem',
               display: 'flex',
@@ -716,14 +703,14 @@ export default function RecordDetailModal({
               marginTop: '0.35rem'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Edit3 size={12} /> Tags [ ] Detectadas ({detectedBracketTags.length})
+                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Edit3 size={12} color="#fbbf24" /> Tags [ ] Detectadas ({detectedBracketTags.length})
                 </span>
                 {onOpenTagsModal && (
                   <button
                     type="button"
                     className="btn-ghost"
-                    style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#38bdf8' }}
+                    style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#fbbf24' }}
                     onClick={() => onOpenTagsModal(campaign)}
                   >
                     ⚡ Central de Tags [ ] da Campanha
@@ -762,9 +749,9 @@ export default function RecordDetailModal({
                       }}
                     >
                       <span style={{
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                        color: '#38bdf8',
+                        background: 'rgba(245, 158, 11, 0.15)',
+                        border: '1px solid rgba(245, 158, 11, 0.35)',
+                        color: '#fbbf24',
                         fontWeight: 700,
                         fontSize: '0.72rem',
                         padding: '0.15rem 0.45rem',
@@ -784,8 +771,8 @@ export default function RecordDetailModal({
                             fontSize: '0.68rem',
                             padding: '0.15rem 0.35rem',
                             borderRadius: '3px',
-                            background: isLinkMode ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                            color: isLinkMode ? '#38bdf8' : 'var(--text-muted)',
+                            background: isLinkMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                            color: isLinkMode ? '#fbbf24' : 'var(--text-muted)',
                             fontWeight: isLinkMode ? 700 : 400
                           }}
                           onClick={() => handleVariableChange(rawTag, { mode: 'link' })}
@@ -799,8 +786,8 @@ export default function RecordDetailModal({
                             fontSize: '0.68rem',
                             padding: '0.15rem 0.35rem',
                             borderRadius: '3px',
-                            background: !isLinkMode ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                            color: !isLinkMode ? '#38bdf8' : 'var(--text-muted)',
+                            background: !isLinkMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                            color: !isLinkMode ? '#fbbf24' : 'var(--text-muted)',
                             fontWeight: !isLinkMode ? 700 : 400
                           }}
                           onClick={() => handleVariableChange(rawTag, { mode: 'text', linkId: null })}
@@ -848,7 +835,7 @@ export default function RecordDetailModal({
                         <button
                           type="button"
                           className="btn-secondary"
-                          style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)', flexShrink: 0 }}
+                          style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)', flexShrink: 0 }}
                           onClick={() => handleReplaceBracketTagInCopy(rawTag, currentReplacementVal)}
                           title={`Substituir permanentemente ${rawTag} pelo valor nesta mensagem`}
                         >

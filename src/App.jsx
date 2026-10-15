@@ -8,8 +8,8 @@ import KanbanView from './components/KanbanView';
 import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
-import CampaignLinksModal from './components/CampaignLinksModal';
 import CampaignTagsModal from './components/CampaignTagsModal';
+import { Link as LinkIcon, Sparkles, Plus, Edit3 } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
@@ -739,8 +739,8 @@ export default function App() {
       scheduledDate: initialOverrides.scheduledDate || new Date().toISOString().split('T')[0],
       scheduledTime: '10:00',
       selectedLinkId: defaultLinkId,
-      variables: initialOverrides.variables || (defaultLink ? { '1': { linkId: defaultLinkId, text: defaultLink.url } } : {}),
-      copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\nLiberamos as vagas exclusivas para você.\n\n👇 *Acesse o link oficial abaixo:*\n{{1}}`,
+      variables: initialOverrides.variables || (defaultLink ? { '[LINK]': { mode: 'link', linkId: defaultLinkId, text: defaultLink.url } } : {}),
+      copyText: `Fala *{primeiro_nome}*, aqui é da *Brabo Concursos*! 🦅\n\nLiberamos as vagas exclusivas para você.\n\n👇 *Acesse o link oficial abaixo:*\n[LINK]`,
       notes: '',
       ...initialOverrides
     };
@@ -1037,16 +1037,16 @@ export default function App() {
           <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
                   Campanha: {activeCampaign.name}
                 </span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
-                  {tagsViewTab === 'tags' ? 'Variáveis & Tags [ ] desta Campanha' : 'Links & Variáveis Pré-definidas ({{ }})'}
+                  {tagsViewTab === 'tags' ? 'Tags & Variáveis [ ] da Campanha' : 'Links da Campanha'}
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
                   {tagsViewTab === 'tags' 
                     ? 'Altere em um só lugar tudo o que estiver entre colchetes como [LINK], [DATA], [CUPOM] em todas as mensagens.'
-                    : 'Cada link cadastrado aqui substitui automaticamente a variável correspondente ({{1}}, {{2}}) em todas as mensagens da campanha.'}
+                    : 'Cadastre e gerencie os links de destino oficiais da campanha (Checkout, Grupo VIP, Página de Vendas) vinculados às suas Tags.'}
                 </p>
               </div>
 
@@ -1055,17 +1055,19 @@ export default function App() {
                   <button
                     className="btn-primary"
                     onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}
-                    style={{ background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)' }}
+                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
                   >
-                    <span>⚡ Central de Substituição [ ]</span>
+                    <Sparkles size={14} />
+                    <span>⚡ Central de Tags [ ]</span>
                   </button>
                 ) : (
                   <button
                     className="btn-primary"
-                    onClick={() => handleOpenLinksModal(activeCampaign)}
-                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
+                    onClick={() => handleOpenTagsModal(activeCampaign, 'links')}
+                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700, boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
                   >
-                    <span>+ Gerenciar Variáveis {'{{ }}'}</span>
+                    <Plus size={14} />
+                    <span>+ Gerenciar Links</span>
                   </button>
                 )}
               </div>
@@ -1082,16 +1084,16 @@ export default function App() {
                   gap: '0.45rem',
                   padding: '0.45rem 1rem',
                   borderRadius: '8px',
-                  border: tagsViewTab === 'tags' ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid transparent',
-                  background: tagsViewTab === 'tags' ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
-                  color: tagsViewTab === 'tags' ? '#38bdf8' : '#94a3b8',
+                  border: tagsViewTab === 'tags' ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
+                  background: tagsViewTab === 'tags' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+                  color: tagsViewTab === 'tags' ? '#fbbf24' : '#94a3b8',
                   fontWeight: tagsViewTab === 'tags' ? 700 : 500,
                   fontSize: '0.82rem',
                   cursor: 'pointer'
                 }}
               >
-                <span>🏷️ Tags & Variáveis [ ]</span>
-                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'tags' ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'tags' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
+                <span>🏷️ Tags da Campanha [ ]</span>
+                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'tags' ? '#fbbf24' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'tags' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
                   {activeTags.length}
                 </span>
               </button>
@@ -1113,7 +1115,7 @@ export default function App() {
                   cursor: 'pointer'
                 }}
               >
-                <span>🔗 Links Pré-definidos {'{{ }}'}</span>
+                <span>🔗 Links da Campanha</span>
                 <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'links' ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'links' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
                   {(activeCampaign.predefinedLinks || []).length}
                 </span>
@@ -1126,9 +1128,9 @@ export default function App() {
                 {activeTags.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
                     <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA] ou [LINK_CHECKOUT] nas copies para gerenciá-los aqui.</p>
-                    <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
-                      + Cadastrar Tag Manualmente
+                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA], [LINK] ou [CUPOM] nas copies para gerenciá-los aqui.</p>
+                    <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}>
+                      + Cadastrar Tag na Central
                     </button>
                   </div>
                 ) : (
@@ -1154,9 +1156,9 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                             <span style={{
-                              background: 'rgba(56, 189, 248, 0.15)',
-                              border: '1px solid rgba(56, 189, 248, 0.35)',
-                              color: '#38bdf8',
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              color: '#fbbf24',
                               fontWeight: 700,
                               fontSize: '0.9rem',
                               padding: '0.25rem 0.65rem',
@@ -1185,8 +1187,8 @@ export default function App() {
                                 style={{
                                   fontSize: '0.76rem',
                                   padding: '0.35rem 0.65rem',
-                                  color: isPageExpanded ? '#38bdf8' : '#94a3b8',
-                                  background: isPageExpanded ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                                  color: isPageExpanded ? '#fbbf24' : '#94a3b8',
+                                  background: isPageExpanded ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.04)',
                                   borderRadius: '6px'
                                 }}
                               >
@@ -1195,10 +1197,10 @@ export default function App() {
                             )}
                             <button
                               className="btn-secondary"
-                              onClick={() => handleOpenTagsModal(activeCampaign)}
-                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                              onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}
+                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
                             >
-                              Alterar / Substituir
+                              Configurar Tag
                             </button>
                           </div>
                         </div>
@@ -1207,14 +1209,14 @@ export default function App() {
                         {isPageExpanded && tag.messages.length > 0 && (
                           <div style={{
                             background: 'rgba(0, 0, 0, 0.35)',
-                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
                             borderRadius: '8px',
                             padding: '0.85rem',
                             display: 'flex',
                             flexDirection: 'column',
                             gap: '0.6rem'
                           }}>
-                            <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
                               Ocorrências nas Mensagens ({tag.messages.length}):
                             </span>
 
@@ -1226,7 +1228,7 @@ export default function App() {
                                     key={m.id}
                                     style={{
                                       background: isMsgExpanded ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.02)',
-                                      border: isMsgExpanded ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-subtle)',
+                                      border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
                                       borderRadius: '6px',
                                       padding: '0.65rem 0.85rem',
                                       display: 'flex',
@@ -1240,7 +1242,7 @@ export default function App() {
                                         type="button"
                                         className="btn-ghost"
                                         onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: !p[m.id] }))}
-                                        style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', color: '#38bdf8' }}
+                                        style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', color: '#fbbf24' }}
                                       >
                                         {isMsgExpanded ? 'Recolher' : 'Expandir Mensagem'}
                                       </button>
@@ -1256,7 +1258,7 @@ export default function App() {
                                     ) : (
                                       <div style={{
                                         background: 'rgba(0, 0, 0, 0.5)',
-                                        border: '1px solid rgba(56, 189, 248, 0.25)',
+                                        border: '1px solid rgba(245, 158, 11, 0.25)',
                                         borderRadius: '6px',
                                         padding: '0.85rem',
                                         color: '#f1f5f9',
@@ -1286,18 +1288,14 @@ export default function App() {
               <div style={{ display: 'grid', gap: '0.85rem' }}>
                 {(activeCampaign.predefinedLinks || []).length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link pré-definido cadastrado ainda nesta campanha.</p>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre variáveis como {'{{1}}'} = seu-link.com para preencher todas as mensagens automaticamente.</p>
-                    <button className="btn-secondary" style={{ marginTop: '0.5rem' }} onClick={() => handleOpenLinksModal(activeCampaign)}>
-                      + Cadastrar Link {'{{1}}'}
+                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link cadastrado ainda nesta campanha.</p>
+                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre links oficiais (ex: Checkout, Grupo VIP) para vinculá-los às Tags das suas mensagens.</p>
+                    <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign, 'links')}>
+                      + Cadastrar Novo Link
                     </button>
                   </div>
                 ) : (
                   (activeCampaign.predefinedLinks || []).map((lnk, idx) => {
-                    const varKey = lnk.key || lnk.variableKey || String(idx + 1);
-                    const pattern = `{{${varKey}}}`;
-                    const occurrences = (activeCampaign.messages || []).filter(m => m.copyText && m.copyText.includes(pattern)).length;
-
                     return (
                       <div
                         key={lnk.id}
@@ -1314,23 +1312,24 @@ export default function App() {
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
-                          <span style={{
-                            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
-                            border: '1px solid rgba(245, 158, 11, 0.5)',
-                            color: '#fbbf24',
-                            fontWeight: 800,
-                            fontSize: '0.95rem',
-                            padding: '0.3rem 0.75rem',
+                          <div style={{
+                            width: '38px',
+                            height: '38px',
                             borderRadius: '8px',
-                            fontFamily: 'monospace',
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            border: '1px solid rgba(245, 158, 11, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fbbf24',
                             flexShrink: 0
                           }}>
-                            &#123;&#123;{varKey}&#125;&#125;
-                          </span>
+                            <LinkIcon size={18} />
+                          </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
                             <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
-                              {lnk.label || `Link {{${varKey}}}`}
+                              {lnk.label || `Link ${idx + 1}`}
                             </span>
                             <a
                               href={lnk.url}
@@ -1346,19 +1345,19 @@ export default function App() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <span style={{
                             fontSize: '0.74rem',
-                            color: occurrences > 0 ? '#4ade80' : '#94a3b8',
-                            background: occurrences > 0 ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                            color: '#4ade80',
+                            background: 'rgba(34, 197, 94, 0.12)',
                             padding: '0.25rem 0.6rem',
                             borderRadius: '6px',
                             fontWeight: 600
                           }}>
-                            {occurrences > 0 ? `Substituindo em ${occurrences} ${occurrences === 1 ? 'mensagem' : 'mensagens'}` : 'Cadastrado na Campanha'}
+                            Pronto para vincular a Tags
                           </span>
 
                           <button
                             className="btn-secondary"
-                            onClick={() => handleOpenLinksModal(activeCampaign)}
-                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem' }}
+                            onClick={() => handleOpenTagsModal(activeCampaign, 'links')}
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
                           >
                             Editar Link
                           </button>

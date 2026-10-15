@@ -360,6 +360,16 @@ body {
   color: #93c5fd;
 }
 
+#tab-tags.active {
+  border-bottom-color: #f59e0b;
+  color: #fbbf24;
+}
+
+#tab-tags.active .tab-counter {
+  background-color: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
 /* ==========================================================================
    VIEWS TOOLBAR (Clean Minimalist Pills)
    ========================================================================== */

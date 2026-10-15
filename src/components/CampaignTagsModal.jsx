@@ -21,7 +21,6 @@ import {
   Maximize2,
   Minimize2,
   Calendar,
-  Clock,
   Smartphone,
   Mail,
   ArrowRight
@@ -152,14 +151,14 @@ function HighlightedText({ text, highlightTag }) {
             <mark
               key={idx}
               style={{
-                background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.35) 0%, rgba(14, 165, 233, 0.45) 100%)',
-                border: '1px solid #38bdf8',
-                color: '#38bdf8',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.5) 100%)',
+                border: '1px solid #fbbf24',
+                color: '#fbbf24',
                 fontWeight: 800,
                 borderRadius: '5px',
                 padding: '0.1rem 0.45rem',
                 margin: '0 0.15rem',
-                boxShadow: '0 0 10px rgba(56, 189, 248, 0.35)',
+                boxShadow: '0 0 10px rgba(245, 158, 11, 0.35)',
                 display: 'inline-block'
               }}
               title={`Tag em foco: ${p.text}`}
@@ -234,36 +233,26 @@ export default function CampaignTagsModal({
     }
   }, [campaign?.customPlaceholders]);
 
-  // Links state for Links Tab
+  // Links state for Links Tab (Clean, without {{}})
   const [links, setLinks] = useState(() => {
     return (campaign?.predefinedLinks || []).map((l, idx) => ({
       ...l,
-      key: l.key || l.variableKey || String(idx + 1)
+      label: l.label || `Link ${idx + 1}`
     }));
   });
 
-  const [newLinkKey, setNewLinkKey] = useState('');
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [copiedLinkId, setCopiedLinkId] = useState(null);
-  const [expandedLinkSnippet, setExpandedLinkSnippet] = useState(null);
-  const [expandedLinkMessageIds, setExpandedLinkMessageIds] = useState({});
 
   useEffect(() => {
     if (campaign?.predefinedLinks) {
       setLinks(campaign.predefinedLinks.map((l, idx) => ({
         ...l,
-        key: l.key || l.variableKey || String(idx + 1)
+        label: l.label || `Link ${idx + 1}`
       })));
     }
   }, [campaign?.predefinedLinks]);
-
-  // Compute next suggested numeric key for Links
-  const nextSuggestedKey = useMemo(() => {
-    const existingNums = links.map(l => Number(l.key)).filter(n => !isNaN(n) && n > 0);
-    if (existingNums.length === 0) return '1';
-    return String(Math.max(...existingNums) + 1);
-  }, [links]);
 
   // Extract all detected tags from campaign messages
   const detectedTags = useMemo(() => {
@@ -439,14 +428,7 @@ export default function CampaignTagsModal({
     setTimeout(() => setCopiedMsgId(null), 2000);
   };
 
-  // LINKS TAB LOGIC
-  const getOccurrencesCountForLink = (key) => {
-    if (!campaign?.messages) return [];
-    const clean = String(key || '').replace(/^\{\{/, '').replace(/\}\}$/, '').trim();
-    const pattern = `{{${clean}}}`;
-    return campaign.messages.filter(m => m.copyText && m.copyText.includes(pattern));
-  };
-
+  // LINKS TAB LOGIC (Without {{}})
   const handleAddLink = (e) => {
     e.preventDefault();
     if (!newLinkUrl.trim()) return;
@@ -456,13 +438,10 @@ export default function CampaignTagsModal({
       formattedUrl = 'https://' + formattedUrl;
     }
 
-    const assignedKey = newLinkKey.trim() ? newLinkKey.trim().replace(/^\{\{/, '').replace(/\}\}$/, '').trim() : nextSuggestedKey;
-    const assignedLabel = newLinkLabel.trim() || `Link {{${assignedKey}}}`;
+    const assignedLabel = newLinkLabel.trim() || `Link ${links.length + 1}`;
 
     const newLinkItem = {
       id: `lnk-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      key: assignedKey,
-      variableKey: assignedKey,
       label: assignedLabel,
       url: formattedUrl
     };
@@ -473,10 +452,9 @@ export default function CampaignTagsModal({
       onUpdateCampaignLinks(campaign.id, updated);
     }
 
-    setNewLinkKey('');
     setNewLinkLabel('');
     setNewLinkUrl('');
-    setSuccessToast(`Link {{${assignedKey}}} adicionado à campanha!`);
+    setSuccessToast(`Link "${assignedLabel}" adicionado à campanha!`);
     setTimeout(() => setSuccessToast(null), 2500);
   };
 
@@ -505,17 +483,10 @@ export default function CampaignTagsModal({
     setTimeout(() => setSuccessToast(null), 2500);
   };
 
-  const handleCopyLinkVar = (text, id) => {
-    navigator.clipboard.writeText(text);
+  const handleCopyLinkUrl = (url, id) => {
+    navigator.clipboard.writeText(url);
     setCopiedLinkId(id);
     setTimeout(() => setCopiedLinkId(null), 2000);
-  };
-
-  const toggleExpandLinkMessage = (msgId) => {
-    setExpandedLinkMessageIds(prev => ({
-      ...prev,
-      [msgId]: !prev[msgId]
-    }));
   };
 
   return (
@@ -532,22 +503,22 @@ export default function CampaignTagsModal({
               width: '40px',
               height: '40px',
               borderRadius: '10px',
-              background: activeTab === 'tags' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-              border: `1px solid ${activeTab === 'tags' ? 'rgba(56, 189, 248, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1px solid rgba(245, 158, 11, 0.4)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: activeTab === 'tags' ? '#38bdf8' : '#fbbf24',
+              color: '#fbbf24',
               transition: 'all 0.2s ease'
             }}>
               {activeTab === 'tags' ? <Edit3 size={20} /> : <LinkIcon size={20} />}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <span style={{ fontSize: '0.72rem', color: activeTab === 'tags' ? '#38bdf8' : '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Central Unificada de Tags & Links
+                <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Central de Tags & Links da Campanha
                 </span>
-                <span style={{ fontSize: '0.68rem', background: 'rgba(255, 255, 255, 0.08)', color: '#94a3b8', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.68rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.15rem 0.45rem', borderRadius: '4px', fontWeight: 700 }}>
                   {allTagsList.length} tags • {predefinedLinks.length} links
                 </span>
               </div>
@@ -580,9 +551,9 @@ export default function CampaignTagsModal({
               gap: '0.45rem',
               padding: '0.45rem 1rem',
               borderRadius: '8px',
-              border: activeTab === 'tags' ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid transparent',
-              background: activeTab === 'tags' ? 'rgba(56, 189, 248, 0.16)' : 'transparent',
-              color: activeTab === 'tags' ? '#38bdf8' : '#94a3b8',
+              border: activeTab === 'tags' ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid transparent',
+              background: activeTab === 'tags' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
+              color: activeTab === 'tags' ? '#fbbf24' : '#94a3b8',
               fontWeight: activeTab === 'tags' ? 700 : 500,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -591,10 +562,10 @@ export default function CampaignTagsModal({
             id="tab-btn-tags"
           >
             <Edit3 size={14} />
-            <span>Tags & Variáveis [ ]</span>
+            <span>Tags [ ]</span>
             <span style={{
               fontSize: '0.68rem',
-              background: activeTab === 'tags' ? '#38bdf8' : 'rgba(255, 255, 255, 0.08)',
+              background: activeTab === 'tags' ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)',
               color: activeTab === 'tags' ? '#0b1120' : '#cbd5e1',
               fontWeight: 800,
               padding: '0.1rem 0.45rem',
@@ -604,7 +575,7 @@ export default function CampaignTagsModal({
             </span>
           </button>
 
-          {/* Tab 2: Links {{ }} */}
+          {/* Tab 2: Links da Campanha (Sem {{}}) */}
           <button
             type="button"
             onClick={() => setActiveTab('links')}
@@ -614,7 +585,7 @@ export default function CampaignTagsModal({
               gap: '0.45rem',
               padding: '0.45rem 1rem',
               borderRadius: '8px',
-              border: activeTab === 'links' ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
+              border: activeTab === 'links' ? '1px solid rgba(245, 158, 11, 0.5)' : '1px solid transparent',
               background: activeTab === 'links' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
               color: activeTab === 'links' ? '#fbbf24' : '#94a3b8',
               fontWeight: activeTab === 'links' ? 700 : 500,
@@ -625,7 +596,7 @@ export default function CampaignTagsModal({
             id="tab-btn-links"
           >
             <LinkIcon size={14} />
-            <span>Links Pré-definidos {'{{ }}'}</span>
+            <span>Links da Campanha</span>
             <span style={{
               fontSize: '0.68rem',
               background: activeTab === 'links' ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)',
@@ -666,16 +637,16 @@ export default function CampaignTagsModal({
               {/* Explanation Banner */}
               <div style={{
                 background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid var(--border-color)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
                 borderRadius: '10px',
                 padding: '0.9rem 1.1rem',
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '0.85rem'
               }}>
-                <Sparkles size={18} color="#38bdf8" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
+                <Sparkles size={18} color="#fbbf24" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
                 <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.45' }}>
-                  <strong style={{ color: '#f8fafc' }}>Como funciona:</strong> Qualquer termo colocado entre colchetes como <code style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>[LINK]</code>, <code style={{ background: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>[DATA]</code> ou <code style={{ background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>[CUPOM]</code> em suas mensagens é detectado automaticamente aqui. Você pode associar links ou textos substitutos, <strong>expandir as mensagens para ver o contexto completo</strong> e aplicar em tudo com 1 clique!
+                  <strong style={{ color: '#f8fafc' }}>Como funciona:</strong> Qualquer termo colocado entre colchetes como <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[LINK]</code>, <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[DATA]</code> ou <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[CUPOM]</code> em suas mensagens é detectado automaticamente aqui. Você pode associar links ou textos substitutos, <strong>expandir as mensagens para ver o contexto completo</strong> e aplicar em tudo com 1 clique!
                 </div>
               </div>
 
@@ -712,8 +683,8 @@ export default function CampaignTagsModal({
                         padding: '0.25rem 0.6rem',
                         borderRadius: '6px',
                         border: 'none',
-                        background: activeFilter === f.id ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-                        color: activeFilter === f.id ? '#38bdf8' : '#94a3b8',
+                        background: activeFilter === f.id ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
+                        color: activeFilter === f.id ? '#fbbf24' : '#94a3b8',
                         fontWeight: activeFilter === f.id ? 700 : 500,
                         cursor: 'pointer'
                       }}
@@ -728,7 +699,7 @@ export default function CampaignTagsModal({
                   type="button"
                   className="btn-secondary"
                   onClick={() => setShowAddCustomTag(!showAddCustomTag)}
-                  style={{ fontSize: '0.76rem', padding: '0.35rem 0.75rem' }}
+                  style={{ fontSize: '0.76rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
                 >
                   <Plus size={13} />
                   <span>Nova Tag [ ]</span>
@@ -738,19 +709,19 @@ export default function CampaignTagsModal({
               {/* New Custom Tag Form (Collapsible) */}
               {showAddCustomTag && (
                 <form onSubmit={handleAddNewManualTag} style={{
-                  background: 'rgba(56, 189, 248, 0.05)',
-                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  background: 'rgba(245, 158, 11, 0.06)',
+                  border: '1px solid rgba(245, 158, 11, 0.3)',
                   borderRadius: '8px',
                   padding: '0.85rem 1rem',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.65rem'
                 }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#38bdf8' }}>Nome da Nova Tag:</span>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#fbbf24' }}>Nome da Nova Tag:</span>
                   <input
                     type="text"
                     className="form-control"
-                    placeholder="Ex: DATA_AULA_1 ou CUPOM_BLACK"
+                    placeholder="Ex: LINK_CHECKOUT, DATA_AULA ou CUPOM_BLACK"
                     value={newCustomTagInput}
                     onChange={(e) => setNewCustomTagInput(e.target.value)}
                     style={{ fontSize: '0.8rem', flex: 1 }}
@@ -759,7 +730,7 @@ export default function CampaignTagsModal({
                   <button
                     type="submit"
                     className="btn-primary"
-                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem' }}
+                    style={{ fontSize: '0.78rem', padding: '0.35rem 0.85rem', background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
                     disabled={!newCustomTagInput.trim()}
                   >
                     Adicionar
@@ -789,12 +760,12 @@ export default function CampaignTagsModal({
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}>
-                    <AlertCircle size={28} color="#475569" />
+                    <AlertCircle size={28} color="#f59e0b" />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#94a3b8' }}>
                       {searchTerm ? 'Nenhuma tag encontrada para esta busca.' : 'Nenhuma tag [ ] encontrada nas mensagens.'}
                     </span>
                     <p style={{ fontSize: '0.78rem', color: '#64748b', maxWidth: '420px', margin: 0 }}>
-                      Escreva palavras entre colchetes como <code style={{ color: '#38bdf8' }}>[LINK]</code> ou <code style={{ color: '#fbbf24' }}>[DATA]</code> no texto das suas mensagens ou clique em <strong>"+ Nova Tag [ ]"</strong> para cadastrar antecipadamente.
+                      Escreva palavras entre colchetes como <code style={{ color: '#fbbf24' }}>[LINK]</code> ou <code style={{ color: '#fbbf24' }}>[DATA]</code> no texto das suas mensagens ou clique em <strong>"+ Nova Tag [ ]"</strong> para cadastrar antecipadamente.
                     </p>
                   </div>
                 ) : (
@@ -812,7 +783,7 @@ export default function CampaignTagsModal({
                         key={cleanKey}
                         style={{
                           background: 'var(--bg-card)',
-                          border: `1px solid ${hasValue ? 'rgba(56, 189, 248, 0.35)' : 'var(--border-color)'}`,
+                          border: `1px solid ${hasValue ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}`,
                           borderRadius: '10px',
                           padding: '1rem',
                           display: 'flex',
@@ -825,12 +796,12 @@ export default function CampaignTagsModal({
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                             <span style={{
-                              background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(59, 130, 246, 0.25) 100%)',
-                              border: '1px solid rgba(56, 189, 248, 0.4)',
-                              color: '#38bdf8',
-                              fontWeight: 700,
+                              background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(217, 119, 6, 0.28) 100%)',
+                              border: '1px solid rgba(245, 158, 11, 0.5)',
+                              color: '#fbbf24',
+                              fontWeight: 800,
                               fontSize: '0.85rem',
-                              padding: '0.2rem 0.6rem',
+                              padding: '0.2rem 0.65rem',
                               borderRadius: '6px',
                               letterSpacing: '0.5px',
                               fontFamily: 'monospace'
@@ -850,9 +821,9 @@ export default function CampaignTagsModal({
                                 style={{
                                   fontSize: '0.72rem',
                                   padding: '0.15rem 0.5rem',
-                                  color: isExpanded ? '#38bdf8' : '#94a3b8',
-                                  background: isExpanded ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                                  color: isExpanded ? '#fbbf24' : '#94a3b8',
+                                  background: isExpanded ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
                                   borderRadius: '5px',
                                   display: 'flex',
                                   alignItems: 'center',
@@ -873,7 +844,7 @@ export default function CampaignTagsModal({
                               type="button"
                               className="btn-secondary"
                               onClick={() => handleExecuteBatchReplace(rawKey)}
-                              style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                              style={{ fontSize: '0.72rem', padding: '0.25rem 0.65rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
                               title={`Substituir ${rawKey} agora em todas as ${tag.messages.length} mensagens`}
                             >
                               <RefreshCw size={12} />
@@ -893,8 +864,8 @@ export default function CampaignTagsModal({
                                 padding: '0.25rem 0.55rem',
                                 borderRadius: '4px',
                                 border: 'none',
-                                background: isLinkMode ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                                color: isLinkMode ? '#38bdf8' : '#94a3b8',
+                                background: isLinkMode ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                                color: isLinkMode ? '#fbbf24' : '#94a3b8',
                                 fontWeight: isLinkMode ? 700 : 500,
                                 cursor: 'pointer',
                                 display: 'flex',
@@ -912,8 +883,8 @@ export default function CampaignTagsModal({
                                 padding: '0.25rem 0.55rem',
                                 borderRadius: '4px',
                                 border: 'none',
-                                background: !isLinkMode ? 'rgba(56, 189, 248, 0.25)' : 'transparent',
-                                color: !isLinkMode ? '#38bdf8' : '#94a3b8',
+                                background: !isLinkMode ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                                color: !isLinkMode ? '#fbbf24' : '#94a3b8',
                                 fontWeight: !isLinkMode ? 700 : 500,
                                 cursor: 'pointer',
                                 display: 'flex',
@@ -951,7 +922,7 @@ export default function CampaignTagsModal({
                                 type="button"
                                 className="btn-secondary"
                                 onClick={() => setActiveTab('links')}
-                                style={{ fontSize: '0.74rem', padding: '0.35rem 0.65rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.3)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                style={{ fontSize: '0.74rem', padding: '0.35rem 0.65rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                                 title="Abrir aba de Links da campanha para cadastrar ou gerenciar"
                               >
                                 <LinkIcon size={12} />
@@ -977,7 +948,7 @@ export default function CampaignTagsModal({
                           <div style={{
                             marginTop: '0.4rem',
                             background: 'rgba(0, 0, 0, 0.4)',
-                            border: '1px solid rgba(56, 189, 248, 0.2)',
+                            border: '1px solid rgba(245, 158, 11, 0.25)',
                             borderRadius: '8px',
                             padding: '0.85rem',
                             display: 'flex',
@@ -986,7 +957,7 @@ export default function CampaignTagsModal({
                           }}>
                             {/* Occurrences Header with Expand All Toggle */}
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.45rem' }}>
-                              <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                 <FileText size={13} />
                                 <span>Mensagens com esta Tag ({tag.messages.length})</span>
                               </span>
@@ -998,11 +969,11 @@ export default function CampaignTagsModal({
                                 style={{
                                   fontSize: '0.72rem',
                                   padding: '0.15rem 0.55rem',
-                                  color: '#38bdf8',
+                                  color: '#fbbf24',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.3rem',
-                                  background: 'rgba(56, 189, 248, 0.08)',
+                                  background: 'rgba(245, 158, 11, 0.1)',
                                   borderRadius: '5px'
                                 }}
                               >
@@ -1022,7 +993,7 @@ export default function CampaignTagsModal({
                                     key={m.id}
                                     style={{
                                       background: isMsgExpanded ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.025)',
-                                      border: isMsgExpanded ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid var(--border-subtle)',
+                                      border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
                                       borderRadius: '8px',
                                       padding: '0.65rem 0.85rem',
                                       display: 'flex',
@@ -1057,11 +1028,11 @@ export default function CampaignTagsModal({
                                         style={{
                                           fontSize: '0.72rem',
                                           padding: '0.15rem 0.45rem',
-                                          color: isMsgExpanded ? '#38bdf8' : '#94a3b8',
+                                          color: isMsgExpanded ? '#fbbf24' : '#94a3b8',
                                           display: 'flex',
                                           alignItems: 'center',
                                           gap: '0.25rem',
-                                          background: isMsgExpanded ? 'rgba(56, 189, 248, 0.15)' : 'transparent',
+                                          background: isMsgExpanded ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
                                           borderRadius: '4px'
                                         }}
                                         title={isMsgExpanded ? 'Recolher mensagem' : 'Clique para expandir o texto completo e ver o contexto'}
@@ -1102,7 +1073,7 @@ export default function CampaignTagsModal({
                                       }}>
                                         <div style={{
                                           background: 'rgba(0, 0, 0, 0.55)',
-                                          border: '1px solid rgba(56, 189, 248, 0.25)',
+                                          border: '1px solid rgba(245, 158, 11, 0.25)',
                                           borderRadius: '6px',
                                           padding: '0.85rem 1rem',
                                           color: '#f1f5f9',
@@ -1141,7 +1112,7 @@ export default function CampaignTagsModal({
                                             type="button"
                                             className="btn-ghost"
                                             onClick={() => toggleExpandMessage(m.id)}
-                                            style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                            style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                                           >
                                             <ChevronUp size={12} />
                                             <span>Recolher</span>
@@ -1164,13 +1135,13 @@ export default function CampaignTagsModal({
             </>
           )}
 
-          {/* ==================== TAB 2: LINKS {{ }} ==================== */}
+          {/* ==================== TAB 2: LINKS DA CAMPANHA (SEM {{}}) ==================== */}
           {activeTab === 'links' && (
             <>
               {/* Explanation Banner */}
               <div style={{
                 background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid var(--border-color)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
                 borderRadius: '10px',
                 padding: '0.9rem 1.1rem',
                 display: 'flex',
@@ -1179,11 +1150,11 @@ export default function CampaignTagsModal({
               }}>
                 <Sparkles size={18} color="#fbbf24" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
                 <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.45' }}>
-                  <strong style={{ color: '#f8fafc' }}>Substituição Automática Global:</strong> Cadastre as variáveis como <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{'{{1}}'}</code>, <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>{'{{2}}'}</code> com seus respectivos links. Todas as mensagens da campanha que contiverem <code style={{ color: '#fbbf24' }}>{'{{1}}'}</code> serão <strong>automaticamente preenchidas com o link definido</strong>, sem precisar selecionar disparo por disparo!
+                  <strong style={{ color: '#f8fafc' }}>Links de Destino da Campanha:</strong> Cadastre os links oficiais (ex: Checkout, Grupo VIP, Página de Vendas) para vinculá-los às Tags como <code style={{ color: '#fbbf24', fontWeight: 700 }}>[LINK]</code> ou <code style={{ color: '#fbbf24', fontWeight: 700 }}>[LINK_CHECKOUT]</code> das suas mensagens. Você pode selecionar qualquer link cadastrado diretamente na configuração de cada Tag.
                 </div>
               </div>
 
-              {/* Add New Link Form */}
+              {/* Add New Link Form (No {{}} key input needed) */}
               <form onSubmit={handleAddLink} style={{
                 background: 'rgba(245, 158, 11, 0.05)',
                 border: '1px solid rgba(245, 158, 11, 0.25)',
@@ -1194,31 +1165,17 @@ export default function CampaignTagsModal({
                 gap: '0.75rem'
               }}>
                 <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  + Adicionar Novo Link à Campanha
+                  + Cadastrar Novo Link de Destino
                 </span>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1.5fr auto', gap: '0.65rem', alignItems: 'center' }}>
-                  {/* Key */}
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Variável</label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder={nextSuggestedKey}
-                      value={newLinkKey}
-                      onChange={(e) => setNewLinkKey(e.target.value)}
-                      style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem', textAlign: 'center', fontFamily: 'monospace', fontWeight: 700 }}
-                      title="Chave da variável. Ex: 1, 2, checkout"
-                    />
-                  </div>
-
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr auto', gap: '0.65rem', alignItems: 'center' }}>
                   {/* Label */}
                   <div>
-                    <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Identificação / Rótulo</label>
+                    <label style={{ fontSize: '0.68rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Nome / Rótulo do Link</label>
                     <input
                       type="text"
                       className="form-control"
-                      placeholder={`Ex: Link Oficial {{${newLinkKey || nextSuggestedKey}}}`}
+                      placeholder="Ex: Checkout Black Friday, Grupo VIP"
                       value={newLinkLabel}
                       onChange={(e) => setNewLinkLabel(e.target.value)}
                       style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
@@ -1231,7 +1188,7 @@ export default function CampaignTagsModal({
                     <input
                       type="text"
                       className="form-control"
-                      placeholder="https://exemplo.com/pagina"
+                      placeholder="https://braboconcursos.com.br/checkout"
                       value={newLinkUrl}
                       onChange={(e) => setNewLinkUrl(e.target.value)}
                       style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem' }}
@@ -1246,7 +1203,7 @@ export default function CampaignTagsModal({
                       disabled={!newLinkUrl.trim()}
                       style={{
                         fontSize: '0.78rem',
-                        padding: '0.42rem 0.95rem',
+                        padding: '0.42rem 1.1rem',
                         background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                         border: 'none',
                         color: '#0b1120',
@@ -1278,20 +1235,16 @@ export default function CampaignTagsModal({
                     alignItems: 'center',
                     gap: '0.5rem'
                   }}>
-                    <AlertCircle size={28} color="#475569" />
+                    <AlertCircle size={28} color="#f59e0b" />
                     <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#94a3b8' }}>
-                      Nenhum link pré-definido cadastrado ainda.
+                      Nenhum link cadastrado ainda nesta campanha.
                     </span>
                     <p style={{ fontSize: '0.78rem', color: '#64748b', maxWidth: '420px', margin: 0 }}>
-                      Preencha o formulário acima para criar variáveis como <code style={{ color: '#fbbf24' }}>{'{{1}}'}</code> = seu-link.com e utilizá-las em todas as mensagens.
+                      Preencha o formulário acima com o nome e o link de destino para utilizá-los nas suas Tags das mensagens.
                     </p>
                   </div>
                 ) : (
-                  predefinedLinks.map((lnk, idx) => {
-                    const varKey = lnk.key || lnk.variableKey || String(idx + 1);
-                    const occurrencesMsgs = getOccurrencesCountForLink(varKey);
-                    const isOccurrencesExpanded = expandedLinkSnippet === lnk.id;
-
+                  predefinedLinks.map((lnk) => {
                     return (
                       <div
                         key={lnk.id}
@@ -1299,194 +1252,92 @@ export default function CampaignTagsModal({
                           background: 'var(--bg-card)',
                           border: '1px solid var(--border-color)',
                           borderRadius: '10px',
-                          padding: '1rem',
+                          padding: '0.95rem 1.25rem',
                           display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.65rem'
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '1rem',
+                          flexWrap: 'wrap'
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.65rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
-                            {/* Variable Badge with Copy Action */}
-                            <button
-                              type="button"
-                              onClick={() => handleCopyLinkVar(`{{${varKey}}}`, lnk.id)}
-                              style={{
-                                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.3) 100%)',
-                                border: '1px solid rgba(245, 158, 11, 0.5)',
-                                color: '#fbbf24',
-                                fontWeight: 800,
-                                fontSize: '0.88rem',
-                                padding: '0.25rem 0.65rem',
-                                borderRadius: '6px',
-                                fontFamily: 'monospace',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '0.35rem'
-                              }}
-                              title="Clique para copiar {{variável}}"
-                            >
-                              {copiedLinkId === lnk.id ? <CheckCheck size={13} color="#4ade80" /> : <Copy size={13} />}
-                              <span>&#123;&#123;{varKey}&#125;&#125;</span>
-                            </button>
-
-                            {/* Label & URL Inline inputs */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
-                              <input
-                                type="text"
-                                className="form-control"
-                                value={lnk.label || ''}
-                                onChange={(e) => handleUpdateLinkInline(lnk.id, 'label', e.target.value)}
-                                style={{ fontSize: '0.85rem', fontWeight: 700, padding: '0.25rem 0.5rem', background: 'transparent', border: '1px solid transparent', color: '#fff' }}
-                                onFocus={(e) => e.target.style.borderColor = 'rgba(245, 158, 11, 0.4)'}
-                                onBlur={(e) => e.target.style.borderColor = 'transparent'}
-                                placeholder="Rótulo do Link"
-                              />
-                              <input
-                                type="text"
-                                className="form-control"
-                                value={lnk.url || ''}
-                                onChange={(e) => handleUpdateLinkInline(lnk.id, 'url', e.target.value)}
-                                style={{ fontSize: '0.78rem', color: '#60a5fa', padding: '0.2rem 0.5rem', background: 'transparent', border: '1px solid transparent' }}
-                                onFocus={(e) => e.target.style.borderColor = 'rgba(56, 189, 248, 0.4)'}
-                                onBlur={(e) => e.target.style.borderColor = 'transparent'}
-                                placeholder="https://..."
-                              />
-                            </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flex: 1, minWidth: '280px' }}>
+                          <div style={{
+                            width: '34px',
+                            height: '34px',
+                            borderRadius: '8px',
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            border: '1px solid rgba(245, 158, 11, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#fbbf24',
+                            flexShrink: 0
+                          }}>
+                            <LinkIcon size={16} />
                           </div>
 
-                          {/* Link Actions */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {/* Occurrences Counter */}
-                            {occurrencesMsgs.length > 0 ? (
-                              <button
-                                type="button"
-                                className="btn-ghost"
-                                onClick={() => setExpandedLinkSnippet(isOccurrencesExpanded ? null : lnk.id)}
-                                style={{
-                                  fontSize: '0.72rem',
-                                  padding: '0.2rem 0.55rem',
-                                  color: '#4ade80',
-                                  background: 'rgba(34, 197, 94, 0.12)',
-                                  border: '1px solid rgba(34, 197, 94, 0.25)',
-                                  borderRadius: '6px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem'
-                                }}
-                                title="Ver mensagens que utilizam este link"
-                              >
-                                <Eye size={12} />
-                                <span>{occurrencesMsgs.length} {occurrencesMsgs.length === 1 ? 'msg' : 'msgs'}</span>
-                                {isOccurrencesExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                              </button>
-                            ) : (
-                              <span style={{ fontSize: '0.7rem', color: '#64748b', padding: '0.2rem 0.45rem' }}>
-                                Não utilizado ainda
-                              </span>
-                            )}
-
-                            {/* Test Link Button */}
-                            <a
-                              href={lnk.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn-ghost"
-                              style={{ padding: '0.35rem 0.55rem', color: '#94a3b8' }}
-                              title="Testar link no navegador"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
-
-                            {/* Delete Link Button */}
-                            <button
-                              type="button"
-                              className="btn-ghost"
-                              onClick={() => handleRemoveLink(lnk.id)}
-                              style={{ padding: '0.35rem 0.55rem', color: '#ef4444' }}
-                              title="Excluir este link"
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          {/* Label & URL Inline inputs */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1 }}>
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={lnk.label || ''}
+                              onChange={(e) => handleUpdateLinkInline(lnk.id, 'label', e.target.value)}
+                              style={{ fontSize: '0.85rem', fontWeight: 700, padding: '0.2rem 0.5rem', background: 'transparent', border: '1px solid transparent', color: '#fff' }}
+                              onFocus={(e) => e.target.style.borderColor = 'rgba(245, 158, 11, 0.4)'}
+                              onBlur={(e) => e.target.style.borderColor = 'transparent'}
+                              placeholder="Nome do Link"
+                            />
+                            <input
+                              type="text"
+                              className="form-control"
+                              value={lnk.url || ''}
+                              onChange={(e) => handleUpdateLinkInline(lnk.id, 'url', e.target.value)}
+                              style={{ fontSize: '0.78rem', color: '#60a5fa', padding: '0.15rem 0.5rem', background: 'transparent', border: '1px solid transparent' }}
+                              onFocus={(e) => e.target.style.borderColor = 'rgba(245, 158, 11, 0.4)'}
+                              onBlur={(e) => e.target.style.borderColor = 'transparent'}
+                              placeholder="https://..."
+                            />
                           </div>
                         </div>
 
-                        {/* Occurrences Drawer for this Link */}
-                        {isOccurrencesExpanded && occurrencesMsgs.length > 0 && (
-                          <div style={{
-                            marginTop: '0.35rem',
-                            background: 'rgba(0, 0, 0, 0.4)',
-                            border: '1px solid rgba(245, 158, 11, 0.2)',
-                            borderRadius: '8px',
-                            padding: '0.75rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.5rem'
-                          }}>
-                            <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
-                              Mensagens utilizando &#123;&#123;{varKey}&#125;&#125; ({occurrencesMsgs.length}):
-                            </span>
+                        {/* Link Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                          {/* Copy URL */}
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => handleCopyLinkUrl(lnk.url, lnk.id)}
+                            style={{ padding: '0.35rem 0.6rem', color: copiedLinkId === lnk.id ? '#4ade80' : '#94a3b8', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+                            title="Copiar URL para área de transferência"
+                          >
+                            {copiedLinkId === lnk.id ? <CheckCheck size={14} /> : <Copy size={14} />}
+                            <span>{copiedLinkId === lnk.id ? 'Copiado!' : 'Copiar URL'}</span>
+                          </button>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '280px', overflowY: 'auto' }}>
-                              {occurrencesMsgs.map(m => {
-                                const isLinkMsgExpanded = !!expandedLinkMessageIds[m.id];
-                                return (
-                                  <div
-                                    key={m.id}
-                                    style={{
-                                      background: isLinkMsgExpanded ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.02)',
-                                      border: isLinkMsgExpanded ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
-                                      borderRadius: '6px',
-                                      padding: '0.5rem 0.75rem',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.35rem'
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                        <strong style={{ color: '#fff', fontSize: '0.78rem' }}>{m.title}</strong>
-                                        <ChannelBadge channel={m.channel} />
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="btn-ghost"
-                                        onClick={() => toggleExpandLinkMessage(m.id)}
-                                        style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#fbbf24' }}
-                                      >
-                                        {isLinkMsgExpanded ? 'Recolher' : 'Expandir Mensagem'}
-                                      </button>
-                                    </div>
+                          {/* Test Link Button */}
+                          <a
+                            href={lnk.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-ghost"
+                            style={{ padding: '0.35rem 0.55rem', color: '#94a3b8' }}
+                            title="Abrir e testar link no navegador"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
 
-                                    {!isLinkMsgExpanded ? (
-                                      <p 
-                                        onClick={() => toggleExpandLinkMessage(m.id)}
-                                        style={{ color: '#cbd5e1', margin: 0, fontSize: '0.74rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                      >
-                                        {m.copyText}
-                                      </p>
-                                    ) : (
-                                      <div style={{
-                                        background: 'rgba(0, 0, 0, 0.5)',
-                                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                                        borderRadius: '6px',
-                                        padding: '0.75rem',
-                                        color: '#f1f5f9',
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.55',
-                                        whiteSpace: 'pre-wrap',
-                                        fontFamily: 'inherit'
-                                      }}>
-                                        {m.copyText}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
+                          {/* Delete Link Button */}
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => handleRemoveLink(lnk.id)}
+                            style={{ padding: '0.35rem 0.55rem', color: '#ef4444' }}
+                            title="Excluir este link"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })
@@ -1530,8 +1381,10 @@ export default function CampaignTagsModal({
                 style={{
                   fontSize: '0.8rem',
                   padding: '0.45rem 1.1rem',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #2563eb 100%)',
-                  boxShadow: '0 0 15px rgba(2, 132, 199, 0.35)'
+                  background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                  color: '#0b1120',
+                  fontWeight: 700,
+                  boxShadow: '0 0 15px rgba(245, 158, 11, 0.35)'
                 }}
                 title="Substitui os textos diretamente nas mensagens da campanha"
               >
@@ -1545,7 +1398,7 @@ export default function CampaignTagsModal({
                 type="button"
                 className="btn-secondary"
                 onClick={() => setActiveTab('tags')}
-                style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                style={{ fontSize: '0.8rem', padding: '0.45rem 0.95rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
               >
                 <span>Ir para Tags [ ]</span>
                 <ArrowRight size={14} />
@@ -1572,7 +1425,7 @@ export default function CampaignTagsModal({
               </div>
 
               <p style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: '1.5', margin: 0 }}>
-                Tem certeza de que deseja substituir diretamente os termos <code style={{ color: '#38bdf8' }}>[...]</code> preenchidos nos textos das mensagens desta campanha?
+                Tem certeza de que deseja substituir diretamente os termos <code style={{ color: '#fbbf24', fontWeight: 700 }}>[...]</code> preenchidos nos textos das mensagens desta campanha?
                 <br /><br />
                 Essa ação atualizará a copy de todas as mensagens do fluxo com os novos links e textos definidos.
               </p>
@@ -1590,7 +1443,7 @@ export default function CampaignTagsModal({
                   className="btn-primary"
                   onClick={() => handleExecuteBatchReplace(null)}
                   disabled={isApplying}
-                  style={{ background: '#0284c7' }}
+                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
                 >
                   {isApplying ? 'Aplicando...' : 'Sim, Substituir Agora'}
                 </button>
