@@ -21,7 +21,9 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import { BRABO_CHANNELS, FLOW_CATEGORIES, DISPARO_STAGES, getChannelsByCategory } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -90,8 +92,13 @@ export default function ViewToolbar({
     { id: 'whatsapp', label: 'WhatsApp', icon: Smartphone, color: '#22c55e', cls: 'wa', count: flowCounts.whatsapp || 0 },
     { id: 'email', label: 'Email', icon: Mail, color: '#a78bfa', cls: 'email', count: flowCounts.email || 0 },
     { id: 'youtube', label: 'YouTube', icon: YouTubeIcon, color: '#ef4444', cls: 'youtube', count: flowCounts.youtube || 0 },
+    { id: 'automacoes', label: 'Automações', icon: Zap, color: '#8b5cf6', cls: 'automacoes', count: flowCounts.automacoes || 0 },
+    { id: 'emergenciais', label: 'Emergenciais', icon: AlertTriangle, color: '#f97316', cls: 'emergenciais', count: flowCounts.emergenciais || 0 },
     { id: 'all', label: 'Todos', icon: Layers, color: '#60a5fa', cls: 'all', count: flowCounts.all || 0 }
   ];
+
+  const currentChannelOpt = CHANNEL_OPTIONS.find(c => c.id === activeFlowCategory) || CHANNEL_OPTIONS[0];
+  const CurrentChannelIcon = currentChannelOpt.icon;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -242,12 +249,12 @@ export default function ViewToolbar({
             }}
             title="Filtrar por canal de disparo (Clique para abrir opções)"
           >
-            <Smartphone size={13} color="#22c55e" />
+            <CurrentChannelIcon size={13} color={currentChannelOpt.color} />
             <span className="expandable-title">Canais</span>
             <span className="expandable-active-indicator">
-              {CHANNEL_OPTIONS.find(c => c.id === activeFlowCategory)?.label || 'WhatsApp'}
+              {currentChannelOpt.label}
               <span className="expandable-pill-count">
-                {flowCounts[activeFlowCategory] || 0}
+                {currentChannelOpt.count}
               </span>
             </span>
             <ChevronDown size={12} color="var(--text-muted)" />
@@ -260,7 +267,7 @@ export default function ViewToolbar({
               onClick={() => setIsChannelsExpanded(false)}
               title="Recolher opções de canais"
             >
-              <Smartphone size={13} color="#22c55e" />
+              <CurrentChannelIcon size={13} color={currentChannelOpt.color} />
               <span className="expandable-title">Canais</span>
             </button>
             <div className="expandable-items-row">

@@ -168,6 +168,8 @@ export function normalizeChannel(str) {
 
   if (s.includes('email') || s.includes('e-mail')) return 'Email';
   if (s.includes('youtube') || s.includes('yt') || s.includes('comunidade')) return 'Comunidade YouTube';
+  if (s.includes('automaç') || s.includes('automac') || s.includes('bot') || s.includes('manychat')) return 'Automações';
+  if (s.includes('emergênc') || s.includes('emergenc') || s.includes('urgente')) return 'Emergenciais';
   if (s.includes('vip antigo')) return 'Grupo VIP Antigo WhatsApp';
   if (s.includes('normal antigo')) return 'Grupo Normal Antigo WhatsApp';
   if (s.includes('vip')) return 'Grupo VIP WhatsApp';

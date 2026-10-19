@@ -20,7 +20,9 @@ import {
   Lock,
   ExternalLink,
   Paperclip,
-  CheckCheck
+  CheckCheck,
+  Zap,
+  AlertTriangle
 } from 'lucide-react';
 import {
   resolveCopyVariables,
@@ -73,6 +75,18 @@ function getChannelMeta(channelValue) {
       label: 'YouTube',
       icon: YouTubeIcon,
       isCustomIcon: true
+    };
+  }
+  if (name.includes('Automaç') || name === 'Automações') {
+    return {
+      label: 'Automações',
+      icon: Zap
+    };
+  }
+  if (name.includes('Emergênc') || name.includes('Emergenc') || name === 'Emergenciais') {
+    return {
+      label: 'Emergenciais',
+      icon: AlertTriangle
     };
   }
 

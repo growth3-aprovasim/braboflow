@@ -5,6 +5,8 @@ export const BRABO_CHANNELS = [
   { value: 'Individual Janela Fechada WhatsApp', label: 'Individual Janela Fechada WhatsApp', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', badgeText: '🔒 Fechada (Template)', category: 'whatsapp' },
   { value: 'Email', label: 'Email', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.15)', badgeText: '✉️ Email', category: 'email' },
   { value: 'Comunidade YouTube', label: 'Comunidade YouTube', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', badgeText: '📺 YouTube', category: 'youtube' },
+  { value: 'Automações', label: 'Automações', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', badgeText: '⚡ Automações', category: 'automacoes' },
+  { value: 'Emergenciais', label: 'Emergenciais', color: '#f97316', bg: 'rgba(249, 115, 22, 0.15)', badgeText: '🚨 Emergenciais', category: 'emergenciais' },
   { value: 'Grupo VIP Antigo WhatsApp', label: 'Grupo VIP Antigo WhatsApp', color: '#d97706', bg: 'rgba(217, 119, 6, 0.15)', badgeText: '🏛️ VIP Antigo', category: 'whatsapp' },
   { value: 'Grupo Normal Antigo WhatsApp', label: 'Grupo Normal Antigo WhatsApp', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', badgeText: '👥 Normal Antigo', category: 'whatsapp' },
 ];
@@ -13,12 +15,16 @@ export const FLOW_CATEGORIES = [
   { id: 'whatsapp', label: 'WhatsApp', icon: 'Smartphone', badge: '💬' },
   { id: 'email', label: 'Email', icon: 'Mail', badge: '✉️' },
   { id: 'youtube', label: 'YouTube', icon: 'YouTube', badge: '📺' },
+  { id: 'automacoes', label: 'Automações', icon: 'Zap', badge: '⚡' },
+  { id: 'emergenciais', label: 'Emergenciais', icon: 'AlertTriangle', badge: '🚨' },
   { id: 'all', label: 'Todos os Canais', icon: 'Layers', badge: '📋' }
 ];
 
 export function getChannelCategory(channelValue) {
   if (channelValue === 'Email') return 'email';
   if (channelValue === 'Comunidade YouTube') return 'youtube';
+  if (channelValue === 'Automações') return 'automacoes';
+  if (channelValue === 'Emergenciais') return 'emergenciais';
   return 'whatsapp';
 }
 
@@ -341,7 +347,11 @@ export function matchRecordWithFilter(item, filter) {
   if (!filter) return true;
 
   // 1. Dynamic rules builder support (new flexible format)
-  if (Array.isArray(filter.rules) && filter.rules.length > 0) {
+  if (Array.isArray(filter.rules)) {
+    if (filter.rules.length === 0) {
+      // Empty rules -> match all records
+      return true;
+    }
     const validRules = filter.rules.filter(r => r && r.field && r.operator);
     if (validRules.length > 0) {
       const conjunction = (filter.conjunction || 'AND').toUpperCase();
@@ -351,6 +361,8 @@ export function matchRecordWithFilter(item, filter) {
         return validRules.every(rule => evaluateSingleRule(item, rule));
       }
     }
+    // If rules array has no valid rules, treat as empty -> match all
+    return true;
   }
 
   // 2. Backward compatibility for legacy static filter structure

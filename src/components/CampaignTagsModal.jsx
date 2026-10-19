@@ -23,7 +23,8 @@ import {
   Calendar,
   Smartphone,
   Mail,
-  ArrowRight
+  ArrowRight,
+  Zap
 } from 'lucide-react';
 import { extractAllCampaignBracketTags } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -81,6 +82,42 @@ function ChannelBadge({ channel }) {
         fontWeight: 600
       }}>
         <YouTubeIcon size={10} /> YouTube
+      </span>
+    );
+  }
+  if (norm.includes('automaç') || norm.includes('automac')) {
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        background: 'rgba(139, 92, 246, 0.15)',
+        color: '#c084fc',
+        border: '1px solid rgba(139, 92, 246, 0.3)',
+        borderRadius: '4px',
+        padding: '0.12rem 0.4rem',
+        fontSize: '0.68rem',
+        fontWeight: 600
+      }}>
+        <Zap size={10} /> Automações
+      </span>
+    );
+  }
+  if (norm.includes('emergênc') || norm.includes('emergenc')) {
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.25rem',
+        background: 'rgba(249, 115, 22, 0.15)',
+        color: '#fb923c',
+        border: '1px solid rgba(249, 115, 22, 0.3)',
+        borderRadius: '4px',
+        padding: '0.12rem 0.4rem',
+        fontSize: '0.68rem',
+        fontWeight: 600
+      }}>
+        <AlertCircle size={10} /> Emergenciais
       </span>
     );
   }
@@ -221,17 +258,31 @@ export default function CampaignTagsModal({
   const [isApplying, setIsApplying] = useState(false);
   const [confirmBatchModal, setConfirmBatchModal] = useState(false);
 
-  // Local state for placeholder values
-  // Structure: { [tagKey]: { mode: 'text' | 'link', text: '', linkId: '' } }
+  // Helper to normalize placeholders ensuring text is populated from any legacy linkId
+  const normalizePlaceholders = (placeholders, predefined = []) => {
+    if (!placeholders) return {};
+    const normalized = {};
+    Object.entries(placeholders).forEach(([k, v]) => {
+      let text = v?.text || '';
+      if (!text && v?.mode === 'link' && v?.linkId) {
+        const found = predefined.find(l => l.id === v.linkId);
+        if (found) text = found.url;
+      }
+      normalized[k] = { mode: 'text', text };
+    });
+    return normalized;
+  };
+
+  // Local state for placeholder values (exclusively text/links as direct text)
   const [tagValues, setTagValues] = useState(() => {
-    return campaign?.customPlaceholders || {};
+    return normalizePlaceholders(campaign?.customPlaceholders, campaign?.predefinedLinks || []);
   });
 
   useEffect(() => {
     if (campaign?.customPlaceholders) {
-      setTagValues(campaign.customPlaceholders);
+      setTagValues(normalizePlaceholders(campaign.customPlaceholders, campaign?.predefinedLinks || []));
     }
-  }, [campaign?.customPlaceholders]);
+  }, [campaign?.customPlaceholders, campaign?.predefinedLinks]);
 
   // Links state for Links Tab (Clean, without {{}})
   const [links, setLinks] = useState(() => {
@@ -296,7 +347,7 @@ export default function CampaignTagsModal({
     if (!matchesSearch) return false;
 
     const currentVal = tagValues[tag.rawTag] || tagValues[tag.key] || {};
-    const hasValue = (currentVal.mode === 'link' && currentVal.linkId) || (currentVal.text && currentVal.text.trim());
+    const hasValue = !!(currentVal.text && currentVal.text.trim());
 
     if (activeFilter === 'filled') return hasValue;
     if (activeFilter === 'pending') return !hasValue;
@@ -307,8 +358,8 @@ export default function CampaignTagsModal({
     setTagValues(prev => {
       const cleanKey = tagKey.replace(/^\[/, '').replace(/\]$/, '').trim();
       const rawKey = `[${cleanKey}]`;
-      const current = prev[rawKey] || prev[cleanKey] || { mode: 'text', text: '', linkId: '' };
-      const updatedConfig = { ...current, ...updates };
+      const current = prev[rawKey] || prev[cleanKey] || { mode: 'text', text: '' };
+      const updatedConfig = { ...current, ...updates, mode: 'text' };
 
       return {
         ...prev,
@@ -646,7 +697,7 @@ export default function CampaignTagsModal({
               }}>
                 <Sparkles size={18} color="#fbbf24" style={{ flexShrink: 0, marginTop: '0.15rem' }} />
                 <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: '1.45' }}>
-                  <strong style={{ color: '#f8fafc' }}>Como funciona:</strong> Qualquer termo colocado entre colchetes como <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[LINK]</code>, <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[DATA]</code> ou <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[CUPOM]</code> em suas mensagens é detectado automaticamente aqui. Você pode associar links ou textos substitutos, <strong>expandir as mensagens para ver o contexto completo</strong> e aplicar em tudo com 1 clique!
+                  <strong style={{ color: '#f8fafc' }}>Como funciona:</strong> Qualquer termo colocado entre colchetes como <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[LINK]</code>, <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[DATA]</code> ou <code style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 700 }}>[CUPOM]</code> em suas mensagens é detectado automaticamente aqui. Preencha seus links e textos diretamente em cada tag, <strong>veja o contexto completo das mensagens</strong> e aplique a substituição em tudo com 1 clique!
                 </div>
               </div>
 
@@ -772,10 +823,9 @@ export default function CampaignTagsModal({
                   filteredTags.map((tag) => {
                     const cleanKey = tag.key;
                     const rawKey = tag.rawTag;
-                    const config = tagValues[rawKey] || tagValues[cleanKey] || { mode: 'text', text: '', linkId: '' };
-                    const isLinkMode = config.mode === 'link';
+                    const config = tagValues[rawKey] || tagValues[cleanKey] || { mode: 'text', text: '' };
                     const isExpanded = expandedTagSnippet === cleanKey;
-                    const hasValue = (isLinkMode && config.linkId) || (!isLinkMode && config.text && config.text.trim());
+                    const hasValue = !!(config.text && config.text.trim());
                     const areAllExpanded = tag.messages.length > 0 && tag.messages.every(m => expandedMessageIds[m.id]);
 
                     return (
@@ -853,94 +903,18 @@ export default function CampaignTagsModal({
                           )}
                         </div>
 
-                        {/* Value Input Section */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
-                          {/* Mode Toggle: Link vs Text */}
-                          <div style={{ display: 'flex', gap: '0.2rem', background: 'rgba(0, 0, 0, 0.3)', padding: '0.2rem', borderRadius: '6px', border: '1px solid var(--border-color)', flexShrink: 0 }}>
-                            <button
-                              type="button"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.25rem 0.55rem',
-                                borderRadius: '4px',
-                                border: 'none',
-                                background: isLinkMode ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                                color: isLinkMode ? '#fbbf24' : '#94a3b8',
-                                fontWeight: isLinkMode ? 700 : 500,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.3rem'
-                              }}
-                              onClick={() => handleTagValueChange(rawKey, { mode: 'link' })}
-                            >
-                              <LinkIcon size={12} /> Link
-                            </button>
-                            <button
-                              type="button"
-                              style={{
-                                fontSize: '0.72rem',
-                                padding: '0.25rem 0.55rem',
-                                borderRadius: '4px',
-                                border: 'none',
-                                background: !isLinkMode ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                                color: !isLinkMode ? '#fbbf24' : '#94a3b8',
-                                fontWeight: !isLinkMode ? 700 : 500,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.3rem'
-                              }}
-                              onClick={() => handleTagValueChange(rawKey, { mode: 'text', linkId: null })}
-                            >
-                              <FileText size={12} /> Texto
-                            </button>
+                        {/* Value Input Section (Exclusivamente Texto / Link direto) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', width: '100%' }}>
+                          <div style={{ flex: 1 }}>
+                            <input
+                              type="text"
+                              className="form-control"
+                              placeholder={`Preencha o link ou texto para ${rawKey} (ex: https://..., 15 de Outubro, CUPOM, etc.)...`}
+                              value={config.text || ''}
+                              onChange={(e) => handleTagValueChange(rawKey, { mode: 'text', text: e.target.value })}
+                              style={{ width: '100%', fontSize: '0.82rem', padding: '0.45rem 0.75rem' }}
+                            />
                           </div>
-
-                          {/* Link Selector or Text Input */}
-                          {isLinkMode ? (
-                            <div style={{ flex: 1, minWidth: '240px', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                              <select
-                                className="form-control"
-                                style={{ flex: 1, fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
-                                value={config.linkId || ''}
-                                onChange={(e) => {
-                                  const lnkId = e.target.value;
-                                  const found = predefinedLinks.find(l => l.id === lnkId);
-                                  handleTagValueChange(rawKey, { mode: 'link', linkId: lnkId, text: found ? found.url : '' });
-                                }}
-                              >
-                                <option value="">-- Selecionar Link da Campanha --</option>
-                                {predefinedLinks.map(lnk => (
-                                  <option key={lnk.id} value={lnk.id} style={{ background: '#161b26' }}>
-                                    🔗 {lnk.label} ({lnk.url})
-                                  </option>
-                                ))}
-                              </select>
-
-                              <button
-                                type="button"
-                                className="btn-secondary"
-                                onClick={() => setActiveTab('links')}
-                                style={{ fontSize: '0.74rem', padding: '0.35rem 0.65rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                title="Abrir aba de Links da campanha para cadastrar ou gerenciar"
-                              >
-                                <LinkIcon size={12} />
-                                <span>+ Gerenciar Links</span>
-                              </button>
-                            </div>
-                          ) : (
-                            <div style={{ flex: 1, minWidth: '240px' }}>
-                              <input
-                                type="text"
-                                className="form-control"
-                                placeholder={`Digite o valor substituto para ${rawKey} (ex: 15 de Outubro às 20h, CUPOM40, etc.)...`}
-                                value={config.text || ''}
-                                onChange={(e) => handleTagValueChange(rawKey, { mode: 'text', text: e.target.value })}
-                                style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem 0.65rem' }}
-                              />
-                            </div>
-                          )}
                         </div>
 
                         {/* ==================== EXPANDABLE OCCURRENCES & MESSAGE CONTEXT ==================== */}

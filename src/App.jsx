@@ -180,13 +180,17 @@ export default function App() {
 
   // Breakdown Counts per Flow
   const flowCounts = useMemo(() => {
-    const wa = activeMessages.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube').length;
+    const wa = activeMessages.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube' && m.channel !== 'Automações' && m.channel !== 'Emergenciais').length;
     const email = activeMessages.filter(m => m.channel === 'Email').length;
     const youtube = activeMessages.filter(m => m.channel === 'Comunidade YouTube').length;
+    const automacoes = activeMessages.filter(m => m.channel === 'Automações').length;
+    const emergenciais = activeMessages.filter(m => m.channel === 'Emergenciais').length;
     return {
       whatsapp: wa,
       email,
       youtube,
+      automacoes,
+      emergenciais,
       all: activeMessages.length
     };
   }, [activeMessages]);
@@ -199,8 +203,14 @@ export default function App() {
     if (activeFlowCategory === 'youtube') {
       return activeMessages.filter(m => m.channel === 'Comunidade YouTube');
     }
+    if (activeFlowCategory === 'automacoes') {
+      return activeMessages.filter(m => m.channel === 'Automações');
+    }
+    if (activeFlowCategory === 'emergenciais') {
+      return activeMessages.filter(m => m.channel === 'Emergenciais');
+    }
     if (activeFlowCategory === 'whatsapp') {
-      return activeMessages.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube');
+      return activeMessages.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube' && m.channel !== 'Automações' && m.channel !== 'Emergenciais');
     }
     return activeMessages;
   }, [activeMessages, activeFlowCategory]);
@@ -723,6 +733,10 @@ export default function App() {
       defaultChannel = 'Email';
     } else if (activeFlowCategory === 'youtube') {
       defaultChannel = 'Comunidade YouTube';
+    } else if (activeFlowCategory === 'automacoes') {
+      defaultChannel = 'Automações';
+    } else if (activeFlowCategory === 'emergenciais') {
+      defaultChannel = 'Emergenciais';
     } else if (activeFlowCategory === 'whatsapp') {
       defaultChannel = 'Grupo Normal WhatsApp';
     }

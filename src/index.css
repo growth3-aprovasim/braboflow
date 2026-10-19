@@ -438,6 +438,16 @@ body {
   border-color: rgba(239, 68, 68, 0.3);
 }
 
+.flow-cat-btn.active.automacoes {
+  color: #c084fc;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.flow-cat-btn.active.emergenciais {
+  color: #fb923c;
+  border-color: rgba(249, 115, 22, 0.3);
+}
+
 .flow-cat-btn.active.all {
   color: #60a5fa;
   border-color: rgba(59, 130, 246, 0.3);

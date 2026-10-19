@@ -152,7 +152,7 @@ export default function CustomFiltersSidebar({
     setFilterName(filter.name);
     setConjunction(filter.conjunction || 'AND');
 
-    if (Array.isArray(filter.rules) && filter.rules.length > 0) {
+    if (Array.isArray(filter.rules)) {
       setRules(filter.rules.map(r => ({ ...r, id: r.id || `r-${Date.now()}-${Math.random()}` })));
     } else {
       // Convert legacy filter to dynamic rule
@@ -169,9 +169,7 @@ export default function CustomFiltersSidebar({
       if (filter.startDate || filter.endDate) {
         converted.push({ id: `r-4`, field: 'scheduledDate', operator: 'between', value: filter.startDate || '', value2: filter.endDate || '' });
       }
-      setRules(converted.length > 0 ? converted : [
-        { id: `r-${Date.now()}`, field: 'stage', operator: 'equals', value: 'Em Rascunho', value2: '' }
-      ]);
+      setRules(converted);
     }
 
     setIsModalOpen(true);
@@ -185,7 +183,6 @@ export default function CustomFiltersSidebar({
   };
 
   const handleRemoveRule = (ruleId) => {
-    if (rules.length <= 1) return;
     setRules(prev => prev.filter(r => r.id !== ruleId));
   };
 
@@ -418,9 +415,7 @@ export default function CustomFiltersSidebar({
                       );
                     })
                   ) : (
-                    filter.id === 'all' && (
-                      <span style={{ fontSize: '0.64rem', color: '#64748b' }}>Sem restrições</span>
-                    )
+                    <span style={{ fontSize: '0.64rem', color: '#64748b' }}>Sem restrições (todos os disparos)</span>
                   )}
 
                   {Array.isArray(filter.rules) && filter.rules.length > 2 && (
@@ -580,7 +575,28 @@ export default function CustomFiltersSidebar({
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {rules.map((rule, idx) => {
+                  {rules.length === 0 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '1.25rem 1rem',
+                      background: 'rgba(255, 255, 255, 0.02)',
+                      border: '1px dashed rgba(245, 158, 11, 0.35)',
+                      borderRadius: '8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}>
+                      <Sparkles size={20} color="#fbbf24" />
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
+                        Sem nenhuma condição definida
+                      </span>
+                      <span style={{ fontSize: '0.74rem', color: '#94a3b8', maxWidth: '380px' }}>
+                        Este filtro está livre de regras e exibirá <strong>todos os disparos</strong> da campanha. Clique em "+ Adicionar Condição" acima se desejar adicionar filtros.
+                      </span>
+                    </div>
+                  ) : (
+                    rules.map((rule, idx) => {
                     const fieldObj = getFieldObj(rule.field);
                     const operators = getOperatorsForType(fieldObj.type);
                     const noValueNeeded = [
@@ -767,16 +783,16 @@ export default function CustomFiltersSidebar({
                         <button
                           type="button"
                           className="btn-ghost"
-                          style={{ padding: '0.3rem', color: rules.length > 1 ? '#ef4444' : '#475569', cursor: rules.length > 1 ? 'pointer' : 'not-allowed' }}
+                          style={{ padding: '0.3rem', color: '#ef4444', cursor: 'pointer' }}
                           onClick={() => handleRemoveRule(rule.id)}
-                          disabled={rules.length <= 1}
-                          title="Remover esta regra"
+                          title="Remover esta condição"
                         >
                           <Trash2 size={15} />
                         </button>
                       </div>
                     );
-                  })}
+                  })
+                )}
                 </div>
               </div>
 
