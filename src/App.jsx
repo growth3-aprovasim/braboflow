@@ -9,7 +9,7 @@ import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
 import CampaignTagsModal from './components/CampaignTagsModal';
-import { Link as LinkIcon, Sparkles, Plus } from 'lucide-react';
+import { Sparkles, Plus, Copy, Check } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
@@ -86,16 +86,67 @@ export default function App() {
   }, []);
 
   const realtimeTimerRef = useRef(null);
+  const lastLocalUpdateTimestampRef = useRef({});
 
   useEffect(() => {
     loadDataFromSupabase();
 
     const debouncedReload = () => {
+      // Se houver salvamentos locais em andamento, adia o reload para não atropelar alterações do usuário
+      const hasPendingSaves = Object.keys(updateDisparoTimerRef.current).length > 0;
+      if (hasPendingSaves) {
+        if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
+        realtimeTimerRef.current = setTimeout(debouncedReload, 1200);
+        return;
+      }
+
       if (realtimeTimerRef.current) clearTimeout(realtimeTimerRef.current);
       realtimeTimerRef.current = setTimeout(() => {
         fetchAllCampaignsFromDb().then(data => {
           if (data && data.length > 0) {
-            setCampaigns(data);
+            setCampaigns(prevCampaigns => {
+              if (!prevCampaigns || prevCampaigns.length === 0) return data;
+
+              return data.map(dbCamp => {
+                const prevCamp = prevCampaigns.find(c => c.id === dbCamp.id);
+                if (!prevCamp) return dbCamp;
+
+                // Merge inteligente: preserva mensagens atualizadas localmente nos últimos 5 segundos
+                const mergedMessages = (dbCamp.messages || []).map(dbMsg => {
+                  const prevMsg = (prevCamp.messages || []).find(m => m.id === dbMsg.id);
+                  if (!prevMsg) return dbMsg;
+
+                  const isPending = !!updateDisparoTimerRef.current[dbMsg.id];
+                  const timeSinceLocalUpdate = Date.now() - (lastLocalUpdateTimestampRef.current[dbMsg.id] || 0);
+                  const isRecentlyUpdated = timeSinceLocalUpdate < 5000;
+
+                  if (isPending || isRecentlyUpdated) {
+                    return {
+                      ...dbMsg,
+                      ...prevMsg,
+                      customFields: {
+                        ...(dbMsg.customFields || {}),
+                        ...(prevMsg.customFields || {})
+                      }
+                    };
+                  }
+                  return dbMsg;
+                });
+
+                // Preserva mensagens criadas localmente que ainda não foram retornadas do banco
+                const dbMsgIds = new Set((dbCamp.messages || []).map(m => m.id));
+                const localOnlyMsgs = (prevCamp.messages || []).filter(m => !dbMsgIds.has(m.id));
+
+                return {
+                  ...dbCamp,
+                  customPlaceholders: {
+                    ...(dbCamp.customPlaceholders || {}),
+                    ...(prevCamp.customPlaceholders || {})
+                  },
+                  messages: [...mergedMessages, ...localOnlyMsgs]
+                };
+              });
+            });
           }
         }).catch(err => console.warn('Realtime fetch error:', err));
       }, 1000);
@@ -291,14 +342,9 @@ export default function App() {
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [selectedRecordIds, setSelectedRecordIds] = useState([]);
 
-  // Campaign Links Modal state
-  const [isLinksModalOpen, setIsLinksModalOpen] = useState(false);
-  const [linksModalCampaign, setLinksModalCampaign] = useState(null);
-
   // Campaign Tags Modal state
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
   const [tagsModalCampaign, setTagsModalCampaign] = useState(null);
-  const [tagsModalInitialTab, setTagsModalInitialTab] = useState('tags');
 
   // Active Campaign Tags & Count
   const activeTags = useMemo(() => {
@@ -314,10 +360,10 @@ export default function App() {
   // Active Campaign Edit Modal state
   const [isEditActiveCampaignModalOpen, setIsEditActiveCampaignModalOpen] = useState(false);
 
-  // Active Table Tags View Tabs & Message Expand state
-  const [tagsViewTab, setTagsViewTab] = useState('tags'); // 'tags' | 'links'
+  // Active Table Tags View Message Expand state
   const [expandedPageTagKey, setExpandedPageTagKey] = useState(null);
   const [expandedPageMessageIds, setExpandedPageMessageIds] = useState({});
+  const [copiedPageMsgId, setCopiedPageMsgId] = useState(null);
 
   // Active Custom Filter Object
   const activeCustomFilter = useMemo(() => {
@@ -603,15 +649,8 @@ export default function App() {
     dbSyncCampaignColumns(activeCampaign.id, newCols).catch(err => console.warn('Sync cols error:', err));
   };
 
-  const handleOpenLinksModal = (camp) => {
+  const handleOpenTagsModal = (camp) => {
     setTagsModalCampaign(camp || activeCampaign);
-    setTagsModalInitialTab('links');
-    setIsTagsModalOpen(true);
-  };
-
-  const handleOpenTagsModal = (camp, tab = 'tags') => {
-    setTagsModalCampaign(camp || activeCampaign);
-    setTagsModalInitialTab(tab);
     setIsTagsModalOpen(true);
   };
 
@@ -624,51 +663,14 @@ export default function App() {
     }));
   };
 
-  const handleBatchReplaceTags = (campaignId, replacementsMap) => {
-    if (!replacementsMap || Object.keys(replacementsMap).length === 0) return 0;
-    
-    let affectedCount = 0;
-    let updatedCampaignMessages = [];
-
-    setCampaigns(prev => prev.map(c => {
-      if (c.id === campaignId) {
-        const newMsgs = (c.messages || []).map(m => {
-          let text = m.copyText || '';
-          let changed = false;
-
-          Object.keys(replacementsMap).forEach(tagPattern => {
-            const val = replacementsMap[tagPattern];
-            if (val && text.includes(tagPattern)) {
-              text = text.split(tagPattern).join(val);
-              changed = true;
-            }
-          });
-
-          if (changed) {
-            affectedCount += 1;
-            return { ...m, copyText: text };
-          }
-          return m;
-        });
-
-        updatedCampaignMessages = newMsgs;
-        return { ...c, messages: newMsgs };
-      }
-      return c;
-    }));
-
-    if (updatedCampaignMessages.length > 0) {
-      dbBatchUpdateDisparos(updatedCampaignMessages, campaignId).catch(err => console.warn('Sync batch replace error:', err));
-    }
-
-    return affectedCount;
-  };
-
   const updateDisparoTimerRef = useRef({});
 
   // Message Actions within active campaign
   const handleUpdateRecord = (messageId, updates) => {
     if (!activeCampaign) return;
+
+    // Registra timestamp da alteração local para impedir que reloads do realtime desfaçam os checks
+    lastLocalUpdateTimestampRef.current[messageId] = Date.now();
 
     let finalMessageToSync = null;
 
@@ -684,8 +686,9 @@ export default function App() {
             return updated;
           }
 
-          // Se a mensagem não estiver "Em Rascunho" e houver alteração de qualquer campo, volta para "Em Rascunho"
-          const shouldResetToDraft = m.stage && m.stage !== 'Em Rascunho';
+          // Se for alteração apenas de customFields (ex: campo checkbox), não altera o stage da mensagem
+          const isOnlyCustomFields = Object.keys(updates).every(k => k === 'customFields');
+          const shouldResetToDraft = !isOnlyCustomFields && m.stage && m.stage !== 'Em Rascunho';
           const finalUpdates = shouldResetToDraft ? { ...updates, stage: 'Em Rascunho' } : updates;
           const updated = { ...m, ...finalUpdates };
           finalMessageToSync = updated;
@@ -713,7 +716,8 @@ export default function App() {
         if ('stage' in updates) {
           return { ...prev, ...updates };
         }
-        const shouldResetToDraft = prev.stage && prev.stage !== 'Em Rascunho';
+        const isOnlyCustomFields = Object.keys(updates).every(k => k === 'customFields');
+        const shouldResetToDraft = !isOnlyCustomFields && prev.stage && prev.stage !== 'Em Rascunho';
         const finalUpdates = shouldResetToDraft ? { ...updates, stage: 'Em Rascunho' } : updates;
         return { ...prev, ...finalUpdates };
       });
@@ -894,7 +898,6 @@ export default function App() {
         activeCampaign={activeCampaign}
         onSelectCampaign={handleSelectCampaign}
         onOpenCampaignsManager={() => setActiveTable('campanhas')}
-        onOpenLinksModal={handleOpenLinksModal}
         onOpenTagsModal={handleOpenTagsModal}
         tagsCount={activeTagsCount}
         searchQuery={searchQuery}
@@ -926,7 +929,6 @@ export default function App() {
           setRowDensity={setRowDensity}
           recordsCount={filteredMessages.length}
           campaign={activeCampaign}
-          onOpenLinksModal={handleOpenLinksModal}
           onOpenTagsModal={handleOpenTagsModal}
           tagsCount={activeTagsCount}
           onOpenEditCampaign={() => setIsEditActiveCampaignModalOpen(true)}
@@ -975,7 +977,6 @@ export default function App() {
                   groupBy={groupBy}
                   selectedRecordIds={selectedRecordIds}
                   setSelectedRecordIds={setSelectedRecordIds}
-                  onOpenLinksModal={handleOpenLinksModal}
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
                   hiddenColumns={activeHiddenColumns}
                   activeFlowCategory={activeFlowCategory}
@@ -1040,14 +1041,12 @@ export default function App() {
             onAddNewCampaign={handleAddNewCampaign}
             onUpdateCampaign={handleUpdateCampaign}
             onDeleteCampaign={handleDeleteCampaign}
-            onOpenLinksModal={handleOpenLinksModal}
             onOpenTagsModal={handleOpenTagsModal}
-            onUpdateCampaignLinks={handleUpdateCampaignLinks}
           />
         )}
 
-        {/* Table: Central de Tags & Links da Campanha */}
-        {(activeTable === 'tags' || activeTable === 'links') && activeCampaign && (
+        {/* Table: Central de Tags da Campanha */}
+        {activeTable === 'tags' && activeCampaign && (
           <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
@@ -1055,203 +1054,162 @@ export default function App() {
                   Campanha: {activeCampaign.name}
                 </span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
-                  {tagsViewTab === 'tags' ? 'Tags & Variáveis [ ] da Campanha' : 'Links da Campanha'}
+                  Tags [ ] da Campanha
                 </h2>
                 <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
-                  {tagsViewTab === 'tags' 
-                    ? 'Altere em um só lugar tudo o que estiver entre colchetes como [LINK], [DATA], [CUPOM] em todas as mensagens.'
-                    : 'Cadastre e gerencie os links de destino oficiais da campanha (Checkout, Grupo VIP, Página de Vendas) vinculados às suas Tags.'}
+                  Altere em um só lugar tudo o que estiver entre colchetes como [LINK], [DATA], [CUPOM] em todas as mensagens. As tags permanecem intactas nas mensagens e são substituídas dinamicamente no preview e ao copiar o texto final.
                 </p>
               </div>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                {tagsViewTab === 'tags' ? (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}
-                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
-                  >
-                    <Sparkles size={14} />
-                    <span>⚡ Central de Tags [ ]</span>
-                  </button>
-                ) : (
-                  <button
-                    className="btn-primary"
-                    onClick={() => handleOpenTagsModal(activeCampaign, 'links')}
-                    style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700, boxShadow: '0 0 15px rgba(245, 158, 11, 0.3)' }}
-                  >
-                    <Plus size={14} />
-                    <span>+ Gerenciar Links</span>
-                  </button>
-                )}
+                <button
+                  className="btn-primary"
+                  onClick={() => handleOpenTagsModal(activeCampaign)}
+                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
+                >
+                  <Sparkles size={14} />
+                  <span>⚡ Abrir Central de Tags [ ]</span>
+                </button>
               </div>
             </div>
 
-            {/* Sub-tabs: Tags vs Links */}
-            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setTagsViewTab('tags')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.45rem 1rem',
-                  borderRadius: '8px',
-                  border: tagsViewTab === 'tags' ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
-                  background: tagsViewTab === 'tags' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                  color: tagsViewTab === 'tags' ? '#fbbf24' : '#94a3b8',
-                  fontWeight: tagsViewTab === 'tags' ? 700 : 500,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>🏷️ Tags da Campanha [ ]</span>
-                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'tags' ? '#fbbf24' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'tags' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
-                  {activeTags.length}
-                </span>
-              </button>
+            {/* Content for Tags */}
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              {activeTags.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA], [LINK] ou [CUPOM] nas copies para gerenciá-los aqui.</p>
+                  <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
+                    + Cadastrar Tag na Central
+                  </button>
+                </div>
+              ) : (
+                activeTags.map(tag => {
+                  const rawKey = tag.rawTag;
+                  const cfg = (activeCampaign.customPlaceholders || {})[rawKey] || (activeCampaign.customPlaceholders || {})[tag.key];
+                  const hasVal = cfg && (cfg.text && cfg.text.trim());
+                  const isPageExpanded = expandedPageTagKey === tag.key;
 
-              <button
-                type="button"
-                onClick={() => setTagsViewTab('links')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.45rem',
-                  padding: '0.45rem 1rem',
-                  borderRadius: '8px',
-                  border: tagsViewTab === 'links' ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid transparent',
-                  background: tagsViewTab === 'links' ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                  color: tagsViewTab === 'links' ? '#fbbf24' : '#94a3b8',
-                  fontWeight: tagsViewTab === 'links' ? 700 : 500,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>🔗 Links da Campanha</span>
-                <span style={{ fontSize: '0.68rem', background: tagsViewTab === 'links' ? '#f59e0b' : 'rgba(255, 255, 255, 0.08)', color: tagsViewTab === 'links' ? '#0b1120' : '#cbd5e1', fontWeight: 800, padding: '0.1rem 0.45rem', borderRadius: '10px' }}>
-                  {(activeCampaign.predefinedLinks || []).length}
-                </span>
-              </button>
-            </div>
-
-            {/* Content for Tags Sub-tab */}
-            {tagsViewTab === 'tags' && (
-              <div style={{ display: 'grid', gap: '0.85rem' }}>
-                {activeTags.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA], [LINK] ou [CUPOM] nas copies para gerenciá-los aqui.</p>
-                    <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}>
-                      + Cadastrar Tag na Central
-                    </button>
-                  </div>
-                ) : (
-                  activeTags.map(tag => {
-                    const rawKey = tag.rawTag;
-                    const cfg = (activeCampaign.customPlaceholders || {})[rawKey] || (activeCampaign.customPlaceholders || {})[tag.key];
-                    const hasVal = cfg && ((cfg.mode === 'link' && cfg.linkId) || (cfg.text && cfg.text.trim()));
-                    const isPageExpanded = expandedPageTagKey === tag.key;
-
-                    return (
-                      <div
-                        key={tag.key}
-                        style={{
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          padding: '1.15rem 1.35rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.85rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <span style={{
-                              background: 'rgba(245, 158, 11, 0.15)',
-                              border: '1px solid rgba(245, 158, 11, 0.35)',
-                              color: '#fbbf24',
-                              fontWeight: 700,
-                              fontSize: '0.9rem',
-                              padding: '0.25rem 0.65rem',
-                              borderRadius: '6px',
-                              fontFamily: 'monospace'
-                            }}>
-                              {rawKey}
+                  return (
+                    <div
+                      key={tag.key}
+                      style={{
+                        background: 'var(--bg-card)',
+                        border: `1px solid ${hasVal ? 'rgba(34, 197, 94, 0.35)' : 'var(--border-color)'}`,
+                        borderRadius: '10px',
+                        padding: '1.15rem 1.35rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.85rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <span style={{
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            border: '1px solid rgba(245, 158, 11, 0.35)',
+                            color: '#fbbf24',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '6px',
+                            fontFamily: 'monospace'
+                          }}>
+                            {rawKey}
+                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                              {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
                             </span>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
-                                {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
+                            {hasVal ? (
+                              <span style={{ fontSize: '0.74rem', color: '#4ade80', fontWeight: 600 }}>
+                                ✅ Valor configurado: "{cfg.text}"
                               </span>
-                              {hasVal && (
-                                <span style={{ fontSize: '0.74rem', color: '#4ade80' }}>
-                                  Valor configurado: {cfg.mode === 'link' ? `🔗 Link da Campanha` : `"${cfg.text}"`}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {tag.messages.length > 0 && (
-                              <button
-                                className="btn-ghost"
-                                onClick={() => setExpandedPageTagKey(isPageExpanded ? null : tag.key)}
-                                style={{
-                                  fontSize: '0.76rem',
-                                  padding: '0.35rem 0.65rem',
-                                  color: isPageExpanded ? '#fbbf24' : '#94a3b8',
-                                  background: isPageExpanded ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.04)',
-                                  borderRadius: '6px'
-                                }}
-                              >
-                                {isPageExpanded ? 'Ocultar Mensagens' : `Ver Mensagens (${tag.messages.length})`}
-                              </button>
+                            ) : (
+                              <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 600 }}>
+                                ⚠️ Falta preencher link ou frase
+                              </span>
                             )}
-                            <button
-                              className="btn-secondary"
-                              onClick={() => handleOpenTagsModal(activeCampaign, 'tags')}
-                              style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
-                            >
-                              Configurar Tag
-                            </button>
                           </div>
                         </div>
 
-                        {/* Expandable Messages in Page View */}
-                        {isPageExpanded && tag.messages.length > 0 && (
-                          <div style={{
-                            background: 'rgba(0, 0, 0, 0.35)',
-                            border: '1px solid rgba(245, 158, 11, 0.25)',
-                            borderRadius: '8px',
-                            padding: '0.85rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.6rem'
-                          }}>
-                            <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
-                              Ocorrências nas Mensagens ({tag.messages.length}):
-                            </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          {tag.messages.length > 0 && (
+                            <button
+                              className="btn-ghost"
+                              onClick={() => setExpandedPageTagKey(isPageExpanded ? null : tag.key)}
+                              style={{
+                                fontSize: '0.76rem',
+                                padding: '0.35rem 0.65rem',
+                                color: isPageExpanded ? '#fbbf24' : '#94a3b8',
+                                background: isPageExpanded ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+                                borderRadius: '6px'
+                              }}
+                            >
+                              {isPageExpanded ? 'Ocultar Mensagens' : `Ver Mensagens (${tag.messages.length})`}
+                            </button>
+                          )}
+                          <button
+                            className="btn-secondary"
+                            onClick={() => handleOpenTagsModal(activeCampaign)}
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
+                          >
+                            Configurar Tag
+                          </button>
+                        </div>
+                      </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
-                              {tag.messages.map(m => {
-                                const isMsgExpanded = !!expandedPageMessageIds[m.id];
-                                return (
-                                  <div
-                                    key={m.id}
-                                    style={{
-                                      background: isMsgExpanded ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.02)',
-                                      border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
-                                      borderRadius: '6px',
-                                      padding: '0.65rem 0.85rem',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '0.35rem'
-                                    }}
-                                  >
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{m.title}</strong>
+                      {/* Expandable Messages in Page View */}
+                      {isPageExpanded && tag.messages.length > 0 && (
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.35)',
+                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          borderRadius: '8px',
+                          padding: '0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.6rem'
+                        }}>
+                          <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Ocorrências nas Mensagens ({tag.messages.length}):
+                          </span>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                            {tag.messages.map(m => {
+                              const isMsgExpanded = !!expandedPageMessageIds[m.id];
+                              const rawMsgText = m.copyText || m.copySnippet || '';
+                              const resolvedMsgText = resolveCopyVariables(rawMsgText, m.variables, activeCampaign?.predefinedLinks || [], activeCampaign?.customPlaceholders || {});
+
+                              return (
+                                <div
+                                  key={m.id}
+                                  style={{
+                                    background: isMsgExpanded ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.02)',
+                                    border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
+                                    borderRadius: '6px',
+                                    padding: '0.65rem 0.85rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.35rem'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{m.title}</strong>
+                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="btn-ghost"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(resolvedMsgText);
+                                          setCopiedPageMsgId(m.id);
+                                          setTimeout(() => setCopiedPageMsgId(null), 2000);
+                                        }}
+                                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '0.3rem', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '4px' }}
+                                        title="Copiar texto final com tags resolvidas"
+                                      >
+                                        {copiedPageMsgId === m.id ? <Check size={12} /> : <Copy size={12} />}
+                                        {copiedPageMsgId === m.id ? 'Copiado!' : 'Copiar Texto Final'}
+                                      </button>
                                       <button
                                         type="button"
                                         className="btn-ghost"
@@ -1261,127 +1219,62 @@ export default function App() {
                                         {isMsgExpanded ? 'Recolher' : 'Expandir Mensagem'}
                                       </button>
                                     </div>
-
-                                    {!isMsgExpanded ? (
-                                      <p 
-                                        onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
-                                        style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                                      >
-                                        {m.copyText || m.copySnippet}
-                                      </p>
-                                    ) : (
-                                      <div style={{
-                                        background: 'rgba(0, 0, 0, 0.5)',
-                                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                                        borderRadius: '6px',
-                                        padding: '0.85rem',
-                                        color: '#f1f5f9',
-                                        fontSize: '0.82rem',
-                                        lineHeight: '1.6',
-                                        whiteSpace: 'pre-wrap',
-                                        fontFamily: 'inherit'
-                                      }}>
-                                        {m.copyText || m.copySnippet}
-                                      </div>
-                                    )}
                                   </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
 
-            {/* Content for Links Sub-tab */}
-            {tagsViewTab === 'links' && (
-              <div style={{ display: 'grid', gap: '0.85rem' }}>
-                {(activeCampaign.predefinedLinks || []).length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                    <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhum link cadastrado ainda nesta campanha.</p>
-                    <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Cadastre links oficiais (ex: Checkout, Grupo VIP) para vinculá-los às Tags das suas mensagens.</p>
-                    <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign, 'links')}>
-                      + Cadastrar Novo Link
-                    </button>
-                  </div>
-                ) : (
-                  (activeCampaign.predefinedLinks || []).map((lnk, idx) => {
-                    return (
-                      <div
-                        key={lnk.id}
-                        style={{
-                          background: 'var(--bg-card)',
-                          border: '1px solid var(--border-color)',
-                          borderRadius: '10px',
-                          padding: '1.15rem 1.35rem',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '1rem',
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
-                          <div style={{
-                            width: '38px',
-                            height: '38px',
-                            borderRadius: '8px',
-                            background: 'rgba(245, 158, 11, 0.15)',
-                            border: '1px solid rgba(245, 158, 11, 0.35)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#fbbf24',
-                            flexShrink: 0
-                          }}>
-                            <LinkIcon size={18} />
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
-                              {lnk.label || `Link ${idx + 1}`}
-                            </span>
-                            <a
-                              href={lnk.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              style={{ fontSize: '0.8rem', color: '#60a5fa', textDecoration: 'none', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                            >
-                              {lnk.url}
-                            </a>
+                                  {!isMsgExpanded ? (
+                                    <p 
+                                      onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
+                                      style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                    >
+                                      {rawMsgText}
+                                    </p>
+                                  ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                      <div>
+                                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Texto com Tag:</span>
+                                        <div style={{
+                                          background: 'rgba(0, 0, 0, 0.5)',
+                                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                                          borderRadius: '6px',
+                                          padding: '0.75rem',
+                                          color: '#f1f5f9',
+                                          fontSize: '0.8rem',
+                                          lineHeight: '1.5',
+                                          whiteSpace: 'pre-wrap',
+                                          fontFamily: 'inherit'
+                                        }}>
+                                          {rawMsgText}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <span style={{ fontSize: '0.68rem', color: '#4ade80', textTransform: 'uppercase', fontWeight: 600 }}>Preview Resolvido (Ao Copiar):</span>
+                                        <div style={{
+                                          background: 'rgba(34, 197, 94, 0.05)',
+                                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                                          borderRadius: '6px',
+                                          padding: '0.75rem',
+                                          color: '#f8fafc',
+                                          fontSize: '0.8rem',
+                                          lineHeight: '1.5',
+                                          whiteSpace: 'pre-wrap',
+                                          fontFamily: 'inherit'
+                                        }}>
+                                          {resolvedMsgText}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <span style={{
-                            fontSize: '0.74rem',
-                            color: '#4ade80',
-                            background: 'rgba(34, 197, 94, 0.12)',
-                            padding: '0.25rem 0.6rem',
-                            borderRadius: '6px',
-                            fontWeight: 600
-                          }}>
-                            Pronto para vincular a Tags
-                          </span>
-
-                          <button
-                            className="btn-secondary"
-                            onClick={() => handleOpenTagsModal(activeCampaign, 'links')}
-                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
-                          >
-                            Editar Link
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 
@@ -1407,27 +1300,22 @@ export default function App() {
         onUpdateRecord={handleUpdateRecord}
         onDeleteRecord={handleDeleteRecord}
         onDuplicateRecord={handleDuplicateRecord}
-        onOpenLinksModal={handleOpenLinksModal}
         onOpenTagsModal={handleOpenTagsModal}
+        onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
         activeFlowCategory={activeFlowCategory}
         hiddenColumns={activeHiddenColumns}
         onToggleColumnVisibility={handleToggleColumnVisibility}
       />
 
-      {/* 6. Unified Campaign Tags & Links Modal */}
+      {/* 6. Campaign Tags Modal */}
       <CampaignTagsModal
-        isOpen={isTagsModalOpen || isLinksModalOpen}
-        initialTab={isLinksModalOpen ? 'links' : tagsModalInitialTab}
+        isOpen={isTagsModalOpen}
         onClose={() => {
           setIsTagsModalOpen(false);
-          setIsLinksModalOpen(false);
           setTagsModalCampaign(null);
-          setLinksModalCampaign(null);
         }}
-        campaign={tagsModalCampaign || linksModalCampaign || activeCampaign}
+        campaign={tagsModalCampaign || activeCampaign}
         onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
-        onBatchReplaceTags={handleBatchReplaceTags}
-        onUpdateCampaignLinks={handleUpdateCampaignLinks}
       />
 
       {/* 8. Global Airtable CSV Import Modal */}
@@ -1447,7 +1335,6 @@ export default function App() {
           onClose={() => setIsEditActiveCampaignModalOpen(false)}
           campaign={activeCampaign}
           onUpdateCampaign={handleUpdateCampaign}
-          onUpdateLinks={handleUpdateCampaignLinks}
         />
       )}
     </div>

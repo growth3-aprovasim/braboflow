@@ -288,11 +288,18 @@ export async function dbUpdateDisparo(disparoId, updates, campaignId) {
   if ('position' in updates) dbUpdates.position = updates.position;
   dbUpdates.updated_at = new Date().toISOString();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('bflow_disparos')
     .update(dbUpdates)
-    .eq('id', disparoId);
+    .eq('id', disparoId)
+    .select('id');
   if (error) throw error;
+
+  // Se o disparo ainda não existia no Supabase (ex: criado localmente), faz o upsert completo
+  if ((!data || data.length === 0) && campaignId) {
+    const fullDbData = formatDisparoToDb({ id: disparoId, ...updates }, campaignId);
+    await supabase.from('bflow_disparos').upsert(fullDbData);
+  }
 }
 
 export async function dbDeleteDisparo(disparoId) {

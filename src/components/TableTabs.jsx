@@ -1,12 +1,11 @@
 import React from 'react';
-import { Send, FolderKanban, Link as LinkIcon, Smartphone, Edit3 } from 'lucide-react';
+import { Send, FolderKanban, Edit3 } from 'lucide-react';
 
 export default function TableTabs({ 
   activeTable, 
   setActiveTable, 
   campaignCount, 
   messagesCount, 
-  linksCount,
   tagsCount,
   activeCampaign 
 }) {

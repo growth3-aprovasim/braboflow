@@ -45,8 +45,8 @@ export default function RecordDetailModal({
   onUpdateRecord,
   onDeleteRecord,
   onDuplicateRecord,
-  onOpenLinksModal,
   onOpenTagsModal,
+  onUpdateCampaignPlaceholders,
   activeFlowCategory = 'whatsapp',
   hiddenColumns = [],
   onToggleColumnVisibility
@@ -98,8 +98,8 @@ export default function RecordDetailModal({
 
   const handleChange = (field, value, extraUpdates = {}) => {
     let updatedStage = formData.stage;
-    // Se alterar qualquer campo (exceto a própria Status) e não estiver em rascunho, volta para rascunho
-    if (field !== 'stage' && formData.stage && formData.stage !== 'Em Rascunho') {
+    // Se alterar qualquer campo (exceto a própria Status ou campos customizados de verificação) e não estiver em rascunho, volta para rascunho
+    if (field !== 'stage' && field !== 'customFields' && formData.stage && formData.stage !== 'Em Rascunho') {
       updatedStage = 'Em Rascunho';
     }
 
@@ -719,21 +719,13 @@ export default function RecordDetailModal({
                 )}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                 {detectedBracketTags.map(tagKey => {
                   const rawTag = `[${tagKey}]`;
                   const campCfg = (campaign?.customPlaceholders || {})[rawTag] || (campaign?.customPlaceholders || {})[tagKey] || {};
                   const localCfg = (formData.variables || {})[rawTag] || (formData.variables || {})[tagKey] || {};
                   const activeCfg = { ...campCfg, ...localCfg };
-                  const isLinkMode = activeCfg.mode === 'link';
-
-                  let currentReplacementVal = '';
-                  if (isLinkMode && activeCfg.linkId) {
-                    const found = predefinedLinks.find(l => l.id === activeCfg.linkId);
-                    if (found) currentReplacementVal = found.url;
-                  } else if (activeCfg.text) {
-                    currentReplacementVal = activeCfg.text;
-                  }
+                  const currentVal = activeCfg.text || (typeof activeCfg === 'string' ? activeCfg : '');
 
                   return (
                     <div
@@ -741,10 +733,10 @@ export default function RecordDetailModal({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.45rem',
+                        gap: '0.5rem',
                         background: 'rgba(0, 0, 0, 0.3)',
-                        padding: '0.35rem 0.5rem',
-                        borderRadius: '4px',
+                        padding: '0.45rem 0.65rem',
+                        borderRadius: '6px',
                         border: '1px solid var(--border-subtle)',
                         flexWrap: 'wrap'
                       }}
@@ -754,8 +746,8 @@ export default function RecordDetailModal({
                         border: '1px solid rgba(245, 158, 11, 0.35)',
                         color: '#fbbf24',
                         fontWeight: 700,
-                        fontSize: '0.72rem',
-                        padding: '0.15rem 0.45rem',
+                        fontSize: '0.74rem',
+                        padding: '0.15rem 0.5rem',
                         borderRadius: '4px',
                         flexShrink: 0,
                         fontFamily: 'monospace'
@@ -763,85 +755,35 @@ export default function RecordDetailModal({
                         {rawTag}
                       </span>
 
-                      {/* Mode Toggle */}
-                      <div style={{ display: 'flex', gap: '0.2rem', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '0.15rem 0.35rem',
-                            borderRadius: '3px',
-                            background: isLinkMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                            color: isLinkMode ? '#fbbf24' : 'var(--text-muted)',
-                            fontWeight: isLinkMode ? 700 : 400
+                      <div style={{ flex: 1, minWidth: '220px' }}>
+                        <input
+                          type="text"
+                          className="form-control"
+                          style={{ width: '100%', fontSize: '0.78rem', padding: '0.3rem 0.55rem', background: 'transparent' }}
+                          placeholder="Digite o link (ex: https://...) ou frase para esta tag..."
+                          value={currentVal}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            handleVariableChange(rawTag, { mode: 'text', text: val });
+                            if (onUpdateCampaignPlaceholders && campaign?.id) {
+                              onUpdateCampaignPlaceholders(campaign.id, {
+                                ...(campaign.customPlaceholders || {}),
+                                [rawTag]: { mode: 'text', text: val },
+                                [tagKey]: { mode: 'text', text: val }
+                              });
+                            }
                           }}
-                          onClick={() => handleVariableChange(rawTag, { mode: 'link' })}
-                        >
-                          Link
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '0.15rem 0.35rem',
-                            borderRadius: '3px',
-                            background: !isLinkMode ? 'rgba(245, 158, 11, 0.2)' : 'transparent',
-                            color: !isLinkMode ? '#fbbf24' : 'var(--text-muted)',
-                            fontWeight: !isLinkMode ? 700 : 400
-                          }}
-                          onClick={() => handleVariableChange(rawTag, { mode: 'text', linkId: null })}
-                        >
-                          Texto
-                        </button>
+                        />
                       </div>
 
-                      {/* Value Input */}
-                      {isLinkMode ? (
-                        <div style={{ flex: 1, minWidth: '160px' }}>
-                          <select
-                            className="form-control"
-                            style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.45rem', background: 'transparent' }}
-                            value={activeCfg.linkId || ''}
-                            onChange={(e) => {
-                              const lnkId = e.target.value;
-                              const found = predefinedLinks.find(l => l.id === lnkId);
-                              handleVariableChange(rawTag, { mode: 'link', linkId: lnkId, text: found ? found.url : '' });
-                            }}
-                          >
-                            <option value="">-- Selecionar Link --</option>
-                            {predefinedLinks.map(lnk => (
-                              <option key={lnk.id} value={lnk.id} style={{ background: '#161b26' }}>
-                                🔗 {lnk.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
+                      {currentVal ? (
+                        <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Check size={12} strokeWidth={3} /> Preenchida
+                        </span>
                       ) : (
-                        <div style={{ flex: 1, minWidth: '160px' }}>
-                          <input
-                            type="text"
-                            className="form-control"
-                            style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.45rem', background: 'transparent' }}
-                            placeholder="Texto substituto..."
-                            value={activeCfg.text || ''}
-                            onChange={(e) => handleVariableChange(rawTag, { mode: 'text', text: e.target.value })}
-                          />
-                        </div>
-                      )}
-
-                      {/* Quick inline replace button */}
-                      {currentReplacementVal && (
-                        <button
-                          type="button"
-                          className="btn-secondary"
-                          style={{ fontSize: '0.68rem', padding: '0.2rem 0.45rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)', flexShrink: 0 }}
-                          onClick={() => handleReplaceBracketTagInCopy(rawTag, currentReplacementVal)}
-                          title={`Substituir permanentemente ${rawTag} pelo valor nesta mensagem`}
-                        >
-                          Substituir nesta Copy
-                        </button>
+                        <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600 }}>
+                          Falta Preencher
+                        </span>
                       )}
                     </div>
                   );

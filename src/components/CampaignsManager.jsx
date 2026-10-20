@@ -30,9 +30,7 @@ export default function CampaignsManager({
   onAddNewCampaign,
   onUpdateCampaign,
   onDeleteCampaign,
-  onOpenLinksModal,
-  onOpenTagsModal,
-  onUpdateCampaignLinks
+  onOpenTagsModal
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -44,38 +42,9 @@ export default function CampaignsManager({
   const [newEndDate, setNewEndDate] = useState('');
   const [newBadgeColor, setNewBadgeColor] = useState('#facc15');
 
-  // Initial links for the new campaign
-  const [initialLinks, setInitialLinks] = useState([
-    { label: 'Link Principal (Checkout / Inscrição)', url: 'https://' }
-  ]);
-
-  const handleAddLinkInput = () => {
-    setInitialLinks(prev => [...prev, { label: '', url: 'https://' }]);
-  };
-
-  const handleLinkChange = (index, field, value) => {
-    setInitialLinks(prev => {
-      const copy = [...prev];
-      copy[index][field] = value;
-      return copy;
-    });
-  };
-
-  const handleRemoveLinkInput = (index) => {
-    setInitialLinks(prev => prev.filter((_, i) => i !== index));
-  };
-
   const handleSubmitNewCampaign = (e) => {
     e.preventDefault();
     if (!newCampaignName.trim()) return;
-
-    const formattedLinks = initialLinks
-      .filter(l => l.label.trim() && l.url.trim() && l.url !== 'https://')
-      .map((l, i) => ({
-        id: `lnk-${Date.now()}-${i}`,
-        label: l.label.trim(),
-        url: l.url.trim()
-      }));
 
     const newCamp = {
       id: `camp-${Date.now()}`,
@@ -85,7 +54,7 @@ export default function CampaignsManager({
       badgeColor: newBadgeColor || '#facc15',
       startDate: newStartDate || new Date().toISOString().split('T')[0],
       endDate: newEndDate || '',
-      predefinedLinks: formattedLinks,
+      predefinedLinks: [],
       messages: []
     };
 
@@ -96,7 +65,6 @@ export default function CampaignsManager({
     setNewStartDate('');
     setNewEndDate('');
     setNewBadgeColor('#facc15');
-    setInitialLinks([{ label: 'Link Principal (Checkout / Inscrição)', url: 'https://' }]);
   };
 
   const handleCsvImported = async (importedCampaign) => {
@@ -215,8 +183,7 @@ export default function CampaignsManager({
           const allMsgs = campaign.messages || [];
           const waMsgs = allMsgs.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube');
           const emailMsgs = allMsgs.filter(m => m.channel === 'Email');
-          const ytMsgs = allMsgs.filter(m => m.channel === 'Comunidade YouTube');
-          const linksCount = campaign.predefinedLinks ? campaign.predefinedLinks.length : 0;
+          const configuredTagsCount = campaign.customPlaceholders ? Object.keys(campaign.customPlaceholders).length : 0;
 
           return (
             <div
@@ -278,7 +245,7 @@ export default function CampaignsManager({
                       setEditingCampaign(campaign);
                       setIsEditModalOpen(true);
                     }}
-                    title="Editar Nome, Datas, Status e Links da Campanha"
+                    title="Editar Nome, Datas e Status da Campanha"
                   >
                     <Edit3 size={15} />
                   </button>
@@ -288,7 +255,7 @@ export default function CampaignsManager({
                       className="btn-ghost"
                       style={{ padding: '0.3rem', color: '#fbbf24' }}
                       onClick={() => onOpenTagsModal(campaign)}
-                      title="Configurar Tags [ ] e Links desta Campanha"
+                      title="Configurar Tags [ ] desta Campanha"
                     >
                       <Sparkles size={15} />
                     </button>
@@ -422,10 +389,10 @@ export default function CampaignsManager({
                 </div>
               </div>
 
-              {/* Bottom Quick Links Preview & All Flows Link */}
+              {/* Bottom Tags Info & All Flows Link */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)' }}>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  {linksCount} {linksCount === 1 ? 'link pré-definido' : 'links pré-definidos'}
+                  {configuredTagsCount} {configuredTagsCount === 1 ? 'tag preenchida' : 'tags preenchidas'}
                 </span>
 
                 <button
@@ -467,7 +434,7 @@ export default function CampaignsManager({
                   Brabo Concursos • Nova Campanha
                 </span>
                 <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>
-                  Criar Campanha e Definir Links Oficiais
+                  Criar Nova Campanha
                 </h3>
               </div>
               <button className="btn-ghost" onClick={() => setIsCreating(false)}>
@@ -582,69 +549,6 @@ export default function CampaignsManager({
                 </div>
               </div>
 
-              {/* Predefined Links Section */}
-              <div style={{
-                background: 'var(--bg-sidebar)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '10px',
-                padding: '1.25rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.85rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24', textTransform: 'uppercase' }}>
-                      Links de Ação Predefinidos da Campanha
-                    </span>
-                    <p style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                      Insira os links que serão usados nas copies (checkout, grupo VIP, simulado). Ao criar mensagens, basta selecioná-los.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={handleAddLinkInput}
-                    style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
-                  >
-                    <Plus size={13} />
-                    <span>+ Link</span>
-                  </button>
-                </div>
-
-                {initialLinks.map((lnk, idx) => (
-                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.2fr 2fr auto', gap: '0.5rem', alignItems: 'center' }}>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Nome (Ex: Checkout 40%)"
-                      value={lnk.label}
-                      onChange={(e) => handleLinkChange(idx, 'label', e.target.value)}
-                      style={{ fontSize: '0.78rem' }}
-                    />
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="https://..."
-                      value={lnk.url}
-                      onChange={(e) => handleLinkChange(idx, 'url', e.target.value)}
-                      style={{ fontSize: '0.78rem' }}
-                    />
-                    {initialLinks.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ color: '#ef4444', padding: '0.3rem' }}
-                        onClick={() => handleRemoveLinkInput(idx)}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
                 <button
                   type="button"
@@ -683,7 +587,6 @@ export default function CampaignsManager({
         }}
         campaign={editingCampaign}
         onUpdateCampaign={onUpdateCampaign}
-        onUpdateLinks={onUpdateCampaignLinks}
       />
     </div>
   );

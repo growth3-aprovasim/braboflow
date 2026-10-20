@@ -1361,14 +1361,23 @@ export default function GridView({
           style={{
             width: `${w}px`,
             minWidth: `${w}px`,
-            justifyContent: customCol.type === 'checkbox' ? 'center' : 'flex-start'
+            justifyContent: customCol.type === 'checkbox' ? 'center' : 'flex-start',
+            cursor: customCol.type === 'checkbox' ? 'pointer' : 'default'
           }}
+          onClick={customCol.type === 'checkbox' ? (e) => {
+            e.stopPropagation();
+            const nextVal = !Boolean(val);
+            const updatedCustom = { ...(record.customFields || {}), [customCol.id]: nextVal };
+            onUpdateRecord(record.id, { customFields: updatedCustom });
+          } : undefined}
         >
           {customCol.type === 'checkbox' ? (
             <input
               type="checkbox"
               checked={Boolean(val)}
+              onClick={(e) => e.stopPropagation()}
               onChange={(e) => {
+                e.stopPropagation();
                 const updatedCustom = { ...(record.customFields || {}), [customCol.id]: e.target.checked };
                 onUpdateRecord(record.id, { customFields: updatedCustom });
               }}
@@ -1547,12 +1556,20 @@ export default function GridView({
                   {/* Select Checkbox */}
                   <div
                     className="grid-cell"
-                    style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0 }}
+                    style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0, cursor: 'pointer' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelectRecord(record.id);
+                    }}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onChange={() => toggleSelectRecord(record.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelectRecord(record.id);
+                      }}
                       style={{ cursor: 'pointer' }}
                     />
                   </div>

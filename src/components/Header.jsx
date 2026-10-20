@@ -22,7 +22,6 @@ export default function Header({
   activeCampaign,
   onSelectCampaign,
   onOpenCampaignsManager,
-  onOpenLinksModal,
   onOpenTagsModal,
   tagsCount = 0,
   searchQuery, 
@@ -103,7 +102,7 @@ export default function Header({
           )}
         </div>
 
-        {/* Campaign Tags [ ] & Links Unified Quick Button (Yellow Tone) */}
+        {/* Campaign Tags [ ] Quick Button (Yellow Tone) */}
         {activeCampaign && (
           <button 
             className="btn-ghost"
@@ -119,31 +118,11 @@ export default function Header({
               cursor: 'pointer'
             }}
             onClick={() => onOpenTagsModal && onOpenTagsModal(activeCampaign)}
-            title="Gerenciar Tags [ ] e Links da Campanha"
+            title="Gerenciar Tags [ ] da Campanha"
             id="header-tags-btn"
           >
             <Edit3 size={13} color="#fbbf24" />
             <span style={{ fontWeight: 600 }}>Tags [ ] ({tagsCount})</span>
-            {activeCampaign.predefinedLinks?.length > 0 && (
-              <span 
-                style={{ 
-                  fontSize: '0.66rem', 
-                  color: '#f59e0b', 
-                  background: 'rgba(245, 158, 11, 0.18)', 
-                  border: '1px solid rgba(245, 158, 11, 0.35)',
-                  padding: '0.05rem 0.35rem', 
-                  borderRadius: '4px',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.2rem'
-                }}
-                title={`${activeCampaign.predefinedLinks.length} links cadastrados`}
-              >
-                <LinkIcon size={10} />
-                <span>{activeCampaign.predefinedLinks.length}</span>
-              </span>
-            )}
           </button>
         )}
       </div>

@@ -116,6 +116,7 @@ export function extractAllCampaignBracketTags(messages = []) {
           scheduledTime: msg.scheduledTime,
           copyText: msg.copyText,
           copySnippet: msg.copyText,
+          variables: msg.variables,
           rawRecord: msg
         });
       }
@@ -196,30 +197,54 @@ export function resolveCopyVariables(copyText, variables = {}, predefinedLinks =
     const raw = match;
 
     // A. Check in local message variables first
-    const localConfig = variables?.[raw] || variables?.[key];
+    let localConfig = variables?.[raw] ?? variables?.[key];
+    if (!localConfig && variables) {
+      const lowerKey = key.toLowerCase();
+      const lowerRaw = raw.toLowerCase();
+      for (const [k, v] of Object.entries(variables)) {
+        const cleanK = k.replace(/^\[/, '').replace(/\]$/, '').trim().toLowerCase();
+        if (cleanK === lowerKey || k.toLowerCase() === lowerRaw) {
+          localConfig = v;
+          break;
+        }
+      }
+    }
     if (localConfig) {
       if (typeof localConfig === 'string' && localConfig.trim()) return localConfig;
       if (typeof localConfig === 'object') {
+        if (localConfig.text !== undefined && localConfig.text !== null && localConfig.text !== '') return localConfig.text;
+        if (localConfig.value !== undefined && localConfig.value !== null && localConfig.value !== '') return localConfig.value;
+        if (localConfig.url !== undefined && localConfig.url !== null && localConfig.url !== '') return localConfig.url;
         if (localConfig.linkId) {
           const found = predefinedLinks.find(l => l.id === localConfig.linkId);
           if (found && found.url) return found.url;
         }
-        if (localConfig.text !== undefined && localConfig.text !== null && localConfig.text !== '') return localConfig.text;
-        if (localConfig.value !== undefined && localConfig.value !== null && localConfig.value !== '') return localConfig.value;
       }
     }
 
     // B. Check in campaign-level customPlaceholders
-    const campVal = customPlaceholders?.[raw] || customPlaceholders?.[key];
+    let campVal = customPlaceholders?.[raw] ?? customPlaceholders?.[key];
+    if (!campVal && customPlaceholders) {
+      const lowerKey = key.toLowerCase();
+      const lowerRaw = raw.toLowerCase();
+      for (const [k, v] of Object.entries(customPlaceholders)) {
+        const cleanK = k.replace(/^\[/, '').replace(/\]$/, '').trim().toLowerCase();
+        if (cleanK === lowerKey || k.toLowerCase() === lowerRaw) {
+          campVal = v;
+          break;
+        }
+      }
+    }
     if (campVal !== undefined && campVal !== null) {
       if (typeof campVal === 'string' && campVal.trim()) return campVal;
       if (typeof campVal === 'object') {
+        if (campVal.text !== undefined && campVal.text !== null && campVal.text !== '') return campVal.text;
+        if (campVal.value !== undefined && campVal.value !== null && campVal.value !== '') return campVal.value;
+        if (campVal.url !== undefined && campVal.url !== null && campVal.url !== '') return campVal.url;
         if (campVal.linkId) {
           const found = predefinedLinks.find(l => l.id === campVal.linkId);
           if (found && found.url) return found.url;
         }
-        if (campVal.text !== undefined && campVal.text !== null && campVal.text !== '') return campVal.text;
-        if (campVal.value !== undefined && campVal.value !== null && campVal.value !== '') return campVal.value;
       }
     }
 

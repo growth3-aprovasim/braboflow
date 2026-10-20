@@ -45,7 +45,6 @@ export default function ViewToolbar({
   setRowDensity,
   recordsCount,
   campaign,
-  onOpenLinksModal,
   onOpenTagsModal,
   tagsCount = 0,
   onOpenEditCampaign,
