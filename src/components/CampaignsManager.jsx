@@ -183,6 +183,7 @@ export default function CampaignsManager({
           const allMsgs = campaign.messages || [];
           const waMsgs = allMsgs.filter(m => m.channel !== 'Email' && m.channel !== 'Comunidade YouTube');
           const emailMsgs = allMsgs.filter(m => m.channel === 'Email');
+          const ytMsgs = allMsgs.filter(m => m.channel === 'Comunidade YouTube');
           const configuredTagsCount = campaign.customPlaceholders ? Object.keys(campaign.customPlaceholders).length : 0;
 
           return (
