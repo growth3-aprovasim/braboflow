@@ -9,6 +9,7 @@ import {
   Radio,
   AlignLeft,
   Link as LinkIcon,
+  Check,
   CheckCircle,
   Tag,
   Paperclip,
