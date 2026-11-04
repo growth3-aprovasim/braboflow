@@ -57,7 +57,11 @@ export default function ViewToolbar({
   flowCounts = { whatsapp: 0, email: 0, youtube: 0, all: 0 }
 }) {
   const [openMenu, setOpenMenu] = useState(null);
-  const menuRef = useRef(null);
+  const channelsRef = useRef(null);
+  const viewsRef = useRef(null);
+  const filterRef = useRef(null);
+  const columnsRef = useRef(null);
+  const sortRef = useRef(null);
 
   const customCols = (campaign?.customColumns || []).map(c => ({
     id: c.id,
@@ -101,15 +105,40 @@ export default function ViewToolbar({
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (channelsRef.current && !channelsRef.current.contains(event.target)) {
+        setIsChannelsExpanded(false);
+      }
+      if (viewsRef.current && !viewsRef.current.contains(event.target)) {
+        setIsViewsExpanded(false);
+      }
+      if (openMenu === 'filter' && filterRef.current && !filterRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+      if (openMenu === 'columns' && columnsRef.current && !columnsRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+      if (openMenu === 'sort' && sortRef.current && !sortRef.current.contains(event.target)) {
+        setOpenMenu(null);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
         setOpenMenu(null);
         setIsViewsExpanded(false);
         setIsChannelsExpanded(false);
       }
     }
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [openMenu]);
 
   const availableChannels = getChannelsByCategory(activeFlowCategory);
   const activeRules = toolbarFilter?.rules || [];
@@ -235,9 +264,9 @@ export default function ViewToolbar({
   };
 
   return (
-    <div className="views-toolbar" ref={menuRef}>
+    <div className="views-toolbar">
       {/* 1. Canais Minimalista Expansível */}
-      <div className={`expandable-group ${isChannelsExpanded ? 'expanded' : ''}`}>
+      <div ref={channelsRef} className={`expandable-group ${isChannelsExpanded ? 'expanded' : ''}`}>
         {!isChannelsExpanded ? (
           <button
             type="button"
@@ -299,7 +328,7 @@ export default function ViewToolbar({
       <div style={{ width: '1px', height: '18px', background: 'var(--border-color)', margin: '0 0.2rem' }} />
 
       {/* 2. Visualizações Minimalista Expansível */}
-      <div className={`expandable-group ${isViewsExpanded ? 'expanded' : ''}`}>
+      <div ref={viewsRef} className={`expandable-group ${isViewsExpanded ? 'expanded' : ''}`}>
         {!isViewsExpanded ? (
           <button
             type="button"
@@ -356,7 +385,7 @@ export default function ViewToolbar({
       {/* 3. Toolbar Controls */}
       <div className="toolbar-controls">
         {/* Dynamic Filter Popover */}
-        <div style={{ position: 'relative' }}>
+        <div ref={filterRef} style={{ position: 'relative' }}>
           <button
             className={`toolbar-pill-btn ${hasActiveFilters ? 'active-filter' : ''}`}
             onClick={() => setOpenMenu(openMenu === 'filter' ? null : 'filter')}
@@ -593,7 +622,7 @@ export default function ViewToolbar({
         </div>
 
         {/* Hide / Show Columns Popover */}
-        <div style={{ position: 'relative' }}>
+        <div ref={columnsRef} style={{ position: 'relative' }}>
           <button
             className={`toolbar-pill-btn ${hiddenColumns.length > 0 ? 'active-filter' : ''}`}
             onClick={() => setOpenMenu(openMenu === 'columns' ? null : 'columns')}
@@ -689,7 +718,7 @@ export default function ViewToolbar({
 
 
         {/* Sort Popover */}
-        <div style={{ position: 'relative' }}>
+        <div ref={sortRef} style={{ position: 'relative' }}>
           <button
             className={`toolbar-pill-btn ${sortBy && sortBy !== 'date' ? 'active-filter' : ''}`}
             onClick={() => setOpenMenu(openMenu === 'sort' ? null : 'sort')}

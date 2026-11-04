@@ -225,21 +225,99 @@ export default function RecordDetailModal({
     setTimeout(() => setCopiedFull(false), 2500);
   };
 
-  const handleAddButtonResponse = () => {
-    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
-    handleChange('buttonResponses', [...current, '']);
+  // Helper to normalize buttons array (up to 3 buttons)
+  const getButtonsList = () => {
+    if (Array.isArray(formData.buttons) && formData.buttons.length > 0) {
+      return formData.buttons;
+    }
+    if (formData.buttonText) {
+      return [
+        {
+          id: 'btn_1',
+          text: formData.buttonText,
+          responses: Array.isArray(formData.buttonResponses) && formData.buttonResponses.length > 0
+            ? formData.buttonResponses
+            : ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]']
+        }
+      ];
+    }
+    return [
+      {
+        id: 'btn_1',
+        text: 'Quero Participar',
+        responses: ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]']
+      }
+    ];
   };
 
-  const handleUpdateButtonResponse = (index, value) => {
-    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
-    current[index] = value;
-    handleChange('buttonResponses', current);
+  const currentButtons = getButtonsList();
+
+  const handleUpdateButtons = (updatedButtons) => {
+    const primary = updatedButtons[0];
+    handleChange('buttons', updatedButtons, {
+      buttonText: primary ? primary.text : '',
+      buttonResponses: primary ? primary.responses : []
+    });
   };
 
-  const handleRemoveButtonResponse = (index) => {
-    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
-    current.splice(index, 1);
-    handleChange('buttonResponses', current);
+  const handleAddButton = () => {
+    if (currentButtons.length >= 3) return;
+    const newBtn = {
+      id: `btn_${Date.now()}`,
+      text: `Opção ${currentButtons.length + 1}`,
+      responses: ['Perfeito! Enviando mais detalhes sobre esta opção: [LINK]']
+    };
+    handleUpdateButtons([...currentButtons, newBtn]);
+  };
+
+  const handleRemoveButton = (btnIndex) => {
+    const updated = currentButtons.filter((_, idx) => idx !== btnIndex);
+    handleUpdateButtons(updated);
+  };
+
+  const handleUpdateButtonText = (btnIndex, newText) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        return { ...btn, text: newText };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const handleAddButtonResponse = (btnIndex) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        return { ...btn, responses: [...resps, ''] };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const handleUpdateButtonResponse = (btnIndex, respIndex, newResp) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        resps[respIndex] = newResp;
+        return { ...btn, responses: resps };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const handleRemoveButtonResponse = (btnIndex, respIndex) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        resps.splice(respIndex, 1);
+        return { ...btn, responses: resps };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
   };
 
   const handleTestSend = () => {
@@ -281,7 +359,12 @@ export default function RecordDetailModal({
   const customColumns = campaign?.customColumns || [];
 
   const isEmailChannel = formData.channel === 'Email';
-  const isApiChannel = formData.channel === 'Individual Janela Fechada WhatsApp' || !!formData.buttonText || !!formData.templateHeader;
+  const isApiChannel = formData.channel === 'Individual Janela Fechada WhatsApp' ||
+    formData.channel === 'WhatsApp Cloud API' ||
+    formData.channel === 'Unnichat API' ||
+    !!formData.templateName ||
+    (Array.isArray(formData.buttons) && formData.buttons.length > 0) ||
+    !!formData.buttonText;
 
   const renderCopyField = (customLabel = 'Copy', customPlaceholder = 'Escreva a copy do disparo aqui...') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
@@ -333,9 +416,10 @@ export default function RecordDetailModal({
           type="button"
           className="btn-ghost"
           onClick={() => {
-            handleChange('buttonText', 'Quero Participar', {
-              buttonResponses: formData.buttonResponses || ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]']
-            });
+            handleUpdateButtons([
+              { id: 'btn_1', text: 'Quero Participar', responses: ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]'] }
+            ]);
+            handleChange('templateName', 'novo_template');
           }}
           style={{
             fontSize: '0.72rem',
@@ -349,10 +433,10 @@ export default function RecordDetailModal({
             alignItems: 'center',
             gap: '0.3rem'
           }}
-          title="Adicionar botão de resposta rápida estilo Unnichat / HSM"
+          title="Adicionar botões de resposta rápida estilo Unnichat / HSM"
         >
           <CornerDownRight size={12} />
-          <span>+ Adicionar Botão de Resposta / Template HSM</span>
+          <span>+ Adicionar Botões de Resposta / Template HSM</span>
         </button>
       )}
 
@@ -607,35 +691,39 @@ export default function RecordDetailModal({
     : isApiChannel
     ? [
         {
-          id: 'templateHeader',
-          label: 'Cabeçalho (Header)',
-          icon: <Type size={14} className="field-icon" />,
+          id: 'templateName',
+          label: 'Nome do Template (Unnichat / Meta)',
+          icon: <Sparkles size={14} className="field-icon" />,
           render: () => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: '0.68rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Unnichat HSM • Cabeçalho de Texto
+                  Identificador Único do Template HSM
                 </span>
                 <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
-                  {(formData.templateHeader || '').length}/60 caracteres
+                  Unnichat / WhatsApp Cloud API
                 </span>
               </div>
               <input
                 type="text"
                 className="form-control"
-                placeholder="Ex: 🚨 AVISO IMPORTANTE - POLÍCIA FEDERAL (Opcional)"
-                maxLength={60}
-                value={formData.templateHeader || ''}
-                onChange={(e) => handleChange('templateHeader', e.target.value)}
+                placeholder="Ex: aviso_abertura_lote (apenas letras minúsculas e _)"
+                value={formData.templateName || ''}
+                onChange={(e) => {
+                  const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                  handleChange('templateName', val);
+                }}
                 style={{
                   fontSize: '0.82rem',
                   padding: '0.4rem 0.75rem',
                   width: '100%',
-                  borderColor: 'rgba(0, 168, 132, 0.3)'
+                  fontFamily: 'var(--font-mono)',
+                  color: '#34d399',
+                  borderColor: 'rgba(0, 168, 132, 0.4)'
                 }}
               />
               <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                Exibido em negrito destacado no topo da mensagem na aprovação do template.
+                Nome exato do template aprovado na Unnichat / Meta para disparo via API (sem espaços e sem caracteres especiais).
               </span>
             </div>
           )
@@ -647,176 +735,218 @@ export default function RecordDetailModal({
           render: () => renderCopyField('Corpo (Body)', 'Escreva o texto principal do template HSM...')
         },
         {
-          id: 'templateFooter',
-          label: 'Rodapé (Footer)',
-          icon: <FileText size={14} className="field-icon" />,
-          render: () => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.68rem', color: '#8696a0', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Rodapé HSM (Unnichat)
-                </span>
-                <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
-                  {(formData.templateFooter || '').length}/60 caracteres
-                </span>
-              </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Ex: Brabo Concursos • Responda SAIR para cancelar (Opcional)"
-                maxLength={60}
-                value={formData.templateFooter || ''}
-                onChange={(e) => handleChange('templateFooter', e.target.value)}
-                style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', width: '100%' }}
-              />
-              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                Texto sutil em cinza no rodapé da mensagem do WhatsApp.
-              </span>
-            </div>
-          )
-        },
-        {
-          id: 'buttonText',
-          label: 'Botão do Template',
+          id: 'buttons',
+          label: 'Botões do Template (Até 3 botões)',
           icon: <CornerDownRight size={14} className="field-icon" />,
           render: () => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.68rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Conteúdo do Botão (Resposta Rápida)
+                <span style={{ fontSize: '0.7rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Botões de Resposta Rápida ({currentButtons.length}/3)
                 </span>
                 <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
-                  {(formData.buttonText || '').length}/25 caracteres
+                  Permitido até 3 botões no WhatsApp HSM
                 </span>
               </div>
-              <input
-                type="text"
-                className="form-control"
-                placeholder="Ex: Quero Minha Vaga"
-                maxLength={25}
-                value={formData.buttonText || ''}
-                onChange={(e) => handleChange('buttonText', e.target.value)}
-                style={{
-                  fontSize: '0.82rem',
-                  padding: '0.4rem 0.75rem',
-                  width: '100%',
-                  fontWeight: 600,
-                  borderColor: 'rgba(0, 168, 132, 0.4)'
-                }}
-              />
-              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                Texto gravado no botão interativo do template para o lead clicar no WhatsApp.
-              </span>
-            </div>
-          )
-        },
-        {
-          id: 'buttonResponses',
-          label: 'Próximas Mensagens',
-          icon: <Plus size={14} className="field-icon" />,
-          render: () => (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
-              <div style={{
-                background: 'rgba(0, 168, 132, 0.08)',
-                border: '1px solid rgba(0, 168, 132, 0.25)',
-                borderRadius: '8px',
-                padding: '0.75rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.6rem'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <Sparkles size={13} color="#00a884" />
-                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#00a884', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      Próximas mensagens ao apertar o botão
-                    </span>
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: '#8696a0' }}>
-                    {(formData.buttonResponses || []).length} mensagem(ns) configurada(s)
-                  </span>
-                </div>
-                
-                <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
-                  Defina as mensagens sequenciais que o lead receberá no WhatsApp assim que clicar no botão "{formData.buttonText || 'Quero Participar'}".
-                </p>
 
-                {/* List of sequential response messages */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  {(formData.buttonResponses || []).map((resp, idx) => (
-                    <div 
-                      key={idx}
+              {/* List of up to 3 buttons */}
+              {currentButtons.map((btn, btnIdx) => (
+                <div
+                  key={btn.id || btnIdx}
+                  style={{
+                    background: 'rgba(0, 168, 132, 0.05)',
+                    border: '1px solid rgba(0, 168, 132, 0.28)',
+                    borderRadius: '8px',
+                    padding: '0.75rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.6rem'
+                  }}
+                >
+                  {/* Button header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <span style={{
+                        background: '#00a884',
+                        color: '#000000',
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        padding: '0.12rem 0.45rem',
+                        borderRadius: '4px'
+                      }}>
+                        Botão #{btnIdx + 1}
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
+                        {(btn.text || '').length}/25 caracteres
+                      </span>
+                    </div>
+
+                    {currentButtons.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => handleRemoveButton(btnIdx)}
+                        style={{ color: '#ef4444', padding: '0.15rem 0.4rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                        title="Remover este botão"
+                      >
+                        <Trash2 size={12} />
+                        <span>Remover Botão</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Button Text Input */}
+                  <div>
+                    <label style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '0.25rem', display: 'block', fontWeight: 600 }}>
+                      Texto do Botão #{btnIdx + 1} (Resposta Rápida)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Ex: Quero Minha Vaga"
+                      maxLength={25}
+                      value={btn.text || ''}
+                      onChange={(e) => handleUpdateButtonText(btnIdx, e.target.value)}
                       style={{
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
-                        borderRadius: '6px',
-                        padding: '0.55rem 0.7rem',
+                        fontSize: '0.82rem',
+                        padding: '0.4rem 0.75rem',
+                        width: '100%',
+                        fontWeight: 600,
+                        borderColor: 'rgba(0, 168, 132, 0.4)'
+                      }}
+                    />
+                  </div>
+
+                  {/* Sequential Responses for this specific button */}
+                  <div style={{
+                    background: 'rgba(0, 0, 0, 0.35)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '6px',
+                    padding: '0.65rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.5rem'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Sparkles size={12} color="#00a884" />
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#00a884', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                          Próximas Mensagens ao Clicar no Botão #{btnIdx + 1}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
+                        {(btn.responses || []).length} mensagem(ns) configurada(s)
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.35' }}>
+                      Defina as mensagens que o lead receberá no WhatsApp sequencialmente após clicar no botão "{btn.text || 'Opção'}".
+                    </p>
+
+                    {/* Responses textareas */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {(btn.responses || []).map((resp, rIdx) => (
+                        <div
+                          key={rIdx}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            border: '1px solid rgba(255, 255, 255, 0.08)',
+                            borderRadius: '5px',
+                            padding: '0.45rem 0.6rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8' }}>
+                              Mensagem #{rIdx + 1} pós-clique
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              onClick={() => handleRemoveButtonResponse(btnIdx, rIdx)}
+                              style={{ color: '#ef4444', padding: '0.1rem 0.3rem', fontSize: '0.66rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
+                              title="Remover esta mensagem"
+                            >
+                              <Trash2 size={11} />
+                              <span>Remover</span>
+                            </button>
+                          </div>
+
+                          <textarea
+                            className="form-control"
+                            value={resp}
+                            onChange={(e) => handleUpdateButtonResponse(btnIdx, rIdx, e.target.value)}
+                            placeholder={`Escreva a mensagem ${rIdx + 1} enviada após o lead clicar no botão "${btn.text || ''}"... (suporta [LINK], *negrito*, etc.)`}
+                            style={{
+                              minHeight: '65px',
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.78rem',
+                              lineHeight: '1.45',
+                              padding: '0.4rem 0.55rem',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '4px',
+                              width: '100%'
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Caixinha de + para adicionar mais campos pós-clique */}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleAddButtonResponse(btnIdx)}
+                      style={{
+                        alignSelf: 'flex-start',
+                        fontSize: '0.72rem',
+                        padding: '0.3rem 0.65rem',
+                        color: '#00a884',
+                        borderColor: 'rgba(0, 168, 132, 0.35)',
+                        background: 'rgba(0, 168, 132, 0.1)',
                         display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.35rem'
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        fontWeight: 700,
+                        borderRadius: '5px',
+                        marginTop: '0.15rem'
                       }}
                     >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#00a884' }}>
-                          Mensagem #{idx + 1} pós-clique
-                        </span>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          onClick={() => handleRemoveButtonResponse(idx)}
-                          style={{ color: '#ef4444', padding: '0.15rem 0.35rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                          title="Remover esta mensagem"
-                        >
-                          <Trash2 size={12} />
-                          <span>Remover</span>
-                        </button>
-                      </div>
-
-                      <textarea
-                        className="form-control"
-                        value={resp}
-                        onChange={(e) => handleUpdateButtonResponse(idx, e.target.value)}
-                        placeholder={`Escreva a mensagem ${idx + 1} enviada após o lead clicar no botão... (suporta [LINK], *negrito*, etc.)`}
-                        style={{
-                          minHeight: '70px',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: '0.8rem',
-                          lineHeight: '1.5',
-                          padding: '0.45rem 0.6rem',
-                          background: 'rgba(255, 255, 255, 0.02)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: '4px',
-                          width: '100%'
-                        }}
-                      />
-                    </div>
-                  ))}
+                      <Plus size={13} />
+                      <span>+ Adicionar Próxima Mensagem pós-clique</span>
+                    </button>
+                  </div>
                 </div>
+              ))}
 
-                {/* Caixinha de + para adicionar mais campos */}
+              {/* Botão de adicionar mais um botão (até 3 botões) */}
+              {currentButtons.length < 3 && (
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={handleAddButtonResponse}
+                  onClick={handleAddButton}
                   style={{
                     alignSelf: 'flex-start',
-                    fontSize: '0.74rem',
-                    padding: '0.35rem 0.75rem',
+                    fontSize: '0.76rem',
+                    padding: '0.45rem 0.9rem',
                     color: '#00a884',
-                    borderColor: 'rgba(0, 168, 132, 0.4)',
-                    background: 'rgba(0, 168, 132, 0.12)',
+                    borderColor: 'rgba(0, 168, 132, 0.45)',
+                    background: 'rgba(0, 168, 132, 0.15)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.35rem',
+                    gap: '0.4rem',
                     fontWeight: 700,
                     borderRadius: '6px',
                     marginTop: '0.2rem'
                   }}
                 >
                   <Plus size={14} />
-                  <span>+ Adicionar Próxima Mensagem pós-clique</span>
+                  <span>+ Adicionar Novo Botão ({currentButtons.length}/3)</span>
                 </button>
-              </div>
+              )}
             </div>
           )
         }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import logoImg from '../assets/logo.png';
 import { 
   Shield, 
@@ -35,6 +35,36 @@ export default function Header({
 }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
+  const campaignDropdownRef = useRef(null);
+  const exportMenuRef = useRef(null);
+
+  // Close menus when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (campaignDropdownRef.current && !campaignDropdownRef.current.contains(event.target)) {
+        setShowCampaignDropdown(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+    }
+
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowCampaignDropdown(false);
+        setShowExportMenu(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   return (
     <header className="app-header">
@@ -46,7 +76,7 @@ export default function Header({
         </div>
 
         {/* Campaign Switcher Dropdown */}
-        <div style={{ position: 'relative', marginLeft: '0.5rem' }}>
+        <div ref={campaignDropdownRef} style={{ position: 'relative', marginLeft: '0.5rem' }}>
           <div 
             className="base-switcher"
             onClick={() => setShowCampaignDropdown(!showCampaignDropdown)}
@@ -192,7 +222,7 @@ export default function Header({
           <span>Novo Disparo</span>
         </button>
 
-        <div style={{ position: 'relative' }}>
+        <div ref={exportMenuRef} style={{ position: 'relative' }}>
           <button 
             className="btn-secondary"
             onClick={() => setShowExportMenu(!showExportMenu)}

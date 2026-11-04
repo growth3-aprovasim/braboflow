@@ -391,10 +391,31 @@ export function formatFormattedText(text, isYouTube = false) {
 export default function ChannelPreview({ record, campaign, customWidth = '100%' }) {
   if (!record) return null;
 
-  const [isButtonClicked, setIsButtonClicked] = useState(false);
+  const [activeClickedButtonId, setActiveClickedButtonId] = useState(null);
 
   const predefinedLinks = campaign?.predefinedLinks || [];
   const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
+
+  // Helper to extract buttons (up to 3) with fallback for legacy records
+  const getButtonsFromRecord = (rec) => {
+    if (Array.isArray(rec.buttons) && rec.buttons.length > 0) {
+      return rec.buttons;
+    }
+    if (rec.buttonText || rec.channel === 'Individual Janela Fechada WhatsApp') {
+      return [
+        {
+          id: 'btn_1',
+          text: rec.buttonText || 'Quero Participar',
+          responses: Array.isArray(rec.buttonResponses) && rec.buttonResponses.length > 0
+            ? rec.buttonResponses
+            : ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]']
+        }
+      ];
+    }
+    return [];
+  };
+
+  const buttonsList = getButtonsFromRecord(record);
 
   // Resolve copy text with variables {{1}}, {{2}} and tags [TAG]
   const resolvedText = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
@@ -796,7 +817,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
         <div className="wa-bubble-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
           
           {/* Unnichat / Meta Cloud API Template Status Pill */}
-          {(record.channel === 'Individual Janela Fechada WhatsApp' || !!record.buttonText || !!record.templateHeader) && (
+          {(record.channel === 'Individual Janela Fechada WhatsApp' || !!record.templateName || buttonsList.length > 0 || !!record.buttonText) && (
             <div style={{
               background: 'rgba(0, 168, 132, 0.12)',
               border: '1px solid rgba(0, 168, 132, 0.3)',
@@ -809,11 +830,21 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
               width: '100%',
               boxSizing: 'border-box'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <CheckCheck size={12} color="#00a884" />
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#00a884' }}>Template HSM (Unnichat)</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', overflow: 'hidden' }}>
+                <CheckCheck size={12} color="#00a884" style={{ flexShrink: 0 }} />
+                <span style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  color: '#00a884',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  fontFamily: record.templateName ? 'var(--font-mono)' : 'inherit'
+                }}>
+                  {record.templateName ? `Template: ${record.templateName}` : 'Template HSM (Unnichat)'}
+                </span>
               </div>
-              <span style={{ fontSize: '0.62rem', background: 'rgba(0, 168, 132, 0.25)', color: '#25D366', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>
+              <span style={{ fontSize: '0.62rem', background: 'rgba(0, 168, 132, 0.25)', color: '#25D366', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800, flexShrink: 0 }}>
                 Aprovado Meta ✅
               </span>
             </div>
@@ -832,40 +863,13 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </div>
           ))}
 
-          {/* 2. Balão de Texto Central da Copy (com Cabeçalho, Rodapé e Botão HSM Unnichat) */}
-          {(resolvedText || record.templateHeader || record.buttonText) && (
+          {/* 2. Balão de Texto Central da Copy (com até 3 Botões HSM Unnichat) */}
+          {(resolvedText || buttonsList.length > 0) && (
             <div className="wa-message-bubble" style={{ width: '100%', maxWidth: '92%' }}>
-              {/* Header do Template (Unnichat HSM) */}
-              {record.templateHeader && (
-                <div style={{
-                  fontWeight: 800,
-                  fontSize: '0.86rem',
-                  color: '#ffffff',
-                  marginBottom: '0.4rem',
-                  letterSpacing: '0.02em',
-                  borderBottom: '1px solid rgba(255,255,255,0.08)',
-                  paddingBottom: '0.25rem'
-                }}>
-                  {record.templateHeader}
-                </div>
-              )}
-
               {/* Corpo da Copy */}
               {resolvedText && (
                 <div className="wa-message-text">
                   {formatFormattedText(resolvedText)}
-                </div>
-              )}
-
-              {/* Rodapé do Template (Unnichat HSM) */}
-              {record.templateFooter && (
-                <div style={{
-                  fontSize: '0.68rem',
-                  color: '#8696a0',
-                  marginTop: '0.35rem',
-                  lineHeight: '1.3'
-                }}>
-                  {record.templateFooter}
                 </div>
               )}
 
@@ -874,29 +878,44 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                 <CheckCheck size={14} color="#53bdeb" />
               </div>
 
-              {/* Botão de Resposta Rápida (Unnichat WhatsApp Button) */}
-              {(record.buttonText || record.channel === 'Individual Janela Fechada WhatsApp') && (
-                <div
-                  onClick={() => setIsButtonClicked(prev => !prev)}
-                  style={{
-                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                    marginTop: '0.5rem',
-                    padding: '0.5rem 0.2rem 0.2rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.4rem',
-                    color: '#00a884',
-                    fontWeight: 700,
-                    fontSize: '0.8rem',
-                    cursor: 'pointer',
-                    userSelect: 'none',
-                    transition: 'all 0.15s ease'
-                  }}
-                  title="Clique para testar o clique no botão e ver as próximas mensagens!"
-                >
-                  <CornerDownRight size={13} color="#00a884" />
-                  <span>{record.buttonText || 'Quero Participar'}</span>
+              {/* Botões de Resposta Rápida (Até 3 botões Unnichat / WhatsApp Cloud API) */}
+              {buttonsList.length > 0 && (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  marginTop: '0.45rem',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+                }}>
+                  {buttonsList.map((btn, bIdx) => {
+                    const btnId = btn.id || `btn_${bIdx}`;
+                    const isSelected = activeClickedButtonId === btnId;
+
+                    return (
+                      <div
+                        key={btnId}
+                        onClick={() => setActiveClickedButtonId(prev => prev === btnId ? null : btnId)}
+                        style={{
+                          borderTop: bIdx > 0 ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+                          padding: '0.45rem 0.35rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '0.4rem',
+                          color: isSelected ? '#34d399' : '#00a884',
+                          background: isSelected ? 'rgba(0, 168, 132, 0.18)' : 'transparent',
+                          fontWeight: 700,
+                          fontSize: '0.78rem',
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Clique para simular o clique no "${btn.text || `Botão #${bIdx + 1}`}" e ver suas próximas mensagens!`}
+                      >
+                        <CornerDownRight size={13} color={isSelected ? '#34d399' : '#00a884'} />
+                        <span>{btn.text || `Opção ${bIdx + 1}`}</span>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -916,95 +935,100 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
           ))}
 
           {/* ==================== FLUXO INTERATIVO PÓS-CLIQUE NO BOTÃO ==================== */}
-          {isButtonClicked && (
-            <>
-              {/* Balão do Lead (Resposta enviada pelo usuário ao clicar no botão) */}
-              <div
-                className="wa-message-bubble"
-                style={{
-                  alignSelf: 'flex-end',
-                  background: '#005c4b',
-                  borderRadius: '10px 0 10px 10px',
-                  padding: '6px 10px 4px 10px',
-                  maxWidth: '85%',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
-                  marginTop: '0.3rem'
-                }}
-              >
-                <div style={{ color: '#e9edef', fontSize: '0.78rem', fontWeight: 600 }}>
-                  {record.buttonText || 'Quero Participar'}
-                </div>
-                <div className="wa-bubble-meta" style={{ color: 'rgba(255,255,255,0.7)', float: 'right', marginTop: '2px' }}>
-                  <span>{record.scheduledTime || '10:01'}</span>
-                  <CheckCheck size={13} color="#53bdeb" />
-                </div>
-              </div>
+          {activeClickedButtonId && (() => {
+            const clickedBtn = buttonsList.find((b, idx) => (b.id || `btn_${idx}`) === activeClickedButtonId) || buttonsList[0];
+            if (!clickedBtn) return null;
 
-              {/* Mensagens de Resposta do Bot (Próximas Mensagens ao Apertar o Botão) */}
-              {((record.buttonResponses && record.buttonResponses.length > 0) 
-                ? record.buttonResponses 
-                : ['Excelente escolha! Sua confirmação foi recebida com sucesso!']
-              ).map((respText, rIdx) => {
-                const resolvedResp = resolveCopyVariables(respText, record.variables, predefinedLinks, campaign?.customPlaceholders);
-                if (!resolvedResp && !respText) return null;
+            const resps = Array.isArray(clickedBtn.responses) && clickedBtn.responses.length > 0
+              ? clickedBtn.responses
+              : ['Excelente escolha! Sua confirmação foi recebida com sucesso!'];
 
-                return (
-                  <div
-                    key={rIdx}
-                    className="wa-message-bubble"
-                    style={{
-                      alignSelf: 'flex-start',
-                      background: '#202c33',
-                      borderRadius: '0 10px 10px 10px',
-                      padding: '7px 9px 5px 9px',
-                      maxWidth: '92%',
-                      marginTop: '0.2rem'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.64rem', color: '#00a884', fontWeight: 700, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <span>🤖 Próxima Mensagem ({rIdx + 1})</span>
-                    </div>
-                    <div className="wa-message-text">
-                      {formatFormattedText(resolvedResp || respText)}
-                    </div>
-                    <div className="wa-bubble-meta">
-                      <span>{record.scheduledTime || '10:01'}</span>
-                      <CheckCheck size={14} color="#53bdeb" />
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Botão para Resetar Teste de Clique */}
-              <div style={{ alignSelf: 'center', marginTop: '0.4rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsButtonClicked(false)}
+            return (
+              <>
+                {/* Balão do Lead (Resposta enviada pelo usuário ao clicar no botão selecionado) */}
+                <div
+                  className="wa-message-bubble"
                   style={{
-                    background: 'rgba(0, 168, 132, 0.15)',
-                    border: '1px solid rgba(0, 168, 132, 0.4)',
-                    color: '#00a884',
-                    borderRadius: '16px',
-                    padding: '0.25rem 0.75rem',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem'
+                    alignSelf: 'flex-end',
+                    background: '#005c4b',
+                    borderRadius: '10px 0 10px 10px',
+                    padding: '6px 10px 4px 10px',
+                    maxWidth: '85%',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                    marginTop: '0.3rem'
                   }}
-                  title="Resetar para o estado inicial"
                 >
-                  <span>↺ Testar Clique Novamente</span>
-                </button>
-              </div>
-            </>
-          )}
+                  <div style={{ color: '#e9edef', fontSize: '0.78rem', fontWeight: 600 }}>
+                    {clickedBtn.text || 'Opção selecionada'}
+                  </div>
+                  <div className="wa-bubble-meta" style={{ color: 'rgba(255,255,255,0.7)', float: 'right', marginTop: '2px' }}>
+                    <span>{record.scheduledTime || '10:01'}</span>
+                    <CheckCheck size={13} color="#53bdeb" />
+                  </div>
+                </div>
+
+                {/* Mensagens de Resposta do Bot para ESTE botão */}
+                {resps.map((respText, rIdx) => {
+                  const resolvedResp = resolveCopyVariables(respText, record.variables, predefinedLinks, campaign?.customPlaceholders);
+                  if (!resolvedResp && !respText) return null;
+
+                  return (
+                    <div
+                      key={rIdx}
+                      className="wa-message-bubble"
+                      style={{
+                        alignSelf: 'flex-start',
+                        background: '#202c33',
+                        borderRadius: '0 10px 10px 10px',
+                        padding: '7px 9px 5px 9px',
+                        maxWidth: '92%',
+                        marginTop: '0.2rem'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.64rem', color: '#00a884', fontWeight: 700, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>🤖 Próxima Mensagem #{rIdx + 1} pós-clique ({clickedBtn.text})</span>
+                      </div>
+                      <div className="wa-message-text">
+                        {formatFormattedText(resolvedResp || respText)}
+                      </div>
+                      <div className="wa-bubble-meta">
+                        <span>{record.scheduledTime || '10:01'}</span>
+                        <CheckCheck size={14} color="#53bdeb" />
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Botão para Resetar Teste de Clique */}
+                <div style={{ alignSelf: 'center', marginTop: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveClickedButtonId(null)}
+                    style={{
+                      background: 'rgba(0, 168, 132, 0.15)',
+                      border: '1px solid rgba(0, 168, 132, 0.4)',
+                      color: '#00a884',
+                      borderRadius: '16px',
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem'
+                    }}
+                    title="Resetar simulação de clique"
+                  >
+                    <span>↺ Fechar simulação / Testar outro botão</span>
+                  </button>
+                </div>
+              </>
+            );
+          })()}
 
           {/* Dica para clicar e testar se ainda não clicou */}
-          {!isButtonClicked && record.buttonResponses && record.buttonResponses.length > 0 && (
+          {!activeClickedButtonId && buttonsList.length > 0 && (
             <div
-              onClick={() => setIsButtonClicked(true)}
               style={{
                 alignSelf: 'center',
                 background: 'rgba(0, 168, 132, 0.08)',
@@ -1018,9 +1042,9 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                 textAlign: 'center',
                 marginTop: '0.35rem'
               }}
-              title="Clique para testar o envio das mensagens configuradas"
+              title="Clique em um dos botões do balão acima para simular a resposta!"
             >
-              👉 Clique no botão "{record.buttonText || 'Quero Participar'}" acima para simular as {record.buttonResponses.length} próximas mensagens pós-clique
+              👉 Clique em um dos {buttonsList.length} botão(ões) acima para testar o envio das mensagens pós-clique
             </div>
           )}
 

@@ -524,12 +524,23 @@ export const initialCampaigns = [
         scheduledDate: '2026-09-11',
         scheduledTime: '14:00',
         selectedLinkId: 'lnk-1',
-        templateHeader: 'OPERAÇÃO POLÍCIA FEDERAL',
-        templateFooter: 'Brabo Concursos • Responda SAIR para cancelar',
-        buttonText: 'Quero Garantir Minha Vaga',
-        buttonResponses: [
-          'Perfeito, guerreiro! 🔥 Aqui está o seu link com 40% OFF garantido no lote especial: [LINK_CHECKOUT]',
-          'Caso precise de ajuda com formas de pagamento ou parcelamento em 2 cartões, chame nossa equipe de plantão aqui!'
+        templateName: 'aviso_abertura_lote_pf',
+        buttons: [
+          {
+            id: 'btn-1',
+            text: 'Garantir Vaga 40% OFF',
+            responses: [
+              'Perfeito, guerreiro! 🔥 Aqui está o seu link com 40% OFF garantido no lote especial: [LINK_CHECKOUT]',
+              'Caso precise de ajuda com formas de pagamento ou parcelamento em 2 cartões, chame nossa equipe de plantão aqui!'
+            ]
+          },
+          {
+            id: 'btn-2',
+            text: 'Falar com Atendente',
+            responses: [
+              'Olá! Nosso consultor de carreiras policiais foi acionado e responderá por aqui em instantes. Qual é a sua principal dúvida?'
+            ]
+          }
         ],
         attachment: {
           id: 'att-demo-3',
@@ -582,12 +593,23 @@ export const initialCampaigns = [
         scheduledDate: '2026-09-14',
         scheduledTime: '10:00',
         selectedLinkId: 'lnk-1',
-        templateHeader: 'AVISO IMPORTANTE - POLÍCIA FEDERAL',
-        templateFooter: 'Brabo Concursos • Responda SAIR para cancelar',
-        buttonText: 'Quero Minha Vaga',
-        buttonResponses: [
-          'Excelente decisão, guerreiro! 🔥 Aqui está o seu link com 40% de desconto reservado: [LINK_CHECKOUT]',
-          'Você também terá acesso imediato à mentoria exclusiva com o time de delegados e agentes da PF. Nos vemos na aula inaugural!'
+        templateName: 'recuperacao_ultimas_vagas_pf',
+        buttons: [
+          {
+            id: 'btn-1',
+            text: 'Quero Minha Vaga',
+            responses: [
+              'Excelente decisão, guerreiro! 🔥 Aqui está o seu link com 40% de desconto reservado: [LINK_CHECKOUT]',
+              'Você também terá acesso imediato à mentoria exclusiva com o time de delegados e agentes da PF. Nos vemos na aula inaugural!'
+            ]
+          },
+          {
+            id: 'btn-2',
+            text: 'Não tenho interesse',
+            responses: [
+              'Tudo bem! Seu cadastro foi pausado para este lote. Caso mude de ideia, estaremos à disposição.'
+            ]
+          }
         ],
         variables: {
           '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
