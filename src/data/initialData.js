@@ -1,8 +1,7 @@
 export const BRABO_CHANNELS = [
   { value: 'Grupo Normal WhatsApp', label: 'Grupo Normal WhatsApp', color: '#25D366', bg: 'rgba(37, 211, 102, 0.15)', badgeText: '🟢 Normal', category: 'whatsapp' },
   { value: 'Grupo VIP WhatsApp', label: 'Grupo VIP WhatsApp', color: '#fbbf24', bg: 'rgba(251, 191, 36, 0.15)', badgeText: '👑 VIP', category: 'whatsapp' },
-  { value: 'Individual WhatsApp Janela Aberta', label: 'Individual WhatsApp Janela Aberta', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', badgeText: '💬 Aberta (24h)', category: 'whatsapp' },
-  { value: 'Individual Janela Fechada WhatsApp', label: 'Individual Janela Fechada WhatsApp', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', badgeText: '🔒 Fechada (Template)', category: 'whatsapp' },
+  { value: 'Individual Janela Fechada WhatsApp', label: 'Individual WhatsApp (Disparo de API / Template HSM)', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.15)', badgeText: '🔒 API / Template', category: 'whatsapp' },
   { value: 'Email', label: 'Email', color: '#a78bfa', bg: 'rgba(167, 139, 250, 0.15)', badgeText: '✉️ Email', category: 'email' },
   { value: 'Comunidade YouTube', label: 'Comunidade YouTube', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.15)', badgeText: '📺 YouTube', category: 'youtube' },
   { value: 'Automações', label: 'Automações', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.15)', badgeText: '⚡ Automações', category: 'automacoes' },
@@ -521,10 +520,17 @@ export const initialCampaigns = [
         id: 'msg-103',
         title: '03. Abertura Oficial: Cupom de 40% Liberado',
         stage: 'Programada',
-        channel: 'Individual WhatsApp Janela Aberta',
+        channel: 'Individual Janela Fechada WhatsApp',
         scheduledDate: '2026-09-11',
         scheduledTime: '14:00',
         selectedLinkId: 'lnk-1',
+        templateHeader: 'OPERAÇÃO POLÍCIA FEDERAL',
+        templateFooter: 'Brabo Concursos • Responda SAIR para cancelar',
+        buttonText: 'Quero Garantir Minha Vaga',
+        buttonResponses: [
+          'Perfeito, guerreiro! 🔥 Aqui está o seu link com 40% OFF garantido no lote especial: [LINK_CHECKOUT]',
+          'Caso precise de ajuda com formas de pagamento ou parcelamento em 2 cartões, chame nossa equipe de plantão aqui!'
+        ],
         attachment: {
           id: 'att-demo-3',
           name: 'cupom_black_40off.png',
@@ -537,8 +543,8 @@ export const initialCampaigns = [
         variables: {
           '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora usando o cupom *[CUPOM]*!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa no link abaixo:\n[LINK_CHECKOUT]`,
-        notes: 'Disparo direto 1 a 1 via Z-API / Evolution.'
+        copyText: `Fala *{primeiro_nome}*! O lote com 40% de desconto para a *Turma Black Polícia Federal* foi liberado agora usando o cupom *[CUPOM]*!\n\nVocê que participou do nosso aquecimento tem prioridade total antes da liberação geral.\n\nGaranta sua vaga com mentoria inclusa apertando o botão abaixo:`,
+        notes: 'Disparo de API WhatsApp com template HSM aprovado no Unnichat.'
       },
       {
         id: 'msg-104',
@@ -576,11 +582,18 @@ export const initialCampaigns = [
         scheduledDate: '2026-09-14',
         scheduledTime: '10:00',
         selectedLinkId: 'lnk-1',
+        templateHeader: 'AVISO IMPORTANTE - POLÍCIA FEDERAL',
+        templateFooter: 'Brabo Concursos • Responda SAIR para cancelar',
+        buttonText: 'Quero Minha Vaga',
+        buttonResponses: [
+          'Excelente decisão, guerreiro! 🔥 Aqui está o seu link com 40% de desconto reservado: [LINK_CHECKOUT]',
+          'Você também terá acesso imediato à mentoria exclusiva com o time de delegados e agentes da PF. Nos vemos na aula inaugural!'
+        ],
         variables: {
           '[LINK_CHECKOUT]': { linkId: 'lnk-1', text: 'https://braboconcursos.com.br/matricula-pf-black' }
         },
-        copyText: `Brabo Concursos: {primeiro_nome}, identificamos que restam menos de 10 vagas no Lote 1 da Operacao PF. Finalize sua inscricao com condicao especial: [LINK_CHECKOUT]`,
-        notes: 'HSM pré-aprovado na Meta para número fora da janela de 24h.'
+        copyText: `Brabo Concursos: {primeiro_nome}, identificamos que restam menos de 10 vagas no Lote 1 da Operacao PF. Finalize sua inscricao com condicao especial apertando no botão abaixo:`,
+        notes: 'HSM pré-aprovado no Unnichat/Meta para número fora da janela de 24h.'
       }
     ]
   },
@@ -625,11 +638,19 @@ export const initialCampaigns = [
         scheduledDate: '2026-09-11',
         scheduledTime: '15:30',
         selectedLinkId: 'lnk-pc1',
+        emailSubject: '[PC-SP] Cupom exclusivo de 50% liberado para não-alunos',
+        emailPreheader: 'Acelere sua reta final com o time que mais aprova policiais...',
+        emailSenderName: 'Paulo Bilynskyj • Brabo Concursos',
+        emailSenderAddress: 'contato@braboconcursos.com.br',
+        emailReplyTo: 'suporte@braboconcursos.com.br',
+        emailCtaText: '👉 Ativar Meu Cupom de 50% Agora',
+        emailCtaUrl: '[LINK_CUPOM]',
+        emailFooterText: 'Brabo Concursos • O preparatório de elite para carreiras policiais.',
         variables: {
           '[LINK_CUPOM]': { linkId: 'lnk-pc1', text: 'https://braboconcursos.com.br/reta-final-pcsp' }
         },
-        copyText: `*{primeiro_nome}*, falta pouco para a prova da PC-SP.\n\nCriamos um cupom de 50% para quem precisa acelerar a revisão nesta reta final com o time que mais aprova policiais em SP.\n\nClique e ative o desconto:\n[LINK_CUPOM]`,
-        notes: 'Disparo via ActiveCampaign / RD.'
+        copyText: `Fala, *{primeiro_nome}*! Tudo bem?\n\nFalta pouco para a prova da PC-SP e cada dia conta na sua pontuação líquida.\n\nCriamos um cupom especial de 50% para quem precisa acelerar a revisão nesta reta final com o time que mais aprova policiais civis em São Paulo.\n\nClique no botão abaixo e ative seu desconto antes que as vagas com mentoria se encerrem.`,
+        notes: 'Disparo de e-mail de alta conversão via ActiveCampaign.'
       },
       {
         id: 'msg-203',

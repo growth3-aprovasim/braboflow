@@ -173,8 +173,7 @@ export function normalizeChannel(str) {
   if (s.includes('vip antigo')) return 'Grupo VIP Antigo WhatsApp';
   if (s.includes('normal antigo')) return 'Grupo Normal Antigo WhatsApp';
   if (s.includes('vip')) return 'Grupo VIP WhatsApp';
-  if (s.includes('fechada') || s.includes('template') || s.includes('hsm')) return 'Individual Janela Fechada WhatsApp';
-  if (s.includes('aberta') || s.includes('24h') || s.includes('individual')) return 'Individual WhatsApp Janela Aberta';
+  if (s.includes('fechada') || s.includes('template') || s.includes('hsm') || s.includes('api') || s.includes('individual') || s.includes('aberta') || s.includes('24h')) return 'Individual Janela Fechada WhatsApp';
   if (s.includes('grupo') || s.includes('whatsapp') || s.includes('whats') || s.includes('zap')) return 'Grupo Normal WhatsApp';
 
   return 'Grupo Normal WhatsApp';

@@ -32,7 +32,10 @@ import {
   Type,
   Users,
   Edit3,
-  Plus
+  Plus,
+  CornerDownRight,
+  Sparkles,
+  Mail
 } from 'lucide-react';
 import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
 import { deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, processAttachmentFiles } from '../services/attachmentStorage';
@@ -222,12 +225,29 @@ export default function RecordDetailModal({
     setTimeout(() => setCopiedFull(false), 2500);
   };
 
+  const handleAddButtonResponse = () => {
+    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
+    handleChange('buttonResponses', [...current, '']);
+  };
+
+  const handleUpdateButtonResponse = (index, value) => {
+    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
+    current[index] = value;
+    handleChange('buttonResponses', current);
+  };
+
+  const handleRemoveButtonResponse = (index) => {
+    const current = Array.isArray(formData.buttonResponses) ? [...formData.buttonResponses] : [];
+    current.splice(index, 1);
+    handleChange('buttonResponses', current);
+  };
+
   const handleTestSend = () => {
     const fullText = getFullResolvedText();
     const textEncoded = encodeURIComponent(fullText);
 
     if (formData.channel === 'Email') {
-      const subjectEncoded = encodeURIComponent(formData.title || 'Comunicado Brabo Concursos');
+      const subjectEncoded = encodeURIComponent(formData.emailSubject || formData.title || 'Comunicado Brabo Concursos');
       window.open(`mailto:?subject=${subjectEncoded}&body=${textEncoded}`, '_blank');
     } else {
       window.open(`https://api.whatsapp.com/send?text=${textEncoded}`, '_blank');
@@ -260,7 +280,559 @@ export default function RecordDetailModal({
   // ----------------------------------------------------
   const customColumns = campaign?.customColumns || [];
 
-  const allFields = [
+  const isEmailChannel = formData.channel === 'Email';
+  const isApiChannel = formData.channel === 'Individual Janela Fechada WhatsApp' || !!formData.buttonText || !!formData.templateHeader;
+
+  const renderCopyField = (customLabel = 'Copy', customPlaceholder = 'Escreva a copy do disparo aqui...') => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+        <button
+          type="button"
+          className="btn-ghost"
+          style={{
+            fontSize: '0.72rem',
+            padding: '0.2rem 0.55rem',
+            background: 'rgba(245, 158, 11, 0.1)',
+            color: '#fbbf24',
+            border: '1px solid rgba(245, 158, 11, 0.35)',
+            borderRadius: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            fontWeight: 600
+          }}
+          onClick={() => handleInsertTag('[LINK]')}
+          title="Inserir tag de link [LINK] na copy"
+        >
+          <Plus size={11} />
+          <span>+ Inserir Tag [LINK]</span>
+        </button>
+      </div>
+
+      <textarea
+        id="record-copy-textarea"
+        className="form-control"
+        value={formData.copyText || ''}
+        onChange={(e) => handleChange('copyText', e.target.value)}
+        placeholder={customPlaceholder}
+        style={{
+          minHeight: '190px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.84rem',
+          lineHeight: '1.6',
+          padding: '0.75rem',
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: '6px'
+        }}
+      />
+
+      {/* Non-API channel toggle to enable button / HSM */}
+      {!isEmailChannel && !isApiChannel && (
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={() => {
+            handleChange('buttonText', 'Quero Participar', {
+              buttonResponses: formData.buttonResponses || ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]']
+            });
+          }}
+          style={{
+            fontSize: '0.72rem',
+            color: '#00a884',
+            padding: '0.25rem 0.6rem',
+            alignSelf: 'flex-start',
+            border: '1px dashed rgba(0, 168, 132, 0.4)',
+            borderRadius: '5px',
+            background: 'rgba(0, 168, 132, 0.05)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem'
+          }}
+          title="Adicionar botão de resposta rápida estilo Unnichat / HSM"
+        >
+          <CornerDownRight size={12} />
+          <span>+ Adicionar Botão de Resposta / Template HSM</span>
+        </button>
+      )}
+
+      {/* Tags [ ] no texto */}
+      {detectedBracketTags.length > 0 && (
+        <div style={{
+          background: 'rgba(245, 158, 11, 0.05)',
+          border: '1px solid rgba(245, 158, 11, 0.25)',
+          borderRadius: '6px',
+          padding: '0.65rem 0.8rem',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.45rem',
+          marginTop: '0.35rem'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Edit3 size={12} color="#fbbf24" /> Tags [ ] Detectadas ({detectedBracketTags.length})
+            </span>
+            {onOpenTagsModal && (
+              <button
+                type="button"
+                className="btn-ghost"
+                style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#fbbf24' }}
+                onClick={() => onOpenTagsModal(campaign)}
+              >
+                ⚡ Central de Tags [ ] da Campanha
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            {detectedBracketTags.map(tagKey => {
+              const rawTag = `[${tagKey}]`;
+              const campCfg = (campaign?.customPlaceholders || {})[rawTag] || (campaign?.customPlaceholders || {})[tagKey] || {};
+              const localCfg = (formData.variables || {})[rawTag] || (formData.variables || {})[tagKey] || {};
+              const activeCfg = { ...campCfg, ...localCfg };
+              const currentVal = activeCfg.text || (typeof activeCfg === 'string' ? activeCfg : '');
+
+              return (
+                <div
+                  key={tagKey}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    background: 'rgba(0, 0, 0, 0.3)',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border-subtle)',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <span style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    color: '#fbbf24',
+                    fontWeight: 700,
+                    fontSize: '0.74rem',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '4px',
+                    flexShrink: 0,
+                    fontFamily: 'monospace'
+                  }}>
+                    {rawTag}
+                  </span>
+
+                  <div style={{ flex: 1, minWidth: '220px' }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      style={{ width: '100%', fontSize: '0.78rem', padding: '0.3rem 0.55rem', background: 'transparent' }}
+                      placeholder="Digite o link (ex: https://...) ou frase para esta tag..."
+                      value={currentVal}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        handleVariableChange(rawTag, { mode: 'text', text: val });
+                        if (onUpdateCampaignPlaceholders && campaign?.id) {
+                          onUpdateCampaignPlaceholders(campaign.id, {
+                            ...(campaign.customPlaceholders || {}),
+                            [rawTag]: { mode: 'text', text: val },
+                            [tagKey]: { mode: 'text', text: val }
+                          });
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {currentVal ? (
+                    <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <Check size={12} strokeWidth={3} /> Preenchida
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600 }}>
+                      Falta Preencher
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Field definitions based on channel
+  const dynamicMessageFields = isEmailChannel
+    ? [
+        {
+          id: 'emailSubject',
+          label: 'Headline / Assunto',
+          icon: <Mail size={14} className="field-icon" />,
+          render: () => {
+            const currentSubj = formData.emailSubject !== undefined ? formData.emailSubject : (formData.title || '');
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ex: [Último Dia] Sua vaga na Polícia Federal está reservada!"
+                  value={currentSubj}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    handleChange('emailSubject', val, { title: val });
+                  }}
+                  style={{
+                    fontSize: '0.84rem',
+                    padding: '0.45rem 0.75rem',
+                    fontWeight: 700,
+                    width: '100%',
+                    background: 'rgba(167, 139, 250, 0.05)',
+                    borderColor: 'rgba(167, 139, 250, 0.3)'
+                  }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#94a3b8' }}>
+                  <span>🎯 Linha de assunto principal exibida na caixa de entrada do lead</span>
+                  <span style={{ color: currentSubj.length > 60 ? '#fbbf24' : '#a78bfa' }}>
+                    {currentSubj.length} caracteres (recomendado: 40-60)
+                  </span>
+                </div>
+              </div>
+            );
+          }
+        },
+        {
+          id: 'emailPreheader',
+          label: 'Pré-cabeçalho',
+          icon: <Sparkles size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ex: Abra para garantir 40% de desconto antes da meia-noite..."
+                value={formData.emailPreheader || ''}
+                onChange={(e) => handleChange('emailPreheader', e.target.value)}
+                style={{ fontSize: '0.82rem', padding: '0.4rem 0.75rem', width: '100%' }}
+              />
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                💡 Texto de apoio curto que o lead lê antes de abrir o e-mail no Gmail/Outlook.
+              </span>
+            </div>
+          )
+        },
+        {
+          id: 'emailSender',
+          label: 'Remetente',
+          icon: <Users size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <label style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Nome do Remetente</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ex: Paulo Bilynskyj • Brabo Concursos"
+                  value={formData.emailSenderName || ''}
+                  onChange={(e) => handleChange('emailSenderName', e.target.value)}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <label style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>E-mail de Envio (From)</label>
+                <input
+                  type="email"
+                  className="form-control"
+                  placeholder="contato@braboconcursos.com.br"
+                  value={formData.emailSenderAddress || ''}
+                  onChange={(e) => handleChange('emailSenderAddress', e.target.value)}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                />
+              </div>
+            </div>
+          )
+        },
+        {
+          id: 'copy',
+          label: 'Corpo do E-mail',
+          icon: <AlignLeft size={14} className="field-icon" />,
+          render: () => renderCopyField('Corpo do E-mail', 'Escreva o texto completo do e-mail...')
+        },
+        {
+          id: 'emailCta',
+          label: 'Botão de Ação (CTA)',
+          icon: <LinkIcon size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <label style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Texto do Botão CTA</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ex: 👉 Garantir Minha Vaga com 40% OFF"
+                  value={formData.emailCtaText || ''}
+                  onChange={(e) => handleChange('emailCtaText', e.target.value)}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                <label style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Link de Destino do CTA</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="https://... ou tag [LINK]"
+                  value={formData.emailCtaUrl || ''}
+                  onChange={(e) => handleChange('emailCtaUrl', e.target.value)}
+                  style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+                />
+              </div>
+            </div>
+          )
+        },
+        {
+          id: 'emailFooter',
+          label: 'Rodapé / Assinatura',
+          icon: <FileText size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', width: '100%' }}>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Brabo Concursos • O preparatório de elite para carreiras policiais."
+                value={formData.emailFooterText || ''}
+                onChange={(e) => handleChange('emailFooterText', e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', width: '100%' }}
+              />
+            </div>
+          )
+        }
+      ]
+    : isApiChannel
+    ? [
+        {
+          id: 'templateHeader',
+          label: 'Cabeçalho (Header)',
+          icon: <Type size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.68rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Unnichat HSM • Cabeçalho de Texto
+                </span>
+                <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
+                  {(formData.templateHeader || '').length}/60 caracteres
+                </span>
+              </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ex: 🚨 AVISO IMPORTANTE - POLÍCIA FEDERAL (Opcional)"
+                maxLength={60}
+                value={formData.templateHeader || ''}
+                onChange={(e) => handleChange('templateHeader', e.target.value)}
+                style={{
+                  fontSize: '0.82rem',
+                  padding: '0.4rem 0.75rem',
+                  width: '100%',
+                  borderColor: 'rgba(0, 168, 132, 0.3)'
+                }}
+              />
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                Exibido em negrito destacado no topo da mensagem na aprovação do template.
+              </span>
+            </div>
+          )
+        },
+        {
+          id: 'copy',
+          label: 'Corpo (Body)',
+          icon: <AlignLeft size={14} className="field-icon" />,
+          render: () => renderCopyField('Corpo (Body)', 'Escreva o texto principal do template HSM...')
+        },
+        {
+          id: 'templateFooter',
+          label: 'Rodapé (Footer)',
+          icon: <FileText size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.68rem', color: '#8696a0', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Rodapé HSM (Unnichat)
+                </span>
+                <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
+                  {(formData.templateFooter || '').length}/60 caracteres
+                </span>
+              </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ex: Brabo Concursos • Responda SAIR para cancelar (Opcional)"
+                maxLength={60}
+                value={formData.templateFooter || ''}
+                onChange={(e) => handleChange('templateFooter', e.target.value)}
+                style={{ fontSize: '0.8rem', padding: '0.35rem 0.65rem', width: '100%' }}
+              />
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                Texto sutil em cinza no rodapé da mensagem do WhatsApp.
+              </span>
+            </div>
+          )
+        },
+        {
+          id: 'buttonText',
+          label: 'Botão do Template',
+          icon: <CornerDownRight size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: '0.68rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
+                  Conteúdo do Botão (Resposta Rápida)
+                </span>
+                <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
+                  {(formData.buttonText || '').length}/25 caracteres
+                </span>
+              </div>
+              <input
+                type="text"
+                className="form-control"
+                placeholder="Ex: Quero Minha Vaga"
+                maxLength={25}
+                value={formData.buttonText || ''}
+                onChange={(e) => handleChange('buttonText', e.target.value)}
+                style={{
+                  fontSize: '0.82rem',
+                  padding: '0.4rem 0.75rem',
+                  width: '100%',
+                  fontWeight: 600,
+                  borderColor: 'rgba(0, 168, 132, 0.4)'
+                }}
+              />
+              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                Texto gravado no botão interativo do template para o lead clicar no WhatsApp.
+              </span>
+            </div>
+          )
+        },
+        {
+          id: 'buttonResponses',
+          label: 'Próximas Mensagens',
+          icon: <Plus size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', width: '100%' }}>
+              <div style={{
+                background: 'rgba(0, 168, 132, 0.08)',
+                border: '1px solid rgba(0, 168, 132, 0.25)',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.6rem'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Sparkles size={13} color="#00a884" />
+                    <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#00a884', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                      Próximas mensagens ao apertar o botão
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: '#8696a0' }}>
+                    {(formData.buttonResponses || []).length} mensagem(ns) configurada(s)
+                  </span>
+                </div>
+                
+                <p style={{ fontSize: '0.72rem', color: '#94a3b8', margin: 0, lineHeight: '1.4' }}>
+                  Defina as mensagens sequenciais que o lead receberá no WhatsApp assim que clicar no botão "{formData.buttonText || 'Quero Participar'}".
+                </p>
+
+                {/* List of sequential response messages */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {(formData.buttonResponses || []).map((resp, idx) => (
+                    <div 
+                      key={idx}
+                      style={{
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: '6px',
+                        padding: '0.55rem 0.7rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.35rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#00a884' }}>
+                          Mensagem #{idx + 1} pós-clique
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => handleRemoveButtonResponse(idx)}
+                          style={{ color: '#ef4444', padding: '0.15rem 0.35rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                          title="Remover esta mensagem"
+                        >
+                          <Trash2 size={12} />
+                          <span>Remover</span>
+                        </button>
+                      </div>
+
+                      <textarea
+                        className="form-control"
+                        value={resp}
+                        onChange={(e) => handleUpdateButtonResponse(idx, e.target.value)}
+                        placeholder={`Escreva a mensagem ${idx + 1} enviada após o lead clicar no botão... (suporta [LINK], *negrito*, etc.)`}
+                        style={{
+                          minHeight: '70px',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.8rem',
+                          lineHeight: '1.5',
+                          padding: '0.45rem 0.6rem',
+                          background: 'rgba(255, 255, 255, 0.02)',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          borderRadius: '4px',
+                          width: '100%'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Caixinha de + para adicionar mais campos */}
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={handleAddButtonResponse}
+                  style={{
+                    alignSelf: 'flex-start',
+                    fontSize: '0.74rem',
+                    padding: '0.35rem 0.75rem',
+                    color: '#00a884',
+                    borderColor: 'rgba(0, 168, 132, 0.4)',
+                    background: 'rgba(0, 168, 132, 0.12)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    fontWeight: 700,
+                    borderRadius: '6px',
+                    marginTop: '0.2rem'
+                  }}
+                >
+                  <Plus size={14} />
+                  <span>+ Adicionar Próxima Mensagem pós-clique</span>
+                </button>
+              </div>
+            </div>
+          )
+        }
+      ]
+    : [
+        {
+          id: 'copy',
+          label: 'Copy',
+          icon: <AlignLeft size={14} className="field-icon" />,
+          render: () => renderCopyField('Copy', 'Escreva a copy do disparo aqui...')
+        }
+      ];
+
+
+
+    const allFields = [
     {
       id: 'date',
       label: 'Data',
@@ -644,157 +1216,7 @@ export default function RecordDetailModal({
         </div>
       )
     },
-    {
-      id: 'copy',
-      label: 'Copy',
-      icon: <AlignLeft size={14} className="field-icon" />,
-      render: () => (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            <button
-              type="button"
-              className="btn-ghost"
-              style={{
-                fontSize: '0.72rem',
-                padding: '0.2rem 0.55rem',
-                background: 'rgba(245, 158, 11, 0.1)',
-                color: '#fbbf24',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                fontWeight: 600
-              }}
-              onClick={() => handleInsertTag('[LINK]')}
-              title="Inserir tag de link [LINK] na copy"
-            >
-              <Plus size={11} />
-              <span>+ Inserir Tag [LINK]</span>
-            </button>
-          </div>
-
-          <textarea
-            id="record-copy-textarea"
-            className="form-control"
-            value={formData.copyText || ''}
-            onChange={(e) => handleChange('copyText', e.target.value)}
-            placeholder="Escreva a copy do disparo aqui..."
-            style={{
-              minHeight: '200px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.84rem',
-              lineHeight: '1.6',
-              padding: '0.75rem',
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px'
-            }}
-          />
-
-          {/* Tags [ ] no texto */}
-          {detectedBracketTags.length > 0 && (
-            <div style={{
-              background: 'rgba(245, 158, 11, 0.05)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              borderRadius: '6px',
-              padding: '0.65rem 0.8rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.45rem',
-              marginTop: '0.35rem'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Edit3 size={12} color="#fbbf24" /> Tags [ ] Detectadas ({detectedBracketTags.length})
-                </span>
-                {onOpenTagsModal && (
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#fbbf24' }}
-                    onClick={() => onOpenTagsModal(campaign)}
-                  >
-                    ⚡ Central de Tags [ ] da Campanha
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                {detectedBracketTags.map(tagKey => {
-                  const rawTag = `[${tagKey}]`;
-                  const campCfg = (campaign?.customPlaceholders || {})[rawTag] || (campaign?.customPlaceholders || {})[tagKey] || {};
-                  const localCfg = (formData.variables || {})[rawTag] || (formData.variables || {})[tagKey] || {};
-                  const activeCfg = { ...campCfg, ...localCfg };
-                  const currentVal = activeCfg.text || (typeof activeCfg === 'string' ? activeCfg : '');
-
-                  return (
-                    <div
-                      key={tagKey}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        background: 'rgba(0, 0, 0, 0.3)',
-                        padding: '0.45rem 0.65rem',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border-subtle)',
-                        flexWrap: 'wrap'
-                      }}
-                    >
-                      <span style={{
-                        background: 'rgba(245, 158, 11, 0.15)',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        color: '#fbbf24',
-                        fontWeight: 700,
-                        fontSize: '0.74rem',
-                        padding: '0.15rem 0.5rem',
-                        borderRadius: '4px',
-                        flexShrink: 0,
-                        fontFamily: 'monospace'
-                      }}>
-                        {rawTag}
-                      </span>
-
-                      <div style={{ flex: 1, minWidth: '220px' }}>
-                        <input
-                          type="text"
-                          className="form-control"
-                          style={{ width: '100%', fontSize: '0.78rem', padding: '0.3rem 0.55rem', background: 'transparent' }}
-                          placeholder="Digite o link (ex: https://...) ou frase para esta tag..."
-                          value={currentVal}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            handleVariableChange(rawTag, { mode: 'text', text: val });
-                            if (onUpdateCampaignPlaceholders && campaign?.id) {
-                              onUpdateCampaignPlaceholders(campaign.id, {
-                                ...(campaign.customPlaceholders || {}),
-                                [rawTag]: { mode: 'text', text: val },
-                                [tagKey]: { mode: 'text', text: val }
-                              });
-                            }
-                          }}
-                        />
-                      </div>
-
-                      {currentVal ? (
-                        <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <Check size={12} strokeWidth={3} /> Preenchida
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600 }}>
-                          Falta Preencher
-                        </span>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      )
-    },
+        ...dynamicMessageFields,
     {
       id: 'campaign',
       label: 'Lançamento',

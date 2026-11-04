@@ -52,16 +52,10 @@ function getChannelMeta(channelValue) {
       icon: Users
     };
   }
-  if (name.includes('Janela Fechada')) {
+  if (name.includes('Janela Fechada') || name.includes('Individual') || name.includes('API')) {
     return {
-      label: '1:1 Fechada',
+      label: 'API / Template',
       icon: Lock
-    };
-  }
-  if (name.includes('Individual') || name.includes('Janela Aberta')) {
-    return {
-      label: '1 a 1 Aberta',
-      icon: User
     };
   }
   if (name === 'Email') {

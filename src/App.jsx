@@ -9,7 +9,7 @@ import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
 import CampaignTagsModal from './components/CampaignTagsModal';
-import { Sparkles, Plus, Copy, Check } from 'lucide-react';
+import { Sparkles, Plus, Copy, Check, ExternalLink } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
@@ -1193,9 +1193,45 @@ export default function App() {
                                     gap: '0.35rem'
                                   }}
                                 >
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{m.title}</strong>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                      <strong 
+                                        onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                        style={{ 
+                                          color: '#fff', 
+                                          fontSize: '0.82rem', 
+                                          cursor: 'pointer', 
+                                          textDecoration: 'underline',
+                                          textUnderlineOffset: '3px',
+                                          transition: 'color 0.15s ease'
+                                        }}
+                                        title="Clique para abrir e modificar este disparo diretamente"
+                                        onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
+                                      >
+                                        {m.title}
+                                      </strong>
+                                    </div>
                                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                      <button
+                                        type="button"
+                                        className="btn-secondary"
+                                        onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                        style={{ 
+                                          fontSize: '0.72rem', 
+                                          padding: '0.2rem 0.55rem', 
+                                          color: '#38bdf8', 
+                                          borderColor: 'rgba(56, 189, 248, 0.4)', 
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          gap: '0.3rem',
+                                          background: 'rgba(56, 189, 248, 0.1)'
+                                        }}
+                                        title="Abrir este disparo para modificar diretamente"
+                                      >
+                                        <ExternalLink size={12} />
+                                        <span>Abrir Disparo</span>
+                                      </button>
                                       <button
                                         type="button"
                                         className="btn-ghost"
@@ -1225,6 +1261,7 @@ export default function App() {
                                     <p 
                                       onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
                                       style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                      title="Clique para expandir o texto e visualizar na íntegra"
                                     >
                                       {rawMsgText}
                                     </p>
@@ -1261,6 +1298,27 @@ export default function App() {
                                         }}>
                                           {resolvedMsgText}
                                         </div>
+                                      </div>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-primary"
+                                          onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                          style={{
+                                            fontSize: '0.75rem',
+                                            padding: '0.35rem 0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem',
+                                            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                            color: '#fff',
+                                            fontWeight: 600
+                                          }}
+                                          title="Abrir este disparo para modificar diretamente"
+                                        >
+                                          <ExternalLink size={13} />
+                                          <span>Modificar Disparo Diretamente</span>
+                                        </button>
                                       </div>
                                     </div>
                                   )}
@@ -1316,6 +1374,11 @@ export default function App() {
         }}
         campaign={tagsModalCampaign || activeCampaign}
         onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
+        onOpenRecord={(rec) => {
+          setIsTagsModalOpen(false);
+          setTagsModalCampaign(null);
+          handleOpenRecord(rec);
+        }}
       />
 
       {/* 8. Global Airtable CSV Import Modal */}

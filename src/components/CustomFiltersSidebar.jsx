@@ -500,7 +500,7 @@ export default function CustomFiltersSidebar({
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Ex: Disparos VIP Programadados, Vídeos da Semana, Janela Aberta..."
+                  placeholder="Ex: Disparos VIP Programados, Vídeos da Semana, Disparos de API..."
                   value={filterName}
                   onChange={(e) => setFilterName(e.target.value)}
                   autoFocus

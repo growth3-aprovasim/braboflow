@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   CheckCheck,
   Send,
@@ -391,6 +391,8 @@ export function formatFormattedText(text, isYouTube = false) {
 export default function ChannelPreview({ record, campaign, customWidth = '100%' }) {
   if (!record) return null;
 
+  const [isButtonClicked, setIsButtonClicked] = useState(false);
+
   const predefinedLinks = campaign?.predefinedLinks || [];
   const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
 
@@ -407,6 +409,16 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
 
   // 1. EMAIL PREVIEW (Simulação de Caixa de Entrada / Webmail em Tela de Computador)
   if (record.channel === 'Email') {
+    const emailSubject = record.emailSubject || record.title || 'Aviso Importante - Brabo Concursos';
+    const emailPreheader = record.emailPreheader || '';
+    const senderName = record.emailSenderName || 'Brabo Concursos';
+    const senderEmail = record.emailSenderAddress || 'contato@braboconcursos.com.br';
+    const emailCtaText = record.emailCtaText || (foundUrls.length > 0 ? '👉 Acessar Link Oficial Agora' : null);
+    const emailCtaUrl = record.emailCtaUrl 
+      ? resolveCopyVariables(record.emailCtaUrl, record.variables, predefinedLinks, campaign?.customPlaceholders) 
+      : (foundUrls[0] || '#');
+    const emailFooter = record.emailFooterText || 'Brabo Concursos • O preparatório de elite para carreiras policiais.';
+
     return (
       <div style={{
         width: '100%',
@@ -459,20 +471,27 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
           borderBottom: '1px solid #1f2937',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.4rem'
+          gap: '0.45rem'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ffffff' }}>
-              {record.title || 'Aviso Importante - Brabo Concursos'}
-            </h4>
-            <span style={{ fontSize: '0.7rem', color: '#9ca3af' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+              <h4 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#ffffff', margin: 0, lineHeight: '1.3' }}>
+                {emailSubject}
+              </h4>
+              {emailPreheader && (
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8', fontStyle: 'italic' }}>
+                  {emailPreheader}
+                </span>
+              )}
+            </div>
+            <span style={{ fontSize: '0.68rem', color: '#9ca3af', flexShrink: 0, marginTop: '2px' }}>
               {record.scheduledDate} {record.scheduledTime}
             </span>
           </div>
 
-          <div style={{ fontSize: '0.76rem', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+          <div style={{ fontSize: '0.76rem', color: '#9ca3af', display: 'flex', flexDirection: 'column', gap: '0.2rem', marginTop: '0.2rem' }}>
             <div>
-              <strong style={{ color: '#e5e7eb' }}>De:</strong> Brabo Concursos &lt;contato@braboconcursos.com.br&gt;
+              <strong style={{ color: '#e5e7eb' }}>De:</strong> {senderName} &lt;{senderEmail}&gt;
             </div>
             <div>
               <strong style={{ color: '#e5e7eb' }}>Para:</strong> Guerreiro &lt;aluno.concurseiro@email.com&gt;
@@ -488,7 +507,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
           fontSize: '0.84rem',
           lineHeight: '1.6',
           minHeight: '260px',
-          maxHeight: '400px',
+          maxHeight: '420px',
           overflowY: 'auto'
         }}>
           {/* Brand mini banner */}
@@ -509,6 +528,11 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </span>
           </div>
 
+          {/* Large Subject / Headline inside body */}
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#ffffff', marginBottom: '0.85rem', lineHeight: '1.35' }}>
+            {emailSubject}
+          </h3>
+
           {/* Attachments if position === 'before' */}
           {beforeAttachments.map(att => (
             <React.Fragment key={att.id || att.name}>
@@ -528,26 +552,27 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </React.Fragment>
           ))}
 
-          {/* Highlighted CTA button if links exist */}
-          {foundUrls.length > 0 && (
-            <div style={{ margin: '1.25rem 0', textAlign: 'center' }}>
+          {/* Highlighted CTA button */}
+          {emailCtaText && (
+            <div style={{ margin: '1.5rem 0', textAlign: 'center' }}>
               <a
-                href={foundUrls[0]}
+                href={emailCtaUrl}
                 target="_blank"
                 rel="noreferrer"
                 style={{
                   display: 'inline-block',
                   background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
                   color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.82rem',
-                  padding: '0.65rem 1.25rem',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  padding: '0.75rem 1.4rem',
                   borderRadius: '8px',
                   textDecoration: 'none',
-                  boxShadow: '0 4px 12px rgba(124, 58, 237, 0.3)'
+                  boxShadow: '0 4px 14px rgba(124, 58, 237, 0.35)',
+                  transition: 'transform 0.15s ease'
                 }}
               >
-                👉 Acessar Link Oficial Agora
+                {emailCtaText}
               </a>
             </div>
           )}
@@ -561,8 +586,11 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             color: '#64748b',
             lineHeight: '1.4'
           }}>
-            <p>Brabo Concursos • O preparatório de elite para carreiras policiais.</p>
-            <p style={{ marginTop: '0.2rem' }}>Para gerenciar suas preferências de e-mail, clique aqui.</p>
+            <p style={{ margin: 0 }}>{emailFooter}</p>
+            <p style={{ marginTop: '0.35rem', color: '#475569' }}>
+              Você está recebendo este comunicado porque se cadastrou na lista oficial da Brabo Concursos.
+              Para gerenciar preferências ou descadastrar, <span style={{ textDecoration: 'underline', cursor: 'pointer' }}>clique aqui</span>.
+            </p>
           </div>
         </div>
       </div>
@@ -765,8 +793,32 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
         </div>
 
         {/* Message Bubble Container */}
-        <div className="wa-bubble-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <div className="wa-bubble-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
           
+          {/* Unnichat / Meta Cloud API Template Status Pill */}
+          {(record.channel === 'Individual Janela Fechada WhatsApp' || !!record.buttonText || !!record.templateHeader) && (
+            <div style={{
+              background: 'rgba(0, 168, 132, 0.12)',
+              border: '1px solid rgba(0, 168, 132, 0.3)',
+              borderRadius: '8px',
+              padding: '0.35rem 0.65rem',
+              margin: '0.2rem 0 0.4rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <CheckCheck size={12} color="#00a884" />
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#00a884' }}>Template HSM (Unnichat)</span>
+              </div>
+              <span style={{ fontSize: '0.62rem', background: 'rgba(0, 168, 132, 0.25)', color: '#25D366', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>
+                Aprovado Meta ✅
+              </span>
+            </div>
+          )}
+
           {/* 1. Mídias Anteriores (Ex: Imagens / Banners enviados antes do texto) */}
           {beforeAttachments.map(att => (
             <div key={att.id || att.name} className="wa-message-bubble" style={{ padding: '0.35rem 0.5rem' }}>
@@ -780,16 +832,73 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
             </div>
           ))}
 
-          {/* 2. Balão de Texto Central da Copy */}
-          {resolvedText && (
-            <div className="wa-message-bubble">
-              <div className="wa-message-text">
-                {formatFormattedText(resolvedText)}
-              </div>
+          {/* 2. Balão de Texto Central da Copy (com Cabeçalho, Rodapé e Botão HSM Unnichat) */}
+          {(resolvedText || record.templateHeader || record.buttonText) && (
+            <div className="wa-message-bubble" style={{ width: '100%', maxWidth: '92%' }}>
+              {/* Header do Template (Unnichat HSM) */}
+              {record.templateHeader && (
+                <div style={{
+                  fontWeight: 800,
+                  fontSize: '0.86rem',
+                  color: '#ffffff',
+                  marginBottom: '0.4rem',
+                  letterSpacing: '0.02em',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
+                  paddingBottom: '0.25rem'
+                }}>
+                  {record.templateHeader}
+                </div>
+              )}
+
+              {/* Corpo da Copy */}
+              {resolvedText && (
+                <div className="wa-message-text">
+                  {formatFormattedText(resolvedText)}
+                </div>
+              )}
+
+              {/* Rodapé do Template (Unnichat HSM) */}
+              {record.templateFooter && (
+                <div style={{
+                  fontSize: '0.68rem',
+                  color: '#8696a0',
+                  marginTop: '0.35rem',
+                  lineHeight: '1.3'
+                }}>
+                  {record.templateFooter}
+                </div>
+              )}
+
               <div className="wa-bubble-meta">
                 <span>{record.scheduledTime || '10:00'}</span>
                 <CheckCheck size={14} color="#53bdeb" />
               </div>
+
+              {/* Botão de Resposta Rápida (Unnichat WhatsApp Button) */}
+              {(record.buttonText || record.channel === 'Individual Janela Fechada WhatsApp') && (
+                <div
+                  onClick={() => setIsButtonClicked(prev => !prev)}
+                  style={{
+                    borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                    marginTop: '0.5rem',
+                    padding: '0.5rem 0.2rem 0.2rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.4rem',
+                    color: '#00a884',
+                    fontWeight: 700,
+                    fontSize: '0.8rem',
+                    cursor: 'pointer',
+                    userSelect: 'none',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Clique para testar o clique no botão e ver as próximas mensagens!"
+                >
+                  <CornerDownRight size={13} color="#00a884" />
+                  <span>{record.buttonText || 'Quero Participar'}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -805,6 +914,115 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
               </div>
             </div>
           ))}
+
+          {/* ==================== FLUXO INTERATIVO PÓS-CLIQUE NO BOTÃO ==================== */}
+          {isButtonClicked && (
+            <>
+              {/* Balão do Lead (Resposta enviada pelo usuário ao clicar no botão) */}
+              <div
+                className="wa-message-bubble"
+                style={{
+                  alignSelf: 'flex-end',
+                  background: '#005c4b',
+                  borderRadius: '10px 0 10px 10px',
+                  padding: '6px 10px 4px 10px',
+                  maxWidth: '85%',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+                  marginTop: '0.3rem'
+                }}
+              >
+                <div style={{ color: '#e9edef', fontSize: '0.78rem', fontWeight: 600 }}>
+                  {record.buttonText || 'Quero Participar'}
+                </div>
+                <div className="wa-bubble-meta" style={{ color: 'rgba(255,255,255,0.7)', float: 'right', marginTop: '2px' }}>
+                  <span>{record.scheduledTime || '10:01'}</span>
+                  <CheckCheck size={13} color="#53bdeb" />
+                </div>
+              </div>
+
+              {/* Mensagens de Resposta do Bot (Próximas Mensagens ao Apertar o Botão) */}
+              {((record.buttonResponses && record.buttonResponses.length > 0) 
+                ? record.buttonResponses 
+                : ['Excelente escolha! Sua confirmação foi recebida com sucesso!']
+              ).map((respText, rIdx) => {
+                const resolvedResp = resolveCopyVariables(respText, record.variables, predefinedLinks, campaign?.customPlaceholders);
+                if (!resolvedResp && !respText) return null;
+
+                return (
+                  <div
+                    key={rIdx}
+                    className="wa-message-bubble"
+                    style={{
+                      alignSelf: 'flex-start',
+                      background: '#202c33',
+                      borderRadius: '0 10px 10px 10px',
+                      padding: '7px 9px 5px 9px',
+                      maxWidth: '92%',
+                      marginTop: '0.2rem'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.64rem', color: '#00a884', fontWeight: 700, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <span>🤖 Próxima Mensagem ({rIdx + 1})</span>
+                    </div>
+                    <div className="wa-message-text">
+                      {formatFormattedText(resolvedResp || respText)}
+                    </div>
+                    <div className="wa-bubble-meta">
+                      <span>{record.scheduledTime || '10:01'}</span>
+                      <CheckCheck size={14} color="#53bdeb" />
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Botão para Resetar Teste de Clique */}
+              <div style={{ alignSelf: 'center', marginTop: '0.4rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsButtonClicked(false)}
+                  style={{
+                    background: 'rgba(0, 168, 132, 0.15)',
+                    border: '1px solid rgba(0, 168, 132, 0.4)',
+                    color: '#00a884',
+                    borderRadius: '16px',
+                    padding: '0.25rem 0.75rem',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem'
+                  }}
+                  title="Resetar para o estado inicial"
+                >
+                  <span>↺ Testar Clique Novamente</span>
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* Dica para clicar e testar se ainda não clicou */}
+          {!isButtonClicked && record.buttonResponses && record.buttonResponses.length > 0 && (
+            <div
+              onClick={() => setIsButtonClicked(true)}
+              style={{
+                alignSelf: 'center',
+                background: 'rgba(0, 168, 132, 0.08)',
+                border: '1px dashed rgba(0, 168, 132, 0.35)',
+                color: '#00a884',
+                borderRadius: '8px',
+                padding: '0.35rem 0.65rem',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                textAlign: 'center',
+                marginTop: '0.35rem'
+              }}
+              title="Clique para testar o envio das mensagens configuradas"
+            >
+              👉 Clique no botão "{record.buttonText || 'Quero Participar'}" acima para simular as {record.buttonResponses.length} próximas mensagens pós-clique
+            </div>
+          )}
 
         </div>
       </div>

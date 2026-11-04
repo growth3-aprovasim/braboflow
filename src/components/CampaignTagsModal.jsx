@@ -20,7 +20,8 @@ import {
   Smartphone,
   Mail,
   Zap,
-  Tag
+  Tag,
+  ExternalLink
 } from 'lucide-react';
 import { extractAllCampaignBracketTags, resolveCopyVariables } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
@@ -242,7 +243,8 @@ export default function CampaignTagsModal({
   isOpen,
   onClose,
   campaign,
-  onUpdateCampaignPlaceholders
+  onUpdateCampaignPlaceholders,
+  onOpenRecord
 }) {
   // Tags filter and search
   const [searchTerm, setSearchTerm] = useState('');
@@ -821,7 +823,22 @@ export default function CampaignTagsModal({
                                 {/* Message Info Bar */}
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                    <strong style={{ color: '#f8fafc', fontSize: '0.8rem' }}>{m.title}</strong>
+                                    <strong 
+                                      onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                      style={{ 
+                                        color: '#f8fafc', 
+                                        fontSize: '0.82rem', 
+                                        cursor: 'pointer', 
+                                        textDecoration: 'underline',
+                                        textUnderlineOffset: '2px',
+                                        transition: 'color 0.15s ease'
+                                      }}
+                                      title="Clique para abrir e modificar este disparo diretamente"
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#f8fafc'}
+                                    >
+                                      {m.title}
+                                    </strong>
                                     <ChannelBadge channel={m.channel} />
                                     {m.stage && (
                                       <span style={{ fontSize: '0.66rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.04)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
@@ -835,26 +852,50 @@ export default function CampaignTagsModal({
                                     )}
                                   </div>
 
-                                  {/* Expand Context Toggle Button */}
-                                  <button
-                                    type="button"
-                                    className="btn-ghost"
-                                    onClick={() => toggleExpandMessage(m.id)}
-                                    style={{
-                                      fontSize: '0.72rem',
-                                      padding: '0.15rem 0.45rem',
-                                      color: isMsgExpanded ? '#fbbf24' : '#94a3b8',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.25rem',
-                                      background: isMsgExpanded ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
-                                      borderRadius: '4px'
-                                    }}
-                                    title={isMsgExpanded ? 'Recolher mensagem' : 'Clique para expandir o texto e ver o preview final'}
-                                  >
-                                    {isMsgExpanded ? <ChevronUp size={13} /> : <Maximize2 size={12} />}
-                                    <span>{isMsgExpanded ? 'Recolher' : 'Expandir Mensagem'}</span>
-                                  </button>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    {/* Open & Modify Record Button */}
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        padding: '0.15rem 0.45rem',
+                                        color: '#38bdf8',
+                                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        background: 'rgba(56, 189, 248, 0.1)',
+                                        borderRadius: '4px'
+                                      }}
+                                      title="Abrir este disparo para modificar diretamente"
+                                    >
+                                      <ExternalLink size={11} />
+                                      <span>Abrir Disparo</span>
+                                    </button>
+
+                                    {/* Expand Context Toggle Button */}
+                                    <button
+                                      type="button"
+                                      className="btn-ghost"
+                                      onClick={() => toggleExpandMessage(m.id)}
+                                      style={{
+                                        fontSize: '0.72rem',
+                                        padding: '0.15rem 0.45rem',
+                                        color: isMsgExpanded ? '#fbbf24' : '#94a3b8',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        background: isMsgExpanded ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+                                        borderRadius: '4px'
+                                      }}
+                                      title={isMsgExpanded ? 'Recolher mensagem' : 'Clique para expandir o texto e ver o preview final'}
+                                    >
+                                      {isMsgExpanded ? <ChevronUp size={13} /> : <Maximize2 size={12} />}
+                                      <span>{isMsgExpanded ? 'Recolher' : 'Expandir'}</span>
+                                    </button>
+                                  </div>
                                 </div>
 
                                 {/* Collapsed Preview */}
@@ -935,26 +976,48 @@ export default function CampaignTagsModal({
                                     </div>
 
                                     {/* Actions Bar inside Expanded Message */}
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <button
-                                        type="button"
-                                        className="btn-primary"
-                                        onClick={() => handleCopyResolvedMessage(m)}
-                                        style={{
-                                          fontSize: '0.74rem',
-                                          padding: '0.3rem 0.75rem',
-                                          background: copiedMsgId === m.id ? '#22c55e' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                          color: '#0b1120',
-                                          fontWeight: 700,
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          gap: '0.35rem'
-                                        }}
-                                        title="Copiar texto final com as tags já substituídas pelos seus links/frases"
-                                      >
-                                        {copiedMsgId === m.id ? <CheckCheck size={14} /> : <Copy size={14} />}
-                                        <span>{copiedMsgId === m.id ? 'Copiado para Área de Transferência!' : 'Copiar Texto Final (Tags Substituídas)'}</span>
-                                      </button>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-primary"
+                                          onClick={() => handleCopyResolvedMessage(m)}
+                                          style={{
+                                            fontSize: '0.74rem',
+                                            padding: '0.3rem 0.75rem',
+                                            background: copiedMsgId === m.id ? '#22c55e' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                            color: '#0b1120',
+                                            fontWeight: 700,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem'
+                                          }}
+                                          title="Copiar texto final com as tags já substituídas pelos seus links/frases"
+                                        >
+                                          {copiedMsgId === m.id ? <CheckCheck size={14} /> : <Copy size={14} />}
+                                          <span>{copiedMsgId === m.id ? 'Copiado!' : 'Copiar Texto Final'}</span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                          style={{
+                                            fontSize: '0.74rem',
+                                            padding: '0.3rem 0.65rem',
+                                            color: '#38bdf8',
+                                            borderColor: 'rgba(56, 189, 248, 0.4)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.3rem',
+                                            background: 'rgba(56, 189, 248, 0.1)'
+                                          }}
+                                          title="Abrir este disparo para editar diretamente"
+                                        >
+                                          <ExternalLink size={12} />
+                                          <span>Modificar Disparo</span>
+                                        </button>
+                                      </div>
 
                                       <button
                                         type="button"
