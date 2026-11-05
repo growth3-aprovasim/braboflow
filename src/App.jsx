@@ -719,53 +719,37 @@ export default function App() {
     // Registra timestamp da alteração local para impedir que reloads do realtime desfaçam os checks
     lastLocalUpdateTimestampRef.current[messageId] = Date.now();
 
-    let finalMessageToSync = null;
+    const currentMsg = (activeCampaign.messages || []).find(m => m.id === messageId);
+
+    // Calcula de forma síncrona as atualizações finais para garantir persistência imediata
+    const isOnlyCustomFields = Object.keys(updates).every(k => k === 'customFields');
+    const shouldResetToDraft = !isOnlyCustomFields && currentMsg?.stage && currentMsg?.stage !== 'Em Rascunho' && !('stage' in updates);
+    const finalUpdates = shouldResetToDraft ? { ...updates, stage: 'Em Rascunho' } : updates;
+    const finalMessageToSync = currentMsg ? { ...currentMsg, ...finalUpdates } : { id: messageId, ...finalUpdates };
 
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
         const updatedMessages = (c.messages || []).map(m => {
           if (m.id !== messageId) return m;
-
-          // Se o usuário está alterando a Status explicitamente, respeita a nova Status
-          if ('stage' in updates) {
-            const updated = { ...m, ...updates };
-            finalMessageToSync = updated;
-            return updated;
-          }
-
-          // Se for alteração apenas de customFields (ex: campo checkbox), não altera o stage da mensagem
-          const isOnlyCustomFields = Object.keys(updates).every(k => k === 'customFields');
-          const shouldResetToDraft = !isOnlyCustomFields && m.stage && m.stage !== 'Em Rascunho';
-          const finalUpdates = shouldResetToDraft ? { ...updates, stage: 'Em Rascunho' } : updates;
-          const updated = { ...m, ...finalUpdates };
-          finalMessageToSync = updated;
-
-          return updated;
+          return { ...m, ...finalUpdates };
         });
         return { ...c, messages: updatedMessages };
       }
       return c;
     }));
 
-    if (finalMessageToSync) {
-      if (updateDisparoTimerRef.current[messageId]) {
-        clearTimeout(updateDisparoTimerRef.current[messageId]);
-      }
-      updateDisparoTimerRef.current[messageId] = setTimeout(() => {
-        dbUpdateDisparo(messageId, finalMessageToSync, activeCampaign.id).catch(err => console.warn('Sync disparo error:', err));
-        delete updateDisparoTimerRef.current[messageId];
-      }, 300);
+    // Sincroniza imediatamente com o Supabase com debounce curto
+    if (updateDisparoTimerRef.current[messageId]) {
+      clearTimeout(updateDisparoTimerRef.current[messageId]);
     }
+    updateDisparoTimerRef.current[messageId] = setTimeout(() => {
+      dbUpdateDisparo(messageId, finalMessageToSync, activeCampaign.id).catch(err => console.warn('Sync disparo error:', err));
+      delete updateDisparoTimerRef.current[messageId];
+    }, 150);
 
     if (selectedRecord && selectedRecord.id === messageId) {
       setSelectedRecord(prev => {
         if (!prev) return null;
-        if ('stage' in updates) {
-          return { ...prev, ...updates };
-        }
-        const isOnlyCustomFields = Object.keys(updates).every(k => k === 'customFields');
-        const shouldResetToDraft = !isOnlyCustomFields && prev.stage && prev.stage !== 'Em Rascunho';
-        const finalUpdates = shouldResetToDraft ? { ...updates, stage: 'Em Rascunho' } : updates;
         return { ...prev, ...finalUpdates };
       });
     }
@@ -863,7 +847,11 @@ export default function App() {
   };
 
   const handleOpenRecord = (record) => {
-    setSelectedRecord(record);
+    if (!record) return;
+    const recordId = typeof record === 'string' ? record : record?.id;
+    // Sempre busca a versão mais recente do registro na campanha ativa
+    const freshRecord = activeCampaign?.messages?.find(m => m.id === recordId) || record;
+    setSelectedRecord(freshRecord);
     setIsRecordModalOpen(true);
   };
 
@@ -1225,8 +1213,9 @@ export default function App() {
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
                             {tag.messages.map(m => {
                               const isMsgExpanded = !!expandedPageMessageIds[m.id];
-                              const rawMsgText = m.copyText || m.copySnippet || '';
-                              const resolvedMsgText = resolveCopyVariables(rawMsgText, m.variables, activeCampaign?.predefinedLinks || [], activeCampaign?.customPlaceholders || {});
+                              const liveMsg = (activeCampaign?.messages || []).find(msg => msg.id === m.id) || m;
+                              const rawMsgText = liveMsg.copyText || liveMsg.copySnippet || '';
+                              const resolvedMsgText = resolveCopyVariables(rawMsgText, liveMsg.variables, activeCampaign?.predefinedLinks || [], activeCampaign?.customPlaceholders || {});
 
                               return (
                                 <div
@@ -1244,7 +1233,7 @@ export default function App() {
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                       <strong 
-                                        onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                        onClick={() => handleOpenRecord(liveMsg)}
                                         style={{ 
                                           color: '#fff', 
                                           fontSize: '0.82rem', 
@@ -1257,7 +1246,7 @@ export default function App() {
                                         onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
                                         onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
                                       >
-                                        {m.title}
+                                        {liveMsg.title}
                                       </strong>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -1269,7 +1258,7 @@ export default function App() {
                                             setEditingPageMsgId(null);
                                           } else {
                                             setEditingPageMsgId(m.id);
-                                            setEditingPageMsgTitle(m.title || '');
+                                            setEditingPageMsgTitle(liveMsg.title || '');
                                             setEditingPageMsgDraft(rawMsgText);
                                           }
                                         }}
@@ -1292,7 +1281,7 @@ export default function App() {
                                       <button
                                         type="button"
                                         className="btn-secondary"
-                                        onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                        onClick={() => handleOpenRecord(liveMsg)}
                                         style={{ 
                                           fontSize: '0.72rem', 
                                           padding: '0.2rem 0.55rem', 
@@ -1416,7 +1405,7 @@ export default function App() {
                                           className="btn-primary"
                                           onClick={() => {
                                             handleUpdateRecord(m.id, {
-                                              title: editingPageMsgTitle.trim() || m.title,
+                                              title: editingPageMsgTitle.trim() || liveMsg.title,
                                               copyText: editingPageMsgDraft
                                             });
                                             setEditingPageMsgId(null);
@@ -1484,7 +1473,7 @@ export default function App() {
                                           className="btn-secondary"
                                           onClick={() => {
                                             setEditingPageMsgId(m.id);
-                                            setEditingPageMsgTitle(m.title || '');
+                                            setEditingPageMsgTitle(liveMsg.title || '');
                                             setEditingPageMsgDraft(rawMsgText);
                                           }}
                                           style={{
@@ -1505,7 +1494,7 @@ export default function App() {
                                         <button
                                           type="button"
                                           className="btn-primary"
-                                          onClick={() => handleOpenRecord(m.rawRecord || m)}
+                                          onClick={() => handleOpenRecord(liveMsg)}
                                           style={{
                                             fontSize: '0.75rem',
                                             padding: '0.35rem 0.75rem',

@@ -62,12 +62,12 @@ export default function RecordDetailModal({
   const [isDraggingModalAtt, setIsDraggingModalAtt] = useState(false);
   const modalDragCounter = useRef(0);
 
-  // Sync only when opening or switching to another record
+  // Sync when opening or when record content changes
   useEffect(() => {
-    if (record) {
+    if (record && isOpen) {
       setFormData(record);
     }
-  }, [record?.id]);
+  }, [isOpen, record?.id, record?.copyText, record?.title, record?.stage, record?.channel]);
 
   // Load preview URLs from IndexedDB for all attachments if not present
   useEffect(() => {

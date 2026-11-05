@@ -806,8 +806,9 @@ export default function CampaignTagsModal({
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: '440px', overflowY: 'auto', paddingRight: '0.2rem' }}>
                           {tag.messages.map(m => {
                             const isMsgExpanded = !!expandedMessageIds[m.id];
-                            const rawText = m.copyText || m.copySnippet || '';
-                            const resolvedFinalText = resolveCopyVariables(rawText, m.variables, campaign?.predefinedLinks || [], tagValues);
+                            const liveMsg = (campaign?.messages || []).find(msg => msg.id === m.id) || m;
+                            const rawText = liveMsg.copyText || liveMsg.copySnippet || '';
+                            const resolvedFinalText = resolveCopyVariables(rawText, liveMsg.variables, campaign?.predefinedLinks || [], tagValues);
 
                             return (
                               <div
@@ -828,7 +829,7 @@ export default function CampaignTagsModal({
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                     <strong 
-                                      onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                      onClick={() => onOpenRecord?.(liveMsg)}
                                       style={{ 
                                         color: '#f8fafc', 
                                         fontSize: '0.82rem', 
@@ -841,17 +842,17 @@ export default function CampaignTagsModal({
                                       onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
                                       onMouseLeave={(e) => e.currentTarget.style.color = '#f8fafc'}
                                     >
-                                      {m.title}
+                                      {liveMsg.title}
                                     </strong>
-                                    <ChannelBadge channel={m.channel} />
-                                    {m.stage && (
+                                    <ChannelBadge channel={liveMsg.channel} />
+                                    {liveMsg.stage && (
                                       <span style={{ fontSize: '0.66rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.04)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                                        {m.stage}
+                                        {liveMsg.stage}
                                       </span>
                                     )}
-                                    {m.scheduledDate && (
+                                    {liveMsg.scheduledDate && (
                                       <span style={{ fontSize: '0.66rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                        <Calendar size={10} /> {m.scheduledDate} {m.scheduledTime ? `• ${m.scheduledTime}` : ''}
+                                        <Calendar size={10} /> {liveMsg.scheduledDate} {liveMsg.scheduledTime ? `• ${liveMsg.scheduledTime}` : ''}
                                       </span>
                                     )}
                                   </div>
@@ -866,7 +867,7 @@ export default function CampaignTagsModal({
                                           setEditingMsgId(null);
                                         } else {
                                           setEditingMsgId(m.id);
-                                          setEditingMsgTitle(m.title || '');
+                                          setEditingMsgTitle(liveMsg.title || '');
                                           setEditingMsgDraft(rawText);
                                         }
                                       }}
@@ -891,7 +892,7 @@ export default function CampaignTagsModal({
                                     <button
                                       type="button"
                                       className="btn-secondary"
-                                      onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                      onClick={() => onOpenRecord?.(liveMsg)}
                                       style={{
                                         fontSize: '0.7rem',
                                         padding: '0.15rem 0.45rem',
@@ -1016,7 +1017,7 @@ export default function CampaignTagsModal({
                                         className="btn-primary"
                                         onClick={() => {
                                           onUpdateRecord?.(m.id, {
-                                            title: editingMsgTitle.trim() || m.title,
+                                            title: editingMsgTitle.trim() || liveMsg.title,
                                             copyText: editingMsgDraft
                                           });
                                           setEditingMsgId(null);
@@ -1165,7 +1166,7 @@ export default function CampaignTagsModal({
                                             <button
                                               type="button"
                                               className="btn-secondary"
-                                              onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                              onClick={() => onOpenRecord?.(liveMsg)}
                                               style={{
                                                 fontSize: '0.74rem',
                                                 padding: '0.3rem 0.65rem',
