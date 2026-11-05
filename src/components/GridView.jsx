@@ -34,7 +34,7 @@ import {
   UploadCloud,
   Loader2
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, resolveCopyVariables, getStageObj, getChannelsByCategory, getChannelCategory, normalizeAttachments } from '../data/initialData';
 import { YouTubeIcon } from './ChannelPreview';
 import { triggerFileDownload, getAttachmentUrl, processAttachmentFiles, MAX_ATTACHMENT_SIZE_LABEL } from '../services/attachmentStorage';
 
@@ -448,6 +448,7 @@ export default function GridView({
   selectedRecordIds,
   setSelectedRecordIds,
   onUpdateCustomColumns,
+  onUpdateCampaign,
   hiddenColumns = [],
   activeFlowCategory = 'whatsapp',
   onSortBy,
@@ -459,6 +460,38 @@ export default function GridView({
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [newColType, setNewColType] = useState('checkbox');
+
+  // Dynamic channels for the active campaign
+  const availableChannels = React.useMemo(() => {
+    if (Array.isArray(campaign?.channelOptions) && campaign.channelOptions.length > 0) {
+      return campaign.channelOptions.map(ch => ({
+        id: ch.id || ch.value || ch.label,
+        value: ch.value || ch.label,
+        label: ch.label || ch.value,
+        color: ch.color || '#25D366',
+        bg: ch.bg || 'rgba(37, 211, 102, 0.15)',
+        border: ch.border || ch.color || '#25D366',
+        badgeText: ch.badgeText || `● ${ch.label || ch.value}`,
+        category: ch.category || getChannelCategory(ch.value || ch.label)
+      }));
+    }
+    return BRABO_CHANNELS;
+  }, [campaign?.channelOptions]);
+
+  // Dynamic stages for the active campaign
+  const availableStages = React.useMemo(() => {
+    if (Array.isArray(campaign?.stageOptions) && campaign.stageOptions.length > 0) {
+      return campaign.stageOptions.map(st => ({
+        id: st.id || st.value || st.label,
+        value: st.value || st.label,
+        label: st.label || st.value,
+        color: st.color || '#94a3b8',
+        bg: st.bg || 'rgba(148, 163, 184, 0.15)',
+        border: st.border || st.color || '#94a3b8'
+      }));
+    }
+    return DISPARO_STAGES;
+  }, [campaign?.stageOptions]);
 
   // Airtable-style header context menu state
   const [headerContextMenu, setHeaderContextMenu] = useState(null);
@@ -624,27 +657,30 @@ export default function GridView({
         const colId = customColOrColId;
         let initialTags = [];
         if (colId === 'stage') {
-          initialTags = DISPARO_STAGES.map((s, idx) => ({
-            id: `st-${idx}`,
-            label: s.label,
+          initialTags = availableStages.map((s, idx) => ({
+            id: s.id || `st-${idx}`,
+            label: s.label || s.value,
+            value: s.value || s.label,
             color: s.color,
             bg: s.bg,
-            border: s.border
+            border: s.border || s.color
           }));
         } else if (colId === 'channel') {
-          initialTags = BRABO_CHANNELS.map((ch, idx) => ({
-            id: `ch-${idx}`,
-            label: ch.label,
+          initialTags = availableChannels.map((ch, idx) => ({
+            id: ch.id || `ch-${idx}`,
+            label: ch.label || ch.value,
+            value: ch.value || ch.label,
             color: ch.color,
             bg: ch.bg,
-            border: ch.color
+            border: ch.border || ch.color,
+            category: ch.category || getChannelCategory(ch.value || ch.label)
           }));
         }
 
         col = {
           id: colId,
-          name: fallbackLabel || colId,
-          type: initialTags.length > 0 ? 'select' : 'text',
+          name: fallbackLabel || (colId === 'channel' ? 'Canal de Disparo' : colId === 'stage' ? 'Status' : colId),
+          type: 'select',
           options: initialTags,
           isStandard: true
         };
@@ -719,6 +755,45 @@ export default function GridView({
     e.preventDefault();
     if (!editColName.trim() || !editingColId) return;
 
+    // 1. Coluna Padrão: Canal de Disparo (salva as opções de canais da campanha)
+    if (editingColId === 'channel') {
+      const updatedChannelOptions = editColTags.map((t, idx) => ({
+        id: t.id || `ch-${idx}`,
+        label: t.label || t.value,
+        value: t.value || t.label,
+        color: t.color || '#25D366',
+        bg: t.bg || 'rgba(37, 211, 102, 0.15)',
+        border: t.border || t.color || '#25D366',
+        category: t.category || getChannelCategory(t.value || t.label),
+        badgeText: `● ${t.label || t.value}`
+      }));
+
+      if (onUpdateCampaign && campaign?.id) {
+        onUpdateCampaign(campaign.id, { channelOptions: updatedChannelOptions });
+      }
+      setIsEditColumnModalOpen(false);
+      return;
+    }
+
+    // 2. Coluna Padrão: Status do Disparo (salva as opções de status da campanha)
+    if (editingColId === 'stage') {
+      const updatedStageOptions = editColTags.map((t, idx) => ({
+        id: t.id || `st-${idx}`,
+        label: t.label || t.value,
+        value: t.value || t.label,
+        color: t.color || '#94a3b8',
+        bg: t.bg || 'rgba(148, 163, 184, 0.15)',
+        border: t.border || t.color || '#94a3b8'
+      }));
+
+      if (onUpdateCampaign && campaign?.id) {
+        onUpdateCampaign(campaign.id, { stageOptions: updatedStageOptions });
+      }
+      setIsEditColumnModalOpen(false);
+      return;
+    }
+
+    // 3. Colunas Customizadas do Usuário
     const isExistingCustom = customColumns.some(col => col.id === editingColId);
     let updatedCols;
 
@@ -1186,7 +1261,7 @@ export default function GridView({
               padding: '0.2rem 0.45rem',
               fontSize: '0.75rem',
               fontWeight: 700,
-              border: `1px solid ${stageObj.border}`,
+              border: `1px solid ${stageObj.border || 'transparent'}`,
               background: stageObj.bg,
               color: stageObj.color,
               borderRadius: '6px',
@@ -1195,21 +1270,30 @@ export default function GridView({
             value={record.stage || 'Em Rascunho'}
             onChange={(e) => onUpdateRecord(record.id, { stage: e.target.value })}
           >
-            {DISPARO_STAGES.map(st => (
+            {availableStages.map(st => (
               <option
-                key={st.value}
-                value={st.value}
+                key={st.value || st.label}
+                value={st.value || st.label}
                 style={{ background: '#161b26', color: st.color }}
               >
-                {st.badgeIcon} {st.label}
+                {st.badgeIcon || '●'} {st.label || st.value}
               </option>
             ))}
+            {!availableStages.some(s => s.value === record.stage || s.label === record.stage) && (
+              <option value={record.stage} style={{ background: '#161b26', color: '#fff' }}>
+                {record.stage}
+              </option>
+            )}
           </select>
         </div>
       );
     }
 
     if (colId === 'channel') {
+      const filteredChannels = activeFlowCategory === 'all'
+        ? availableChannels
+        : availableChannels.filter(ch => ch.category === activeFlowCategory);
+
       return (
         <div
           key="channel"
@@ -1222,7 +1306,7 @@ export default function GridView({
               padding: '0.25rem 0.5rem',
               fontSize: '0.78rem',
               fontWeight: 600,
-              border: 'none',
+              border: `1px solid ${channelObj.border || 'transparent'}`,
               background: channelObj.bg,
               color: channelObj.color,
               borderRadius: '6px'
@@ -1230,19 +1314,16 @@ export default function GridView({
             value={record.channel}
             onChange={(e) => onUpdateRecord(record.id, { channel: e.target.value })}
           >
-            {(activeFlowCategory === 'all'
-              ? BRABO_CHANNELS
-              : getChannelsByCategory(activeFlowCategory)
-            ).map(ch => (
+            {filteredChannels.map(ch => (
               <option
-                key={ch.value}
-                value={ch.value}
+                key={ch.value || ch.label}
+                value={ch.value || ch.label}
                 style={{ background: '#161b26', color: '#fff' }}
               >
-                {ch.label}
+                {ch.label || ch.value}
               </option>
             ))}
-            {activeFlowCategory !== 'all' && !getChannelsByCategory(activeFlowCategory).some(ch => ch.value === record.channel) && (
+            {!filteredChannels.some(ch => (ch.value || ch.label) === record.channel) && (
               <option value={record.channel} style={{ background: '#161b26', color: '#fff' }}>
                 {record.channel}
               </option>
@@ -1544,8 +1625,11 @@ export default function GridView({
 
             {!isCollapsed && groupItems.map((record) => {
               const isSelected = selectedRecordIds.includes(record.id);
-              const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
-              const stageObj = getStageObj(record.stage);
+              const channelObj = availableChannels.find(ch => ch.value === record.channel || ch.label === record.channel)
+                || BRABO_CHANNELS.find(ch => ch.value === record.channel)
+                || { label: record.channel, value: record.channel, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', border: '#38bdf8' };
+              const stageObj = availableStages.find(s => s.value === record.stage || s.label === record.stage)
+                || getStageObj(record.stage);
               const resolvedCopy = resolveCopyVariables(record.copyText, record.variables, predefinedLinks, campaign?.customPlaceholders);
 
               return (

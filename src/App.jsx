@@ -24,6 +24,7 @@ import {
   dbDeleteCampaign,
   dbSyncCampaignLinks,
   dbSyncCampaignColumns,
+  dbUpdateCampaignPlaceholders,
   dbCreateDisparo,
   dbUpdateDisparo,
   dbDeleteDisparo,
@@ -63,13 +64,40 @@ export default function App() {
       const data = await fetchAllCampaignsFromDb();
 
       if (data) {
-        setCampaigns(data);
+        // Preserva customPlaceholders locais/em cache caso o banco ainda não os tenha retornado
+        let cachedCampaigns = [];
+        try {
+          const raw = localStorage.getItem('brabo_airtable_campaigns_real');
+          if (raw) cachedCampaigns = JSON.parse(raw);
+        } catch { /* ignore */ }
+
+        const mergedData = data.map(dbCamp => {
+          const cached = cachedCampaigns.find(c => c.id === dbCamp.id);
+          const hasDbTags = dbCamp.customPlaceholders && Object.keys(dbCamp.customPlaceholders).length > 0;
+          const hasDbChannels = Array.isArray(dbCamp.channelOptions) && dbCamp.channelOptions.length > 0;
+          const hasDbStages = Array.isArray(dbCamp.stageOptions) && dbCamp.stageOptions.length > 0;
+
+          return {
+            ...dbCamp,
+            customPlaceholders: hasDbTags
+              ? dbCamp.customPlaceholders
+              : (cached?.customPlaceholders || {}),
+            channelOptions: hasDbChannels
+              ? dbCamp.channelOptions
+              : (cached?.channelOptions || null),
+            stageOptions: hasDbStages
+              ? dbCamp.stageOptions
+              : (cached?.stageOptions || null)
+          };
+        });
+
+        setCampaigns(mergedData);
         setActiveCampaignId(prev => {
-          if (prev && data.some(c => c.id === prev)) return prev;
-          return data[0]?.id || null;
+          if (prev && mergedData.some(c => c.id === prev)) return prev;
+          return mergedData[0]?.id || null;
         });
         try {
-          localStorage.setItem('brabo_airtable_campaigns_real', JSON.stringify(data));
+          localStorage.setItem('brabo_airtable_campaigns_real', JSON.stringify(mergedData));
         } catch { /* ignore */ }
         setSupabaseStatus('connected');
       }
@@ -130,7 +158,20 @@ export default function App() {
                       }
                     };
                   }
-                  return dbMsg;
+                  return {
+                    ...dbMsg,
+                    emailSubject: dbMsg.emailSubject !== undefined ? dbMsg.emailSubject : (prevMsg.emailSubject || ''),
+                    emailPreheader: dbMsg.emailPreheader !== undefined ? dbMsg.emailPreheader : (prevMsg.emailPreheader || ''),
+                    emailSenderName: dbMsg.emailSenderName !== undefined ? dbMsg.emailSenderName : (prevMsg.emailSenderName || ''),
+                    emailSenderAddress: dbMsg.emailSenderAddress !== undefined ? dbMsg.emailSenderAddress : (prevMsg.emailSenderAddress || ''),
+                    emailCtaText: dbMsg.emailCtaText !== undefined ? dbMsg.emailCtaText : (prevMsg.emailCtaText || ''),
+                    emailCtaUrl: dbMsg.emailCtaUrl !== undefined ? dbMsg.emailCtaUrl : (prevMsg.emailCtaUrl || ''),
+                    emailFooterText: dbMsg.emailFooterText !== undefined ? dbMsg.emailFooterText : (prevMsg.emailFooterText || ''),
+                    templateName: dbMsg.templateName !== undefined ? dbMsg.templateName : (prevMsg.templateName || ''),
+                    buttons: (dbMsg.buttons && dbMsg.buttons.length > 0) ? dbMsg.buttons : (prevMsg.buttons || []),
+                    buttonText: dbMsg.buttonText !== undefined ? dbMsg.buttonText : (prevMsg.buttonText || ''),
+                    buttonResponses: (dbMsg.buttonResponses && dbMsg.buttonResponses.length > 0) ? dbMsg.buttonResponses : (prevMsg.buttonResponses || [])
+                  };
                 });
 
                 // Preserva mensagens criadas localmente que ainda não foram retornadas do banco
@@ -140,8 +181,8 @@ export default function App() {
                 return {
                   ...dbCamp,
                   customPlaceholders: {
-                    ...(dbCamp.customPlaceholders || {}),
-                    ...(prevCamp.customPlaceholders || {})
+                    ...(prevCamp.customPlaceholders || {}),
+                    ...(dbCamp.customPlaceholders || {})
                   },
                   messages: [...mergedMessages, ...localOnlyMsgs]
                 };
@@ -661,6 +702,9 @@ export default function App() {
       }
       return c;
     }));
+    dbUpdateCampaignPlaceholders(campaignId, updatedPlaceholders).catch(err => {
+      console.warn('Erro ao sincronizar tags da campanha no Supabase:', err);
+    });
   };
 
   const updateDisparoTimerRef = useRef({});
@@ -978,6 +1022,7 @@ export default function App() {
                   selectedRecordIds={selectedRecordIds}
                   setSelectedRecordIds={setSelectedRecordIds}
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
+                  onUpdateCampaign={handleUpdateCampaign}
                   hiddenColumns={activeHiddenColumns}
                   activeFlowCategory={activeFlowCategory}
                   onSortBy={(fieldId, dir) => {

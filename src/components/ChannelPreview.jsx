@@ -430,7 +430,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
 
   // 1. EMAIL PREVIEW (Simulação de Caixa de Entrada / Webmail em Tela de Computador)
   if (record.channel === 'Email') {
-    const emailSubject = record.emailSubject || record.title || 'Aviso Importante - Brabo Concursos';
+    const emailSubject = record.emailSubject || 'Sem Assunto / Headline';
     const emailPreheader = record.emailPreheader || '';
     const senderName = record.emailSenderName || 'Brabo Concursos';
     const senderEmail = record.emailSenderAddress || 'contato@braboconcursos.com.br';

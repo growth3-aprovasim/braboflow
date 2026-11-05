@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 import { initialCampaigns } from '../data/initialData';
 
 // Map DB snake_case record to Frontend CamelCase
-export function formatCampaignFromDb(c, links = [], columns = [], messages = []) {
+export function formatCampaignFromDb(c, links = [], columns = [], messages = [], customPlaceholders = {}, channelOptions = null, stageOptions = null) {
   return {
     id: c.id,
     name: c.name,
@@ -11,6 +11,9 @@ export function formatCampaignFromDb(c, links = [], columns = [], messages = [])
     badgeColor: c.badge_color || '#38bdf8',
     startDate: c.start_date || '',
     endDate: c.end_date || '',
+    customPlaceholders: customPlaceholders || {},
+    channelOptions: Array.isArray(channelOptions) && channelOptions.length > 0 ? channelOptions : null,
+    stageOptions: Array.isArray(stageOptions) && stageOptions.length > 0 ? stageOptions : null,
     predefinedLinks: links.map(l => ({
       id: l.id,
       label: l.label,
@@ -27,6 +30,24 @@ export function formatCampaignFromDb(c, links = [], columns = [], messages = [])
 }
 
 export function formatDisparoFromDb(m) {
+  const custom = m.custom_fields || {};
+  const meta = custom.__bflow_meta || {};
+
+  // Clean custom fields so meta properties don't appear as regular custom columns in GridView
+  const cleanCustomFields = { ...custom };
+  delete cleanCustomFields.__bflow_meta;
+  delete cleanCustomFields.emailSubject;
+  delete cleanCustomFields.emailPreheader;
+  delete cleanCustomFields.emailSenderName;
+  delete cleanCustomFields.emailSenderAddress;
+  delete cleanCustomFields.emailCtaText;
+  delete cleanCustomFields.emailCtaUrl;
+  delete cleanCustomFields.emailFooterText;
+  delete cleanCustomFields.templateName;
+  delete cleanCustomFields.buttons;
+  delete cleanCustomFields.buttonText;
+  delete cleanCustomFields.buttonResponses;
+
   return {
     id: m.id,
     campaignId: m.campaign_id,
@@ -39,9 +60,22 @@ export function formatDisparoFromDb(m) {
     variables: m.variables || {},
     copyText: m.copy_text || '',
     notes: m.notes || '',
-    customFields: m.custom_fields || {},
+    customFields: cleanCustomFields,
     attachment: m.attachment || null,
-    position: m.position || 0
+    position: m.position || 0,
+    // Email fields
+    emailSubject: meta.emailSubject !== undefined ? meta.emailSubject : (custom.emailSubject || ''),
+    emailPreheader: meta.emailPreheader !== undefined ? meta.emailPreheader : (custom.emailPreheader || ''),
+    emailSenderName: meta.emailSenderName !== undefined ? meta.emailSenderName : (custom.emailSenderName || ''),
+    emailSenderAddress: meta.emailSenderAddress !== undefined ? meta.emailSenderAddress : (custom.emailSenderAddress || ''),
+    emailCtaText: meta.emailCtaText !== undefined ? meta.emailCtaText : (custom.emailCtaText || ''),
+    emailCtaUrl: meta.emailCtaUrl !== undefined ? meta.emailCtaUrl : (custom.emailCtaUrl || ''),
+    emailFooterText: meta.emailFooterText !== undefined ? meta.emailFooterText : (custom.emailFooterText || ''),
+    // Template & Button fields
+    templateName: meta.templateName !== undefined ? meta.templateName : (custom.templateName || ''),
+    buttons: meta.buttons !== undefined ? meta.buttons : (custom.buttons || (custom.buttonText ? [{ id: 'btn_1', text: custom.buttonText, responses: custom.buttonResponses || [] }] : [])),
+    buttonText: meta.buttonText !== undefined ? meta.buttonText : (custom.buttonText || ''),
+    buttonResponses: meta.buttonResponses !== undefined ? meta.buttonResponses : (custom.buttonResponses || [])
   };
 }
 
@@ -53,6 +87,22 @@ function safeDate(val) {
 }
 
 export function formatDisparoToDb(m, campaignId) {
+  const meta = {
+    emailSubject: m.emailSubject || '',
+    emailPreheader: m.emailPreheader || '',
+    emailSenderName: m.emailSenderName || '',
+    emailSenderAddress: m.emailSenderAddress || '',
+    emailCtaText: m.emailCtaText || '',
+    emailCtaUrl: m.emailCtaUrl || '',
+    emailFooterText: m.emailFooterText || '',
+    templateName: m.templateName || '',
+    buttons: m.buttons || [],
+    buttonText: m.buttonText || '',
+    buttonResponses: m.buttonResponses || []
+  };
+
+  const existingCustom = m.customFields || {};
+
   return {
     id: m.id,
     campaign_id: campaignId || m.campaignId,
@@ -65,7 +115,11 @@ export function formatDisparoToDb(m, campaignId) {
     variables: m.variables || {},
     copy_text: m.copyText || '',
     notes: m.notes || '',
-    custom_fields: m.customFields || {},
+    custom_fields: {
+      ...existingCustom,
+      ...meta,
+      __bflow_meta: meta
+    },
     attachment: m.attachment || null,
     position: m.position || 0,
     updated_at: new Date().toISOString()
@@ -106,14 +160,33 @@ export async function fetchAllCampaignsFromDb() {
     if (dispErr) console.warn('Erro ao buscar disparos:', dispErr);
 
     const safeLinks = links || [];
-    const safeCols = cols || [];
+    const safeCols = (cols || []).filter(c =>
+      !c.name.startsWith('__bflow_') && !c.type.startsWith('system_')
+    );
+    const placeholdersMap = {};
+    const channelOptionsMap = {};
+    const stageOptionsMap = {};
+
+    (cols || []).forEach(c => {
+      if (c.name === '__bflow_placeholders__' || c.type === 'system_placeholders') {
+        placeholdersMap[c.campaign_id] = c.options || {};
+      } else if (c.name === '__bflow_channel_options__' || c.type === 'system_channel_options') {
+        channelOptionsMap[c.campaign_id] = Array.isArray(c.options) ? c.options : [];
+      } else if (c.name === '__bflow_stage_options__' || c.type === 'system_stage_options') {
+        stageOptionsMap[c.campaign_id] = Array.isArray(c.options) ? c.options : [];
+      }
+    });
+
     const safeDisparos = (disparos || []).filter(d => d && d.id && String(d.id).trim() !== '');
 
     return camps.map(c => {
       const campLinks = safeLinks.filter(l => l.campaign_id === c.id);
       const campCols = safeCols.filter(col => col.campaign_id === c.id);
       const campDisparos = safeDisparos.filter(d => d.campaign_id === c.id);
-      return formatCampaignFromDb(c, campLinks, campCols, campDisparos);
+      const campPlaceholders = placeholdersMap[c.id] || {};
+      const campChannels = channelOptionsMap[c.id] || null;
+      const campStages = stageOptionsMap[c.id] || null;
+      return formatCampaignFromDb(c, campLinks, campCols, campDisparos, campPlaceholders, campChannels, campStages);
     });
   } catch (error) {
     console.error('Erro no fetchAllCampaignsFromDb:', error);
@@ -184,6 +257,11 @@ export async function dbCreateCampaign(campaign) {
     }
   }
 
+  // Persistir Tags e Placeholders da campanha no Supabase
+  if (campaign.customPlaceholders && Object.keys(campaign.customPlaceholders).length > 0) {
+    await dbUpdateCampaignPlaceholders(campaign.id, campaign.customPlaceholders);
+  }
+
   if (campaign.messages?.length) {
     const msgs = campaign.messages.map((m, idx) => ({
       ...formatDisparoToDb(m, campaign.id),
@@ -220,6 +298,16 @@ export async function dbUpdateCampaign(campaignId, updates) {
     console.error('Erro ao atualizar bflow_campaigns:', error);
     throw error;
   }
+
+  if ('customPlaceholders' in updates) {
+    await dbUpdateCampaignPlaceholders(campaignId, updates.customPlaceholders);
+  }
+  if ('channelOptions' in updates) {
+    await dbUpdateCampaignChannelOptions(campaignId, updates.channelOptions);
+  }
+  if ('stageOptions' in updates) {
+    await dbUpdateCampaignStageOptions(campaignId, updates.stageOptions);
+  }
 }
 
 export async function dbDeleteCampaign(campaignId) {
@@ -231,7 +319,7 @@ export async function dbDeleteCampaign(campaignId) {
 }
 
 // ----------------------------------------------------
-// 4. OPERAÇÕES DE LINKS & COLUNAS
+// 4. OPERAÇÕES DE LINKS & COLUNAS & PLACEHOLDERS & CANAIS
 // ----------------------------------------------------
 export async function dbSyncCampaignLinks(campaignId, links) {
   // Limpar links anteriores da campanha e re-inserir
@@ -249,7 +337,12 @@ export async function dbSyncCampaignLinks(campaignId, links) {
 }
 
 export async function dbSyncCampaignColumns(campaignId, columns) {
-  await supabase.from('bflow_custom_columns').delete().eq('campaign_id', campaignId);
+  // Preserva os registros reservados do sistema (__bflow_*) ao sincronizar colunas de usuário
+  await supabase.from('bflow_custom_columns')
+    .delete()
+    .eq('campaign_id', campaignId)
+    .not('name', 'like', '__bflow_%');
+
   if (columns && columns.length > 0) {
     const toInsert = columns.map((c, idx) => ({
       id: c.id || `col_${campaignId}_${idx}_${Date.now()}`,
@@ -260,6 +353,66 @@ export async function dbSyncCampaignColumns(campaignId, columns) {
     }));
     const { error } = await supabase.from('bflow_custom_columns').upsert(toInsert, { onConflict: 'id' });
     if (error) throw error;
+  }
+}
+
+export async function dbUpdateCampaignPlaceholders(campaignId, placeholders) {
+  try {
+    const { error } = await supabase
+      .from('bflow_custom_columns')
+      .upsert({
+        id: `tags_${campaignId}`,
+        campaign_id: campaignId,
+        name: '__bflow_placeholders__',
+        type: 'system_placeholders',
+        options: placeholders || {}
+      }, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Erro ao salvar tags no Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Erro no dbUpdateCampaignPlaceholders:', err);
+  }
+}
+
+export async function dbUpdateCampaignChannelOptions(campaignId, channelOptions) {
+  try {
+    const { error } = await supabase
+      .from('bflow_custom_columns')
+      .upsert({
+        id: `channels_${campaignId}`,
+        campaign_id: campaignId,
+        name: '__bflow_channel_options__',
+        type: 'system_channel_options',
+        options: channelOptions || []
+      }, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Erro ao salvar channelOptions no Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Erro no dbUpdateCampaignChannelOptions:', err);
+  }
+}
+
+export async function dbUpdateCampaignStageOptions(campaignId, stageOptions) {
+  try {
+    const { error } = await supabase
+      .from('bflow_custom_columns')
+      .upsert({
+        id: `stages_${campaignId}`,
+        campaign_id: campaignId,
+        name: '__bflow_stage_options__',
+        type: 'system_stage_options',
+        options: stageOptions || []
+      }, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Erro ao salvar stageOptions no Supabase:', error.message);
+    }
+  } catch (err) {
+    console.warn('Erro no dbUpdateCampaignStageOptions:', err);
   }
 }
 
@@ -277,15 +430,37 @@ export async function dbUpdateDisparo(disparoId, updates, campaignId) {
   if ('title' in updates) dbUpdates.title = updates.title;
   if ('stage' in updates) dbUpdates.stage = updates.stage;
   if ('channel' in updates) dbUpdates.channel = updates.channel;
-  if ('scheduledDate' in updates) dbUpdates.scheduled_date = updates.scheduledDate || null;
+  if ('scheduledDate' in updates) dbUpdates.scheduled_date = safeDate(updates.scheduledDate);
   if ('scheduledTime' in updates) dbUpdates.scheduled_time = updates.scheduledTime || null;
   if ('selectedLinkId' in updates) dbUpdates.selected_link_id = updates.selectedLinkId;
   if ('variables' in updates) dbUpdates.variables = updates.variables;
   if ('copyText' in updates) dbUpdates.copy_text = updates.copyText;
   if ('notes' in updates) dbUpdates.notes = updates.notes;
-  if ('customFields' in updates) dbUpdates.custom_fields = updates.customFields;
   if ('attachment' in updates) dbUpdates.attachment = updates.attachment;
   if ('position' in updates) dbUpdates.position = updates.position;
+
+  // Persistir campos de e-mail e templates no custom_fields JSONB do Supabase
+  const metaKeys = [
+    'emailSubject', 'emailPreheader', 'emailSenderName', 'emailSenderAddress',
+    'emailCtaText', 'emailCtaUrl', 'emailFooterText',
+    'templateName', 'buttons', 'buttonText', 'buttonResponses'
+  ];
+  const hasMeta = metaKeys.some(k => k in updates);
+
+  if ('customFields' in updates || hasMeta) {
+    const baseCustom = updates.customFields || {};
+    const existingMeta = baseCustom.__bflow_meta || {};
+    const meta = { ...existingMeta };
+    metaKeys.forEach(k => {
+      if (k in updates) meta[k] = updates[k];
+    });
+    dbUpdates.custom_fields = {
+      ...baseCustom,
+      ...meta,
+      __bflow_meta: meta
+    };
+  }
+
   dbUpdates.updated_at = new Date().toISOString();
 
   const { data, error } = await supabase

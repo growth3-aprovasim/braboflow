@@ -37,7 +37,7 @@ import {
   Sparkles,
   Mail
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, normalizeAttachments } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, getChannelCategory, normalizeAttachments } from '../data/initialData';
 import { deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, processAttachmentFiles } from '../services/attachmentStorage';
 import ChannelPreview from './ChannelPreview';
 
@@ -332,8 +332,28 @@ export default function RecordDetailModal({
     }
   };
 
-  const channelObj = BRABO_CHANNELS.find(ch => ch.value === formData.channel) || BRABO_CHANNELS[0];
-  const currentStageObj = getStageObj(formData.stage);
+  const availableChannels = React.useMemo(() => {
+    if (campaign?.channelOptions && Array.isArray(campaign.channelOptions) && campaign.channelOptions.length > 0) {
+      return campaign.channelOptions;
+    }
+    return BRABO_CHANNELS;
+  }, [campaign?.channelOptions]);
+
+  const availableStages = React.useMemo(() => {
+    if (campaign?.stageOptions && Array.isArray(campaign.stageOptions) && campaign.stageOptions.length > 0) {
+      return campaign.stageOptions;
+    }
+    return DISPARO_STAGES;
+  }, [campaign?.stageOptions]);
+
+  const channelObj = availableChannels.find(ch => ch.value === formData.channel) || {
+    value: formData.channel,
+    label: formData.channel || 'Selecionar Canal',
+    color: '#94a3b8',
+    bg: 'rgba(148, 163, 184, 0.15)',
+    border: 'rgba(148, 163, 184, 0.3)'
+  };
+  const currentStageObj = availableStages.find(st => st.value === formData.stage) || getStageObj(formData.stage);
 
   // Extract all variable numbers present in copy or config
   const detectedVarKeys = extractCopyVariables(formData.copyText || '');
@@ -551,7 +571,7 @@ export default function RecordDetailModal({
           label: 'Headline / Assunto',
           icon: <Mail size={14} className="field-icon" />,
           render: () => {
-            const currentSubj = formData.emailSubject !== undefined ? formData.emailSubject : (formData.title || '');
+            const currentSubj = formData.emailSubject || '';
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: '100%' }}>
                 <input
@@ -561,7 +581,7 @@ export default function RecordDetailModal({
                   value={currentSubj}
                   onChange={(e) => {
                     const val = e.target.value;
-                    handleChange('emailSubject', val, { title: val });
+                    handleChange('emailSubject', val);
                   }}
                   style={{
                     fontSize: '0.84rem',
@@ -1032,14 +1052,14 @@ export default function RecordDetailModal({
           onChange={(e) => handleChange('channel', e.target.value)}
         >
           {(activeFlowCategory === 'all'
-            ? BRABO_CHANNELS
-            : getChannelsByCategory(activeFlowCategory)
+            ? availableChannels
+            : availableChannels.filter(ch => ch.category === activeFlowCategory || getChannelCategory(ch.value) === activeFlowCategory)
           ).map(ch => (
             <option key={ch.value} value={ch.value} style={{ background: '#161b26', color: '#fff' }}>
               {ch.label}
             </option>
           ))}
-          {activeFlowCategory !== 'all' && !getChannelsByCategory(activeFlowCategory).some(ch => ch.value === formData.channel) && (
+          {activeFlowCategory !== 'all' && !availableChannels.some(ch => (ch.category === activeFlowCategory || getChannelCategory(ch.value) === activeFlowCategory) && ch.value === formData.channel) && (
             <option value={formData.channel} style={{ background: '#161b26', color: '#fff' }}>
               {formData.channel}
             </option>
@@ -1069,9 +1089,9 @@ export default function RecordDetailModal({
           value={formData.stage || 'Em Rascunho'}
           onChange={(e) => handleChange('stage', e.target.value)}
         >
-          {DISPARO_STAGES.map(st => (
+          {availableStages.map(st => (
             <option key={st.value} value={st.value} style={{ background: '#161b26', color: '#fff' }}>
-              {st.badgeIcon} {st.label}
+              {st.badgeIcon || ''} {st.label}
             </option>
           ))}
         </select>
