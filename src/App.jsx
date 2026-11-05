@@ -9,7 +9,7 @@ import CalendarView from './components/CalendarView';
 import WhatsAppSimulatorView from './components/WhatsAppSimulatorView';
 import CampaignsManager from './components/CampaignsManager';
 import CampaignTagsModal from './components/CampaignTagsModal';
-import { Sparkles, Plus, Copy, Check, ExternalLink } from 'lucide-react';
+import { Sparkles, Plus, Copy, Check, ExternalLink, Edit3, X } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
@@ -401,10 +401,13 @@ export default function App() {
   // Active Campaign Edit Modal state
   const [isEditActiveCampaignModalOpen, setIsEditActiveCampaignModalOpen] = useState(false);
 
-  // Active Table Tags View Message Expand state
+  // Active Table Tags View Message Expand & Direct Edit state
   const [expandedPageTagKey, setExpandedPageTagKey] = useState(null);
   const [expandedPageMessageIds, setExpandedPageMessageIds] = useState({});
   const [copiedPageMsgId, setCopiedPageMsgId] = useState(null);
+  const [editingPageMsgId, setEditingPageMsgId] = useState(null);
+  const [editingPageMsgTitle, setEditingPageMsgTitle] = useState('');
+  const [editingPageMsgDraft, setEditingPageMsgDraft] = useState('');
 
   // Active Custom Filter Object
   const activeCustomFilter = useMemo(() => {
@@ -1261,18 +1264,46 @@ export default function App() {
                                       <button
                                         type="button"
                                         className="btn-secondary"
+                                        onClick={() => {
+                                          if (editingPageMsgId === m.id) {
+                                            setEditingPageMsgId(null);
+                                          } else {
+                                            setEditingPageMsgId(m.id);
+                                            setEditingPageMsgTitle(m.title || '');
+                                            setEditingPageMsgDraft(rawMsgText);
+                                          }
+                                        }}
+                                        style={{ 
+                                          fontSize: '0.72rem', 
+                                          padding: '0.2rem 0.55rem', 
+                                          color: editingPageMsgId === m.id ? '#f59e0b' : '#38bdf8', 
+                                          borderColor: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.45)' : 'rgba(56, 189, 248, 0.4)', 
+                                          display: 'flex', 
+                                          alignItems: 'center', 
+                                          gap: '0.3rem',
+                                          background: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(56, 189, 248, 0.1)',
+                                          borderRadius: '4px'
+                                        }}
+                                        title="Editar este disparo diretamente no quadradinho"
+                                      >
+                                        <Edit3 size={12} />
+                                        <span>{editingPageMsgId === m.id ? 'Fechar' : 'Editar'}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn-secondary"
                                         onClick={() => handleOpenRecord(m.rawRecord || m)}
                                         style={{ 
                                           fontSize: '0.72rem', 
                                           padding: '0.2rem 0.55rem', 
-                                          color: '#38bdf8', 
-                                          borderColor: 'rgba(56, 189, 248, 0.4)', 
+                                          color: '#94a3b8', 
+                                          borderColor: 'rgba(148, 163, 184, 0.3)', 
                                           display: 'flex', 
                                           alignItems: 'center', 
                                           gap: '0.3rem',
-                                          background: 'rgba(56, 189, 248, 0.1)'
+                                          background: 'rgba(255, 255, 255, 0.04)'
                                         }}
-                                        title="Abrir este disparo para modificar diretamente"
+                                        title="Abrir detalhes completos deste disparo"
                                       >
                                         <ExternalLink size={12} />
                                         <span>Abrir Disparo</span>
@@ -1302,7 +1333,110 @@ export default function App() {
                                     </div>
                                   </div>
 
-                                  {!isMsgExpanded ? (
+                                  {editingPageMsgId === m.id ? (
+                                    <div style={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '0.65rem',
+                                      marginTop: '0.35rem',
+                                      background: 'rgba(15, 23, 42, 0.95)',
+                                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                                      borderRadius: '6px',
+                                      padding: '0.85rem'
+                                    }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                          <Edit3 size={12} /> Editar Mensagem no Card
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                                          Preserve a tag <strong style={{ color: '#fbbf24' }}>{tag.rawTag}</strong> no texto para manter a substituição dinâmica
+                                        </span>
+                                      </div>
+
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                          Título do Disparo:
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={editingPageMsgTitle}
+                                          onChange={(e) => setEditingPageMsgTitle(e.target.value)}
+                                          style={{
+                                            width: '100%',
+                                            background: '#0b1120',
+                                            color: '#f8fafc',
+                                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                                            borderRadius: '5px',
+                                            padding: '0.4rem 0.65rem',
+                                            fontSize: '0.8rem',
+                                            outline: 'none',
+                                            boxSizing: 'border-box'
+                                          }}
+                                          placeholder="Título do disparo..."
+                                        />
+                                      </div>
+
+                                      <div>
+                                        <label style={{ display: 'block', fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                          Texto da Mensagem:
+                                        </label>
+                                        <textarea
+                                          value={editingPageMsgDraft}
+                                          onChange={(e) => setEditingPageMsgDraft(e.target.value)}
+                                          rows={6}
+                                          style={{
+                                            width: '100%',
+                                            background: '#0b1120',
+                                            color: '#f8fafc',
+                                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                                            borderRadius: '5px',
+                                            padding: '0.6rem 0.65rem',
+                                            fontSize: '0.82rem',
+                                            lineHeight: '1.5',
+                                            resize: 'vertical',
+                                            fontFamily: 'inherit',
+                                            outline: 'none',
+                                            boxSizing: 'border-box'
+                                          }}
+                                          placeholder="Escreva a mensagem aqui..."
+                                        />
+                                      </div>
+
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-ghost"
+                                          onClick={() => setEditingPageMsgId(null)}
+                                          style={{ fontSize: '0.74rem', padding: '0.25rem 0.6rem', color: '#94a3b8' }}
+                                        >
+                                          <X size={12} style={{ marginRight: '0.25rem' }} /> Cancelar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          className="btn-primary"
+                                          onClick={() => {
+                                            handleUpdateRecord(m.id, {
+                                              title: editingPageMsgTitle.trim() || m.title,
+                                              copyText: editingPageMsgDraft
+                                            });
+                                            setEditingPageMsgId(null);
+                                          }}
+                                          style={{
+                                            fontSize: '0.74rem',
+                                            padding: '0.28rem 0.75rem',
+                                            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                            color: '#fff',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem'
+                                          }}
+                                        >
+                                          <Check size={12} /> Salvar Alterações
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : !isMsgExpanded ? (
                                     <p 
                                       onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
                                       style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
@@ -1344,7 +1478,30 @@ export default function App() {
                                           {resolvedMsgText}
                                         </div>
                                       </div>
-                                      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.3rem' }}>
+                                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem' }}>
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          onClick={() => {
+                                            setEditingPageMsgId(m.id);
+                                            setEditingPageMsgTitle(m.title || '');
+                                            setEditingPageMsgDraft(rawMsgText);
+                                          }}
+                                          style={{
+                                            fontSize: '0.75rem',
+                                            padding: '0.35rem 0.75rem',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.35rem',
+                                            color: '#38bdf8',
+                                            borderColor: 'rgba(56, 189, 248, 0.4)',
+                                            background: 'rgba(56, 189, 248, 0.1)'
+                                          }}
+                                          title="Editar o texto deste disparo diretamente no quadradinho"
+                                        >
+                                          <Edit3 size={13} />
+                                          <span>Editar neste Card</span>
+                                        </button>
                                         <button
                                           type="button"
                                           className="btn-primary"
@@ -1359,10 +1516,10 @@ export default function App() {
                                             color: '#fff',
                                             fontWeight: 600
                                           }}
-                                          title="Abrir este disparo para modificar diretamente"
+                                          title="Abrir detalhes deste disparo em tela inteira"
                                         >
                                           <ExternalLink size={13} />
-                                          <span>Modificar Disparo Diretamente</span>
+                                          <span>Abrir Modal Completo</span>
                                         </button>
                                       </div>
                                     </div>
@@ -1419,6 +1576,7 @@ export default function App() {
         }}
         campaign={tagsModalCampaign || activeCampaign}
         onUpdateCampaignPlaceholders={handleUpdateCampaignPlaceholders}
+        onUpdateRecord={handleUpdateRecord}
         onOpenRecord={(rec) => {
           setIsTagsModalOpen(false);
           setTagsModalCampaign(null);

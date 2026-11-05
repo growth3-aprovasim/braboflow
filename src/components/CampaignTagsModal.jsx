@@ -244,7 +244,8 @@ export default function CampaignTagsModal({
   onClose,
   campaign,
   onUpdateCampaignPlaceholders,
-  onOpenRecord
+  onOpenRecord,
+  onUpdateRecord
 }) {
   // Tags filter and search
   const [searchTerm, setSearchTerm] = useState('');
@@ -252,6 +253,9 @@ export default function CampaignTagsModal({
   const [expandedTagSnippet, setExpandedTagSnippet] = useState(null);
   const [expandedMessageIds, setExpandedMessageIds] = useState({});
   const [copiedMsgId, setCopiedMsgId] = useState(null);
+  const [editingMsgId, setEditingMsgId] = useState(null);
+  const [editingMsgTitle, setEditingMsgTitle] = useState('');
+  const [editingMsgDraft, setEditingMsgDraft] = useState('');
 
   const [newCustomTagInput, setNewCustomTagInput] = useState('');
   const [showAddCustomTag, setShowAddCustomTag] = useState(false);
@@ -853,6 +857,36 @@ export default function CampaignTagsModal({
                                   </div>
 
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                    {/* Inline Edit Pencil Button */}
+                                    <button
+                                      type="button"
+                                      className="btn-secondary"
+                                      onClick={() => {
+                                        if (editingMsgId === m.id) {
+                                          setEditingMsgId(null);
+                                        } else {
+                                          setEditingMsgId(m.id);
+                                          setEditingMsgTitle(m.title || '');
+                                          setEditingMsgDraft(rawText);
+                                        }
+                                      }}
+                                      style={{
+                                        fontSize: '0.7rem',
+                                        padding: '0.15rem 0.45rem',
+                                        color: editingMsgId === m.id ? '#f59e0b' : '#38bdf8',
+                                        borderColor: editingMsgId === m.id ? 'rgba(245, 158, 11, 0.5)' : 'rgba(56, 189, 248, 0.4)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        background: editingMsgId === m.id ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.1)',
+                                        borderRadius: '4px'
+                                      }}
+                                      title="Editar este disparo diretamente no card"
+                                    >
+                                      <Edit3 size={11} />
+                                      <span>{editingMsgId === m.id ? 'Fechar' : 'Editar'}</span>
+                                    </button>
+
                                     {/* Open & Modify Record Button */}
                                     <button
                                       type="button"
@@ -861,12 +895,12 @@ export default function CampaignTagsModal({
                                       style={{
                                         fontSize: '0.7rem',
                                         padding: '0.15rem 0.45rem',
-                                        color: '#38bdf8',
-                                        borderColor: 'rgba(56, 189, 248, 0.4)',
+                                        color: '#94a3b8',
+                                        borderColor: 'rgba(148, 163, 184, 0.3)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.25rem',
-                                        background: 'rgba(56, 189, 248, 0.1)',
+                                        background: 'rgba(255, 255, 255, 0.04)',
                                         borderRadius: '4px'
                                       }}
                                       title="Abrir este disparo para modificar diretamente"
@@ -898,138 +932,270 @@ export default function CampaignTagsModal({
                                   </div>
                                 </div>
 
-                                {/* Collapsed Preview */}
-                                {!isMsgExpanded && (
-                                  <div 
-                                    onClick={() => toggleExpandMessage(m.id)}
-                                    style={{
-                                      color: '#cbd5e1',
-                                      fontSize: '0.76rem',
-                                      lineHeight: '1.45',
-                                      cursor: 'pointer',
-                                      display: '-webkit-box',
-                                      WebkitLineClamp: 2,
-                                      WebkitBoxOrient: 'vertical',
-                                      overflow: 'hidden',
-                                      padding: '0.2rem 0'
-                                    }}
-                                    title="Clique para expandir a mensagem e ver o preview com o valor da tag substituído"
-                                  >
-                                    <HighlightedText text={rawText} highlightTag={rawKey} />
-                                  </div>
-                                )}
-
-                                {/* Expanded Full Message Context with Live Preview */}
-                                {isMsgExpanded && (
+                                {/* Inline Direct Editor when Editing */}
+                                {editingMsgId === m.id ? (
                                   <div style={{
                                     display: 'flex',
                                     flexDirection: 'column',
-                                    gap: '0.75rem',
-                                    marginTop: '0.25rem'
+                                    gap: '0.6rem',
+                                    marginTop: '0.25rem',
+                                    background: 'rgba(15, 23, 42, 0.95)',
+                                    border: '1px solid rgba(56, 189, 248, 0.45)',
+                                    borderRadius: '6px',
+                                    padding: '0.75rem'
                                   }}>
-                                    {/* 1. Texto Original com a Tag */}
-                                    <div>
-                                      <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
-                                        Texto da Mensagem (Tag Preservada):
-                                      </span>
-                                      <div style={{
-                                        background: 'rgba(0, 0, 0, 0.55)',
-                                        border: '1px solid rgba(245, 158, 11, 0.25)',
-                                        borderRadius: '6px',
-                                        padding: '0.75rem 0.9rem',
-                                        color: '#cbd5e1',
-                                        fontSize: '0.8rem',
-                                        lineHeight: '1.5',
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                        fontFamily: 'inherit',
-                                        maxHeight: '180px',
-                                        overflowY: 'auto',
-                                        marginTop: '0.25rem'
-                                      }}>
-                                        <HighlightedText text={rawText} highlightTag={rawKey} />
-                                      </div>
-                                    </div>
-
-                                    {/* 2. Preview Final Resolvido (Com a Tag Substituída) */}
-                                    <div>
-                                      <span style={{ fontSize: '0.68rem', color: '#4ade80', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                        <Sparkles size={11} color="#4ade80" /> Preview Final (Como o lead receberá / Ao Copiar):
-                                      </span>
-                                      <div style={{
-                                        background: 'rgba(34, 197, 94, 0.04)',
-                                        border: '1px solid rgba(34, 197, 94, 0.3)',
-                                        borderRadius: '6px',
-                                        padding: '0.75rem 0.9rem',
-                                        color: '#f8fafc',
-                                        fontSize: '0.82rem',
-                                        lineHeight: '1.55',
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                        fontFamily: 'inherit',
-                                        maxHeight: '220px',
-                                        overflowY: 'auto',
-                                        marginTop: '0.25rem'
-                                      }}>
-                                        {resolvedFinalText}
-                                      </div>
-                                    </div>
-
-                                    {/* Actions Bar inside Expanded Message */}
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                        <button
-                                          type="button"
-                                          className="btn-primary"
-                                          onClick={() => handleCopyResolvedMessage(m)}
-                                          style={{
-                                            fontSize: '0.74rem',
-                                            padding: '0.3rem 0.75rem',
-                                            background: copiedMsgId === m.id ? '#22c55e' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                                            color: '#0b1120',
-                                            fontWeight: 700,
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.35rem'
-                                          }}
-                                          title="Copiar texto final com as tags já substituídas pelos seus links/frases"
-                                        >
-                                          {copiedMsgId === m.id ? <CheckCheck size={14} /> : <Copy size={14} />}
-                                          <span>{copiedMsgId === m.id ? 'Copiado!' : 'Copiar Texto Final'}</span>
-                                        </button>
+                                      <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <Edit3 size={12} /> Editar Mensagem no Card
+                                      </span>
+                                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+                                        Preserve a tag <strong style={{ color: '#fbbf24' }}>{rawKey}</strong> no texto para manter a substituição
+                                      </span>
+                                    </div>
 
-                                        <button
-                                          type="button"
-                                          className="btn-secondary"
-                                          onClick={() => onOpenRecord?.(m.rawRecord || m)}
-                                          style={{
-                                            fontSize: '0.74rem',
-                                            padding: '0.3rem 0.65rem',
-                                            color: '#38bdf8',
-                                            borderColor: 'rgba(56, 189, 248, 0.4)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.3rem',
-                                            background: 'rgba(56, 189, 248, 0.1)'
-                                          }}
-                                          title="Abrir este disparo para editar diretamente"
-                                        >
-                                          <ExternalLink size={12} />
-                                          <span>Modificar Disparo</span>
-                                        </button>
-                                      </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                        Título do Disparo:
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={editingMsgTitle}
+                                        onChange={(e) => setEditingMsgTitle(e.target.value)}
+                                        style={{
+                                          width: '100%',
+                                          background: '#0b1120',
+                                          color: '#f8fafc',
+                                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                                          borderRadius: '4px',
+                                          padding: '0.35rem 0.6rem',
+                                          fontSize: '0.78rem',
+                                          outline: 'none',
+                                          boxSizing: 'border-box'
+                                        }}
+                                        placeholder="Título do disparo..."
+                                      />
+                                    </div>
 
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                        Texto da Mensagem:
+                                      </label>
+                                      <textarea
+                                        value={editingMsgDraft}
+                                        onChange={(e) => setEditingMsgDraft(e.target.value)}
+                                        rows={6}
+                                        style={{
+                                          width: '100%',
+                                          background: '#0b1120',
+                                          color: '#f8fafc',
+                                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                                          borderRadius: '4px',
+                                          padding: '0.55rem 0.6rem',
+                                          fontSize: '0.8rem',
+                                          lineHeight: '1.5',
+                                          resize: 'vertical',
+                                          fontFamily: 'inherit',
+                                          outline: 'none',
+                                          boxSizing: 'border-box'
+                                        }}
+                                        placeholder="Escreva a mensagem aqui..."
+                                      />
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
                                       <button
                                         type="button"
                                         className="btn-ghost"
-                                        onClick={() => toggleExpandMessage(m.id)}
-                                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                        onClick={() => setEditingMsgId(null)}
+                                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#94a3b8' }}
                                       >
-                                        <ChevronUp size={12} />
-                                        <span>Recolher</span>
+                                        <X size={11} style={{ marginRight: '0.2rem' }} /> Cancelar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="btn-primary"
+                                        onClick={() => {
+                                          onUpdateRecord?.(m.id, {
+                                            title: editingMsgTitle.trim() || m.title,
+                                            copyText: editingMsgDraft
+                                          });
+                                          setEditingMsgId(null);
+                                        }}
+                                        style={{
+                                          fontSize: '0.72rem',
+                                          padding: '0.25rem 0.7rem',
+                                          background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                                          color: '#fff',
+                                          fontWeight: 600,
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          gap: '0.3rem'
+                                        }}
+                                      >
+                                        <Check size={11} /> Salvar Alterações
                                       </button>
                                     </div>
                                   </div>
+                                ) : (
+                                  <>
+                                    {/* Collapsed Preview */}
+                                    {!isMsgExpanded && (
+                                      <div 
+                                        onClick={() => toggleExpandMessage(m.id)}
+                                        style={{
+                                          color: '#cbd5e1',
+                                          fontSize: '0.76rem',
+                                          lineHeight: '1.45',
+                                          cursor: 'pointer',
+                                          display: '-webkit-box',
+                                          WebkitLineClamp: 2,
+                                          WebkitBoxOrient: 'vertical',
+                                          overflow: 'hidden',
+                                          padding: '0.2rem 0'
+                                        }}
+                                        title="Clique para expandir a mensagem e ver o preview com o valor da tag substituído"
+                                      >
+                                        <HighlightedText text={rawText} highlightTag={rawKey} />
+                                      </div>
+                                    )}
+
+                                    {/* Expanded Full Message Context with Live Preview */}
+                                    {isMsgExpanded && (
+                                      <div style={{
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        gap: '0.75rem',
+                                        marginTop: '0.25rem'
+                                      }}>
+                                        {/* 1. Texto Original com a Tag */}
+                                        <div>
+                                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                                            Texto da Mensagem (Tag Preservada):
+                                          </span>
+                                          <div style={{
+                                            background: 'rgba(0, 0, 0, 0.55)',
+                                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                                            borderRadius: '6px',
+                                            padding: '0.75rem 0.9rem',
+                                            color: '#cbd5e1',
+                                            fontSize: '0.8rem',
+                                            lineHeight: '1.5',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            fontFamily: 'inherit',
+                                            maxHeight: '180px',
+                                            overflowY: 'auto',
+                                            marginTop: '0.25rem'
+                                          }}>
+                                            <HighlightedText text={rawText} highlightTag={rawKey} />
+                                          </div>
+                                        </div>
+
+                                        {/* 2. Preview Final Resolvido (Com a Tag Substituída) */}
+                                        <div>
+                                          <span style={{ fontSize: '0.68rem', color: '#4ade80', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <Sparkles size={11} color="#4ade80" /> Preview Final (Como o lead receberá / Ao Copiar):
+                                          </span>
+                                          <div style={{
+                                            background: 'rgba(34, 197, 94, 0.04)',
+                                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                                            borderRadius: '6px',
+                                            padding: '0.75rem 0.9rem',
+                                            color: '#f8fafc',
+                                            fontSize: '0.82rem',
+                                            lineHeight: '1.55',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            fontFamily: 'inherit',
+                                            maxHeight: '220px',
+                                            overflowY: 'auto',
+                                            marginTop: '0.25rem'
+                                          }}>
+                                            {resolvedFinalText}
+                                          </div>
+                                        </div>
+
+                                        {/* Actions Bar inside Expanded Message */}
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                            <button
+                                              type="button"
+                                              className="btn-primary"
+                                              onClick={() => handleCopyResolvedMessage(m)}
+                                              style={{
+                                                fontSize: '0.74rem',
+                                                padding: '0.3rem 0.75rem',
+                                                background: copiedMsgId === m.id ? '#22c55e' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                                color: '#0b1120',
+                                                fontWeight: 700,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.35rem'
+                                              }}
+                                              title="Copiar texto final com as tags já substituídas pelos seus links/frases"
+                                            >
+                                              {copiedMsgId === m.id ? <CheckCheck size={14} /> : <Copy size={14} />}
+                                              <span>{copiedMsgId === m.id ? 'Copiado!' : 'Copiar Texto Final'}</span>
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              className="btn-secondary"
+                                              onClick={() => {
+                                                setEditingMsgId(m.id);
+                                                setEditingMsgTitle(m.title || '');
+                                                setEditingMsgDraft(rawText);
+                                              }}
+                                              style={{
+                                                fontSize: '0.74rem',
+                                                padding: '0.3rem 0.65rem',
+                                                color: '#38bdf8',
+                                                borderColor: 'rgba(56, 189, 248, 0.4)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.3rem',
+                                                background: 'rgba(56, 189, 248, 0.1)'
+                                              }}
+                                              title="Editar este disparo diretamente no card"
+                                            >
+                                              <Edit3 size={12} />
+                                              <span>Editar no Card</span>
+                                            </button>
+
+                                            <button
+                                              type="button"
+                                              className="btn-secondary"
+                                              onClick={() => onOpenRecord?.(m.rawRecord || m)}
+                                              style={{
+                                                fontSize: '0.74rem',
+                                                padding: '0.3rem 0.65rem',
+                                                color: '#94a3b8',
+                                                borderColor: 'rgba(148, 163, 184, 0.3)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.3rem',
+                                                background: 'rgba(255, 255, 255, 0.04)'
+                                              }}
+                                              title="Abrir este disparo para editar em tela cheia"
+                                            >
+                                              <ExternalLink size={12} />
+                                              <span>Abrir Modal</span>
+                                            </button>
+                                          </div>
+
+                                          <button
+                                            type="button"
+                                            className="btn-ghost"
+                                            onClick={() => toggleExpandMessage(m.id)}
+                                            style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                          >
+                                            <ChevronUp size={12} />
+                                            <span>Recolher</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
                                 )}
 
                               </div>
