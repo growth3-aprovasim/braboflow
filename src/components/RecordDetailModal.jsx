@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   Trash2,
@@ -95,6 +95,20 @@ export default function RecordDetailModal({
 
     return () => { isMounted = false; };
   }, [formData.attachment]);
+
+  const availableChannels = useMemo(() => {
+    if (campaign?.channelOptions && Array.isArray(campaign.channelOptions) && campaign.channelOptions.length > 0) {
+      return campaign.channelOptions;
+    }
+    return BRABO_CHANNELS;
+  }, [campaign?.channelOptions]);
+
+  const availableStages = useMemo(() => {
+    if (campaign?.stageOptions && Array.isArray(campaign.stageOptions) && campaign.stageOptions.length > 0) {
+      return campaign.stageOptions;
+    }
+    return DISPARO_STAGES;
+  }, [campaign?.stageOptions]);
 
   if (!isOpen || !record) return null;
 
@@ -331,20 +345,6 @@ export default function RecordDetailModal({
       window.open(`https://api.whatsapp.com/send?text=${textEncoded}`, '_blank');
     }
   };
-
-  const availableChannels = React.useMemo(() => {
-    if (campaign?.channelOptions && Array.isArray(campaign.channelOptions) && campaign.channelOptions.length > 0) {
-      return campaign.channelOptions;
-    }
-    return BRABO_CHANNELS;
-  }, [campaign?.channelOptions]);
-
-  const availableStages = React.useMemo(() => {
-    if (campaign?.stageOptions && Array.isArray(campaign.stageOptions) && campaign.stageOptions.length > 0) {
-      return campaign.stageOptions;
-    }
-    return DISPARO_STAGES;
-  }, [campaign?.stageOptions]);
 
   const channelObj = availableChannels.find(ch => ch.value === formData.channel) || {
     value: formData.channel,
