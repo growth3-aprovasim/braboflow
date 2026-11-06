@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Maximize2,
   Type,
@@ -445,8 +445,9 @@ export default function GridView({
   onAddNewRow,
   rowDensity,
   groupBy,
-  selectedRecordIds,
+  selectedRecordIds = [],
   setSelectedRecordIds,
+  onDeleteMultipleRecords,
   onUpdateCustomColumns,
   onUpdateCampaign,
   hiddenColumns = [],
@@ -575,20 +576,6 @@ export default function GridView({
 
   const toggleGroupCollapse = (groupKey) => {
     setCollapsedGroups(prev => ({ ...prev, [groupKey]: !prev[groupKey] }));
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedRecordIds.length === records.length) {
-      setSelectedRecordIds([]);
-    } else {
-      setSelectedRecordIds(records.map(r => r.id));
-    }
-  };
-
-  const toggleSelectRecord = (id) => {
-    setSelectedRecordIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
   };
 
   // State for tags in Add Column Modal
@@ -888,6 +875,61 @@ export default function GridView({
     });
     return groups;
   }, [records, groupBy]);
+
+  // Visual flat order of records matching the screen
+  const displayOrderedRecords = React.useMemo(() => {
+    if (!groupBy || groupBy === 'none') {
+      return records;
+    }
+    return Object.values(groupedRecords).flat();
+  }, [records, groupBy, groupedRecords]);
+
+  // Reference to last clicked record for Ctrl / Shift range selection
+  const lastSelectedRecordIdRef = useRef(null);
+
+  const toggleSelectAll = () => {
+    if (selectedRecordIds.length === records.length) {
+      setSelectedRecordIds([]);
+      lastSelectedRecordIdRef.current = null;
+    } else {
+      setSelectedRecordIds(records.map(r => r.id));
+    }
+  };
+
+  const toggleSelectRecord = (id, event = null) => {
+    const isMultiRange = Boolean(event && (event.shiftKey || event.ctrlKey || event.metaKey));
+
+    if (isMultiRange && lastSelectedRecordIdRef.current) {
+      const lastIdx = displayOrderedRecords.findIndex(r => r.id === lastSelectedRecordIdRef.current);
+      const currIdx = displayOrderedRecords.findIndex(r => r.id === id);
+
+      if (lastIdx !== -1 && currIdx !== -1) {
+        const start = Math.min(lastIdx, currIdx);
+        const end = Math.max(lastIdx, currIdx);
+        const rangeIds = displayOrderedRecords.slice(start, end + 1).map(r => r.id);
+
+        setSelectedRecordIds(prev => {
+          const newSet = new Set(prev);
+          rangeIds.forEach(rangeId => newSet.add(rangeId));
+          return Array.from(newSet);
+        });
+        lastSelectedRecordIdRef.current = id;
+        return;
+      }
+    }
+
+    // Normal single toggle
+    setSelectedRecordIds(prev => {
+      const willBeSelected = !prev.includes(id);
+      if (willBeSelected) {
+        return [...prev, id];
+      } else {
+        return prev.filter(item => item !== id);
+      }
+    });
+
+    lastSelectedRecordIdRef.current = id;
+  };
 
   // Column Reordering State
   const baseColIds = ['title', 'stage', 'channel', 'date', 'time', 'creative', 'copy', 'notes'];
@@ -1586,6 +1628,72 @@ export default function GridView({
         </div>
       </div>
 
+      {/* Top Banner when records are selected */}
+      {selectedRecordIds && selectedRecordIds.length > 0 && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 14px',
+          background: 'rgba(239, 68, 68, 0.09)',
+          borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+          position: 'sticky',
+          left: 0,
+          zIndex: 8
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
+            <CheckSquare size={15} color="#ef4444" />
+            <span style={{ color: '#f1f5f9', fontWeight: 600 }}>
+              <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.88rem' }}>{selectedRecordIds.length}</span> {selectedRecordIds.length === 1 ? 'disparo selecionado' : 'disparos selecionados'}
+              <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '4px' }}>de {records.length}</span>
+            </span>
+            <span style={{ color: '#64748b', fontSize: '0.74rem', marginLeft: '6px' }}>
+              • Dica: clique em um disparo, segure <strong>Ctrl</strong> (ou <strong>Shift</strong>) e clique em outro para selecionar todos no intervalo
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => onDeleteMultipleRecords && onDeleteMultipleRecords(selectedRecordIds)}
+              style={{
+                background: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '0.76rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Excluir disparos selecionados"
+            >
+              <Trash2 size={12} />
+              Excluir Selecionados ({selectedRecordIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedRecordIds([])}
+              style={{
+                background: 'rgba(255, 255, 255, 0.08)',
+                color: '#cbd5e1',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '4px 8px',
+                fontSize: '0.76rem',
+                cursor: 'pointer'
+              }}
+              title="Desmarcar todos"
+            >
+              Desmarcar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Rows Render */}
       {Object.entries(groupedRecords).map(([groupKey, groupItems]) => {
         const isCollapsed = collapsedGroups[groupKey];
@@ -1636,6 +1744,12 @@ export default function GridView({
                 <div
                   key={record.id}
                   className={`grid-row ${isSelected ? 'selected' : ''}`}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.shiftKey || e.metaKey) {
+                      e.preventDefault();
+                      toggleSelectRecord(record.id, e);
+                    }
+                  }}
                 >
                   {/* Select Checkbox */}
                   <div
@@ -1643,17 +1757,17 @@ export default function GridView({
                     style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0, cursor: 'pointer' }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleSelectRecord(record.id);
+                      toggleSelectRecord(record.id, e);
                     }}
                   >
                     <input
                       type="checkbox"
                       checked={isSelected}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        toggleSelectRecord(record.id);
+                        toggleSelectRecord(record.id, e);
                       }}
+                      onChange={() => {}}
                       style={{ cursor: 'pointer' }}
                     />
                   </div>
@@ -2282,6 +2396,79 @@ export default function GridView({
               <span>Excluir esta coluna</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Floating Action Bar for Batch Deletion */}
+      {selectedRecordIds && selectedRecordIds.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: '28px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          background: 'rgba(24, 31, 44, 0.96)',
+          backdropFilter: 'blur(8px)',
+          border: '1px solid rgba(239, 68, 68, 0.65)',
+          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.65), 0 0 20px rgba(239, 68, 68, 0.25)',
+          borderRadius: '12px',
+          padding: '8px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px'
+        }}>
+          <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#f1f5f9' }}>
+            <span style={{ color: '#ef4444', fontWeight: 700, marginRight: '4px' }}>{selectedRecordIds.length}</span>
+            {selectedRecordIds.length === 1 ? 'disparo selecionado' : 'disparos selecionados'}
+          </span>
+          <div style={{ height: '18px', width: '1px', background: '#334155' }} />
+          <button
+            type="button"
+            onClick={() => onDeleteMultipleRecords && onDeleteMultipleRecords(selectedRecordIds)}
+            style={{
+              background: '#ef4444',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 14px',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 2px 8px rgba(239, 68, 68, 0.35)',
+              transition: 'all 0.15s ease'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
+            onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
+            title="Excluir todos os disparos selecionados"
+          >
+            <Trash2 size={14} />
+            Excluir Selecionados
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedRecordIds([])}
+            style={{
+              background: 'rgba(255, 255, 255, 0.08)',
+              color: '#94a3b8',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '6px 12px',
+              fontSize: '0.82rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+            onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+            title="Desmarcar seleção"
+          >
+            <X size={14} />
+            Desmarcar
+          </button>
         </div>
       )}
     </div>

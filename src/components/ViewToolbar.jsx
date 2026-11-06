@@ -54,7 +54,10 @@ export default function ViewToolbar({
   activeCustomFilter,
   activeFlowCategory = 'whatsapp',
   setActiveFlowCategory = () => { },
-  flowCounts = { whatsapp: 0, email: 0, youtube: 0, all: 0 }
+  flowCounts = { whatsapp: 0, email: 0, youtube: 0, all: 0 },
+  selectedRecordIds = [],
+  onDeleteMultipleRecords,
+  onClearSelection
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const channelsRef = useRef(null);
@@ -758,9 +761,77 @@ export default function ViewToolbar({
         </div>
 
         {/* Records Count Badge */}
-        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.5rem' }}>
-          <strong style={{ color: '#f59e0b' }}>{recordsCount}</strong> {recordsCount === 1 ? 'disparo' : 'disparos'}
+        <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginLeft: '0.5rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span><strong style={{ color: '#f59e0b' }}>{recordsCount}</strong> {recordsCount === 1 ? 'disparo' : 'disparos'}</span>
+          {selectedRecordIds && selectedRecordIds.length > 0 && (
+            <span style={{ color: '#ef4444', fontWeight: 600 }}>
+              • <strong style={{ color: '#ef4444' }}>{selectedRecordIds.length}</strong> selecionado{selectedRecordIds.length === 1 ? '' : 's'}
+            </span>
+          )}
         </span>
+
+        {/* Batch Delete Action Button when records are selected */}
+        {selectedRecordIds && selectedRecordIds.length > 0 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            background: 'rgba(239, 68, 68, 0.12)',
+            border: '1px solid rgba(239, 68, 68, 0.35)',
+            borderRadius: '6px',
+            padding: '3px 8px',
+            marginLeft: '0.5rem'
+          }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fca5a5' }}>
+              {selectedRecordIds.length} selec.
+            </span>
+            <button
+              type="button"
+              onClick={() => onDeleteMultipleRecords && onDeleteMultipleRecords(selectedRecordIds)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                background: '#ef4444',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '3px 8px',
+                fontSize: '0.74rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'background 0.15s ease'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.background = '#dc2626'}
+              onMouseOut={(e) => e.currentTarget.style.background = '#ef4444'}
+              title="Excluir todos os disparos selecionados"
+            >
+              <Trash2 size={12} />
+              Excluir
+            </button>
+            {onClearSelection && (
+              <button
+                type="button"
+                onClick={onClearSelection}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  padding: '2px',
+                  borderRadius: '3px'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.color = '#f1f5f9'}
+                onMouseOut={(e) => e.currentTarget.style.color = '#94a3b8'}
+                title="Desmarcar seleção"
+              >
+                <X size={12} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

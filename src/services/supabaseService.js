@@ -485,6 +485,15 @@ export async function dbDeleteDisparo(disparoId) {
   if (error) throw error;
 }
 
+export async function dbBatchDeleteDisparos(disparoIds) {
+  if (!Array.isArray(disparoIds) || disparoIds.length === 0) return;
+  const { error } = await supabase
+    .from('bflow_disparos')
+    .delete()
+    .in('id', disparoIds);
+  if (error) throw error;
+}
+
 export async function dbBatchUpdateDisparos(disparos, campaignId) {
   const upsertData = disparos.map((m, idx) => ({
     ...formatDisparoToDb(m, campaignId),

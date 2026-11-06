@@ -28,6 +28,7 @@ import {
   dbCreateDisparo,
   dbUpdateDisparo,
   dbDeleteDisparo,
+  dbBatchDeleteDisparos,
   dbBatchUpdateDisparos,
   fetchCustomFiltersFromDb,
   dbSaveCustomFilter,
@@ -826,6 +827,41 @@ export default function App() {
     dbDeleteDisparo(messageId).catch(err => console.warn('Sync delete disparo error:', err));
   };
 
+  const handleDeleteMultipleRecords = (recordIdsToDelete) => {
+    const ids = Array.isArray(recordIdsToDelete) ? recordIdsToDelete : selectedRecordIds;
+    if (!activeCampaign || !ids || ids.length === 0) return;
+
+    const count = ids.length;
+    const confirmMsg = count === 1
+      ? 'Tem certeza que deseja excluir o disparo selecionado?'
+      : `Tem certeza que deseja excluir os ${count} disparos selecionados permanentemente?`;
+
+    if (!window.confirm(confirmMsg)) return;
+
+    const idsSet = new Set(ids);
+
+    setCampaigns(prev => prev.map(c => {
+      if (c.id === activeCampaign.id) {
+        return {
+          ...c,
+          messages: (c.messages || []).filter(m => !idsSet.has(m.id))
+        };
+      }
+      return c;
+    }));
+
+    setSelectedRecordIds(prev => prev.filter(id => !idsSet.has(id)));
+
+    if (selectedRecord && idsSet.has(selectedRecord.id)) {
+      setIsRecordModalOpen(false);
+      setSelectedRecord(null);
+    }
+
+    dbBatchDeleteDisparos(ids).catch(err => {
+      console.warn('Sync batch delete disparos error:', err);
+    });
+  };
+
   const handleDuplicateRecord = (record) => {
     if (!activeCampaign) return;
 
@@ -974,6 +1010,9 @@ export default function App() {
           activeFlowCategory={activeFlowCategory}
           setActiveFlowCategory={setActiveFlowCategory}
           flowCounts={flowCounts}
+          selectedRecordIds={selectedRecordIds}
+          onDeleteMultipleRecords={handleDeleteMultipleRecords}
+          onClearSelection={() => setSelectedRecordIds([])}
         />
       )}
 
@@ -1012,6 +1051,7 @@ export default function App() {
                   groupBy={groupBy}
                   selectedRecordIds={selectedRecordIds}
                   setSelectedRecordIds={setSelectedRecordIds}
+                  onDeleteMultipleRecords={handleDeleteMultipleRecords}
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
                   onUpdateCampaign={handleUpdateCampaign}
                   hiddenColumns={activeHiddenColumns}
