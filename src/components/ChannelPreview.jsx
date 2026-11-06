@@ -968,9 +968,12 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                 </div>
 
                 {/* Mensagens de Resposta do Bot para ESTE botão */}
-                {resps.map((respText, rIdx) => {
+                {resps.map((respItem, rIdx) => {
+                  const normResp = typeof respItem === 'object' && respItem !== null ? respItem : { text: respItem || '', buttons: [] };
+                  const respText = normResp.text;
+                  const subButtons = Array.isArray(normResp.buttons) ? normResp.buttons : [];
                   const resolvedResp = resolveCopyVariables(respText, record.variables, predefinedLinks, campaign?.customPlaceholders);
-                  if (!resolvedResp && !respText) return null;
+                  if (!resolvedResp && !respText && subButtons.length === 0) return null;
 
                   return (
                     <div
@@ -991,6 +994,45 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                       <div className="wa-message-text">
                         {formatFormattedText(resolvedResp || respText)}
                       </div>
+
+                      {/* Sub-botões desta mensagem pós-clique (WhatsApp Quick Reply style) */}
+                      {subButtons.length > 0 && (
+                        <div style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '3px',
+                          marginTop: '6px',
+                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                          paddingTop: '5px'
+                        }}>
+                          {subButtons.map((sb, sbIdx) => {
+                            const sbText = typeof sb === 'string' ? sb : (sb?.text || `Opção #${sbIdx + 1}`);
+                            return (
+                              <div
+                                key={sb.id || sbIdx}
+                                style={{
+                                  background: 'rgba(255, 255, 255, 0.06)',
+                                  color: '#00a884',
+                                  border: '1px solid rgba(0, 168, 132, 0.3)',
+                                  borderRadius: '6px',
+                                  padding: '6px 9px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '0.35rem',
+                                  userSelect: 'none'
+                                }}
+                              >
+                                <CornerDownRight size={12} />
+                                <span>{sbText}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
                       <div className="wa-bubble-meta">
                         <span>{record.scheduledTime || '10:01'}</span>
                         <CheckCheck size={14} color="#53bdeb" />

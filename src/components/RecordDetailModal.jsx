@@ -61,6 +61,7 @@ export default function RecordDetailModal({
   const fileInputRef = useRef(null);
   const [isDraggingModalAtt, setIsDraggingModalAtt] = useState(false);
   const modalDragCounter = useRef(0);
+  const [collapsedButtons, setCollapsedButtons] = useState({});
 
   // Sync when opening or when record content changes
   useEffect(() => {
@@ -310,16 +311,106 @@ export default function RecordDetailModal({
     handleUpdateButtons(updated);
   };
 
+  const getNormalizedResponse = (resp) => {
+    if (typeof resp === 'object' && resp !== null) {
+      return {
+        text: resp.text || '',
+        buttons: Array.isArray(resp.buttons) ? resp.buttons : []
+      };
+    }
+    return {
+      text: resp || '',
+      buttons: []
+    };
+  };
+
   const handleUpdateButtonResponse = (btnIndex, respIndex, newResp) => {
     const updated = currentButtons.map((btn, idx) => {
       if (idx === btnIndex) {
         const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
-        resps[respIndex] = newResp;
+        const norm = getNormalizedResponse(resps[respIndex]);
+        if (norm.buttons.length > 0) {
+          resps[respIndex] = { ...norm, text: newResp };
+        } else {
+          resps[respIndex] = newResp;
+        }
         return { ...btn, responses: resps };
       }
       return btn;
     });
     handleUpdateButtons(updated);
+  };
+
+  const handleAddSubButtonToResponse = (btnIndex, respIndex) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        const norm = getNormalizedResponse(resps[respIndex]);
+        if (norm.buttons.length >= 3) return btn;
+        const newSubBtn = {
+          id: `sbtn_${Date.now()}_${norm.buttons.length + 1}`,
+          text: `Opção ${norm.buttons.length + 1}`
+        };
+        resps[respIndex] = {
+          ...norm,
+          buttons: [...norm.buttons, newSubBtn]
+        };
+        return { ...btn, responses: resps };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const handleUpdateSubButtonText = (btnIndex, respIndex, subBtnIndex, newSubText) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        const norm = getNormalizedResponse(resps[respIndex]);
+        const updatedSubs = norm.buttons.map((sb, sIdx) => {
+          if (sIdx === subBtnIndex) {
+            const currentSbObj = typeof sb === 'object' && sb !== null ? sb : { id: `sbtn_${sIdx}`, text: sb };
+            return { ...currentSbObj, text: newSubText };
+          }
+          return sb;
+        });
+        resps[respIndex] = {
+          ...norm,
+          buttons: updatedSubs
+        };
+        return { ...btn, responses: resps };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const handleRemoveSubButton = (btnIndex, respIndex, subBtnIndex) => {
+    const updated = currentButtons.map((btn, idx) => {
+      if (idx === btnIndex) {
+        const resps = Array.isArray(btn.responses) ? [...btn.responses] : [];
+        const norm = getNormalizedResponse(resps[respIndex]);
+        const updatedSubs = norm.buttons.filter((_, sIdx) => sIdx !== subBtnIndex);
+        if (updatedSubs.length === 0) {
+          resps[respIndex] = norm.text;
+        } else {
+          resps[respIndex] = {
+            ...norm,
+            buttons: updatedSubs
+          };
+        }
+        return { ...btn, responses: resps };
+      }
+      return btn;
+    });
+    handleUpdateButtons(updated);
+  };
+
+  const toggleButtonCollapse = (btnKey) => {
+    setCollapsedButtons(prev => ({
+      ...prev,
+      [btnKey]: !prev[btnKey]
+    }));
   };
 
   const handleRemoveButtonResponse = (btnIndex, respIndex) => {
@@ -760,187 +851,421 @@ export default function RecordDetailModal({
           icon: <CornerDownRight size={14} className="field-icon" />,
           render: () => (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: '0.7rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
-                  Botões de Resposta Rápida ({currentButtons.length}/3)
-                </span>
-                <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
-                  Permitido até 3 botões no WhatsApp HSM
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <span style={{ fontSize: '0.72rem', color: '#00a884', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Botões de Resposta Rápida ({currentButtons.length}/3)
+                  </span>
+                  <span style={{ fontSize: '0.66rem', color: '#8696a0' }}>
+                    • WhatsApp HSM / Unnichat
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => {
+                      const allKeys = currentButtons.map((b, i) => b.id || `btn_${i}`);
+                      const areAllCollapsed = allKeys.every(k => collapsedButtons[k]);
+                      const nextState = {};
+                      allKeys.forEach(k => { nextState[k] = !areAllCollapsed; });
+                      setCollapsedButtons(nextState);
+                    }}
+                    style={{ fontSize: '0.68rem', padding: '0.15rem 0.45rem', color: '#00a884', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                    title="Alternar todos os botões entre abertos e fechados"
+                  >
+                    <Layers size={11} />
+                    <span>
+                      {currentButtons.every((b, i) => collapsedButtons[b.id || `btn_${i}`]) ? 'Expandir Todos' : 'Recolher Todos'}
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* List of up to 3 buttons */}
-              {currentButtons.map((btn, btnIdx) => (
-                <div
-                  key={btn.id || btnIdx}
-                  style={{
-                    background: 'rgba(0, 168, 132, 0.05)',
-                    border: '1px solid rgba(0, 168, 132, 0.28)',
-                    borderRadius: '8px',
-                    padding: '0.75rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.6rem'
-                  }}
-                >
-                  {/* Button header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                      <span style={{
-                        background: '#00a884',
-                        color: '#000000',
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        padding: '0.12rem 0.45rem',
-                        borderRadius: '4px'
-                      }}>
-                        Botão #{btnIdx + 1}
-                      </span>
-                      <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
-                        {(btn.text || '').length}/25 caracteres
-                      </span>
-                    </div>
+              {currentButtons.map((btn, btnIdx) => {
+                const btnKey = btn.id || `btn_${btnIdx}`;
+                const isCollapsed = !!collapsedButtons[btnKey];
 
-                    {currentButtons.length > 1 && (
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        onClick={() => handleRemoveButton(btnIdx)}
-                        style={{ color: '#ef4444', padding: '0.15rem 0.4rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                        title="Remover este botão"
-                      >
-                        <Trash2 size={12} />
-                        <span>Remover Botão</span>
-                      </button>
-                    )}
-                  </div>
+                // Count sub-buttons inside this button's responses
+                const totalSubButtons = (btn.responses || []).reduce((acc, r) => {
+                  const norm = getNormalizedResponse(r);
+                  return acc + (norm.buttons ? norm.buttons.length : 0);
+                }, 0);
 
-                  {/* Button Text Input */}
-                  <div>
-                    <label style={{ fontSize: '0.68rem', color: '#94a3b8', marginBottom: '0.25rem', display: 'block', fontWeight: 600 }}>
-                      Texto do Botão #{btnIdx + 1} (Resposta Rápida)
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="Ex: Quero Minha Vaga"
-                      maxLength={25}
-                      value={btn.text || ''}
-                      onChange={(e) => handleUpdateButtonText(btnIdx, e.target.value)}
+                return (
+                  <div
+                    key={btnKey}
+                    style={{
+                      background: 'rgba(0, 168, 132, 0.05)',
+                      border: '1px solid rgba(0, 168, 132, 0.28)',
+                      borderRadius: '8px',
+                      padding: isCollapsed ? '0.55rem 0.75rem' : '0.75rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: isCollapsed ? '0' : '0.6rem',
+                      transition: 'all 0.18s ease'
+                    }}
+                  >
+                    {/* Clickable Header with Arrow to Collapse/Open */}
+                    <div
                       style={{
-                        fontSize: '0.82rem',
-                        padding: '0.4rem 0.75rem',
-                        width: '100%',
-                        fontWeight: 600,
-                        borderColor: 'rgba(0, 168, 132, 0.4)'
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        userSelect: 'none'
                       }}
-                    />
-                  </div>
-
-                  {/* Sequential Responses for this specific button */}
-                  <div style={{
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '6px',
-                    padding: '0.65rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem'
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Sparkles size={12} color="#00a884" />
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#00a884', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                          Próximas Mensagens ao Clicar no Botão #{btnIdx + 1}
+                      onClick={() => toggleButtonCollapse(btnKey)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                        <span
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#00a884',
+                            transition: 'transform 0.2s ease',
+                            transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)'
+                          }}
+                          title={isCollapsed ? 'Clique para abrir o botão' : 'Clique para fechar o botão'}
+                        >
+                          <ChevronDown size={16} />
                         </span>
+
+                        <span style={{
+                          background: '#00a884',
+                          color: '#000000',
+                          fontSize: '0.68rem',
+                          fontWeight: 800,
+                          padding: '0.12rem 0.45rem',
+                          borderRadius: '4px'
+                        }}>
+                          Botão #{btnIdx + 1}
+                        </span>
+
+                        <strong style={{
+                          fontSize: '0.8rem',
+                          color: btn.text ? '#f8fafc' : '#8696a0',
+                          maxWidth: '220px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          {btn.text ? `"${btn.text}"` : '(Sem texto do botão)'}
+                        </strong>
+
+                        <span style={{
+                          fontSize: '0.66rem',
+                          color: '#8696a0',
+                          background: 'rgba(255, 255, 255, 0.04)',
+                          padding: '0.1rem 0.35rem',
+                          borderRadius: '4px'
+                        }}>
+                          {(btn.responses || []).length} msg(s) pós-clique
+                        </span>
+
+                        {totalSubButtons > 0 && (
+                          <span style={{
+                            fontSize: '0.66rem',
+                            color: '#38bdf8',
+                            background: 'rgba(56, 189, 248, 0.1)',
+                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                            padding: '0.1rem 0.35rem',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.2rem'
+                          }}>
+                            <CornerDownRight size={10} />
+                            {totalSubButtons} {totalSubButtons === 1 ? 'sub-botão' : 'sub-botões'}
+                          </span>
+                        )}
                       </div>
-                      <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
-                        {(btn.responses || []).length} mensagem(ns) configurada(s)
-                      </span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontSize: '0.66rem', color: isCollapsed ? '#00a884' : '#64748b' }}>
+                          {isCollapsed ? 'Clique para abrir ▼' : 'Clique para fechar ▲'}
+                        </span>
+                        {currentButtons.length > 1 && (
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveButton(btnIdx);
+                            }}
+                            style={{ color: '#ef4444', padding: '0.15rem 0.4rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+                            title="Remover este botão"
+                          >
+                            <Trash2 size={12} />
+                            <span>Remover</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.35' }}>
-                      Defina as mensagens que o lead receberá no WhatsApp sequencialmente após clicar no botão "{btn.text || 'Opção'}".
-                    </p>
-
-                    {/* Responses textareas */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {(btn.responses || []).map((resp, rIdx) => (
-                        <div
-                          key={rIdx}
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            borderRadius: '5px',
-                            padding: '0.45rem 0.6rem',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '0.3rem'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8' }}>
-                              Mensagem #{rIdx + 1} pós-clique
+                    {/* Button Body (Hidden when collapsed) */}
+                    {!isCollapsed && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginTop: '0.2rem' }}>
+                        {/* Button Text Input */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                            <label style={{ fontSize: '0.68rem', color: '#94a3b8', margin: 0, fontWeight: 600 }}>
+                              Texto do Botão #{btnIdx + 1} (Resposta Rápida)
+                            </label>
+                            <span style={{ fontSize: '0.65rem', color: '#8696a0' }}>
+                              {(btn.text || '').length}/25 caracteres
                             </span>
-                            <button
-                              type="button"
-                              className="btn-ghost"
-                              onClick={() => handleRemoveButtonResponse(btnIdx, rIdx)}
-                              style={{ color: '#ef4444', padding: '0.1rem 0.3rem', fontSize: '0.66rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                              title="Remover esta mensagem"
-                            >
-                              <Trash2 size={11} />
-                              <span>Remover</span>
-                            </button>
                           </div>
-
-                          <textarea
+                          <input
+                            type="text"
                             className="form-control"
-                            value={resp}
-                            onChange={(e) => handleUpdateButtonResponse(btnIdx, rIdx, e.target.value)}
-                            placeholder={`Escreva a mensagem ${rIdx + 1} enviada após o lead clicar no botão "${btn.text || ''}"... (suporta [LINK], *negrito*, etc.)`}
+                            placeholder="Ex: Quero Minha Vaga"
+                            maxLength={25}
+                            value={btn.text || ''}
+                            onChange={(e) => handleUpdateButtonText(btnIdx, e.target.value)}
                             style={{
-                              minHeight: '65px',
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: '0.78rem',
-                              lineHeight: '1.45',
-                              padding: '0.4rem 0.55rem',
-                              background: 'rgba(0, 0, 0, 0.25)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
-                              borderRadius: '4px',
-                              width: '100%'
+                              fontSize: '0.82rem',
+                              padding: '0.4rem 0.75rem',
+                              width: '100%',
+                              fontWeight: 600,
+                              borderColor: 'rgba(0, 168, 132, 0.4)'
                             }}
                           />
                         </div>
-                      ))}
-                    </div>
 
-                    {/* Caixinha de + para adicionar mais campos pós-clique */}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => handleAddButtonResponse(btnIdx)}
-                      style={{
-                        alignSelf: 'flex-start',
-                        fontSize: '0.72rem',
-                        padding: '0.3rem 0.65rem',
-                        color: '#00a884',
-                        borderColor: 'rgba(0, 168, 132, 0.35)',
-                        background: 'rgba(0, 168, 132, 0.1)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        fontWeight: 700,
-                        borderRadius: '5px',
-                        marginTop: '0.15rem'
-                      }}
-                    >
-                      <Plus size={13} />
-                      <span>+ Adicionar Próxima Mensagem pós-clique</span>
-                    </button>
+                        {/* Sequential Responses for this specific button */}
+                        <div style={{
+                          background: 'rgba(0, 0, 0, 0.35)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '6px',
+                          padding: '0.65rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.5rem'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Sparkles size={12} color="#00a884" />
+                              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#00a884', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                                Próximas Mensagens ao Clicar no Botão #{btnIdx + 1}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
+                              {(btn.responses || []).length} mensagem(ns) configurada(s)
+                            </span>
+                          </div>
+
+                          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.35' }}>
+                            Defina as mensagens e botões que o lead receberá sequencialmente após clicar no botão "{btn.text || 'Opção'}".
+                          </p>
+
+                          {/* Responses textareas + sub-buttons */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {(btn.responses || []).map((resp, rIdx) => {
+                              const normResp = getNormalizedResponse(resp);
+                              const subButtons = normResp.buttons;
+
+                              return (
+                                <div
+                                  key={rIdx}
+                                  style={{
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    borderRadius: '5px',
+                                    padding: '0.45rem 0.6rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.35rem'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8' }}>
+                                      Mensagem #{rIdx + 1} pós-clique
+                                    </span>
+                                    <button
+                                      type="button"
+                                      className="btn-ghost"
+                                      onClick={() => handleRemoveButtonResponse(btnIdx, rIdx)}
+                                      style={{ color: '#ef4444', padding: '0.1rem 0.3rem', fontSize: '0.66rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
+                                      title="Remover esta mensagem"
+                                    >
+                                      <Trash2 size={11} />
+                                      <span>Remover</span>
+                                    </button>
+                                  </div>
+
+                                  <textarea
+                                    className="form-control"
+                                    value={normResp.text}
+                                    onChange={(e) => handleUpdateButtonResponse(btnIdx, rIdx, e.target.value)}
+                                    placeholder={`Escreva a mensagem ${rIdx + 1} enviada após o lead clicar no botão "${btn.text || ''}"... (suporta [LINK], *negrito*, etc.)`}
+                                    style={{
+                                      minHeight: '65px',
+                                      fontFamily: 'var(--font-mono)',
+                                      fontSize: '0.78rem',
+                                      lineHeight: '1.45',
+                                      padding: '0.4rem 0.55rem',
+                                      background: 'rgba(0, 0, 0, 0.25)',
+                                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      borderRadius: '4px',
+                                      width: '100%'
+                                    }}
+                                  />
+
+                                  {/* Sub-botões desta mensagem pós-clique */}
+                                  <div style={{
+                                    marginTop: '0.15rem',
+                                    background: 'rgba(0, 168, 132, 0.04)',
+                                    border: '1px dashed rgba(0, 168, 132, 0.25)',
+                                    borderRadius: '5px',
+                                    padding: '0.4rem 0.55rem',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.35rem'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <span style={{ fontSize: '0.67rem', color: '#00a884', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                        <CornerDownRight size={11} />
+                                        Botões desta mensagem ({subButtons.length}/3)
+                                      </span>
+                                      {subButtons.length < 3 && (
+                                        <button
+                                          type="button"
+                                          className="btn-ghost"
+                                          onClick={() => handleAddSubButtonToResponse(btnIdx, rIdx)}
+                                          style={{
+                                            fontSize: '0.66rem',
+                                            padding: '0.1rem 0.35rem',
+                                            color: '#00a884',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            fontWeight: 700
+                                          }}
+                                          title="Adicionar botão que o lead poderá clicar nesta próxima mensagem"
+                                        >
+                                          <Plus size={11} />
+                                          <span>+ Adicionar Botão</span>
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {subButtons.length === 0 ? (
+                                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <span style={{ fontSize: '0.66rem', color: '#64748b' }}>
+                                          Nenhum botão nesta mensagem (apenas texto simples).
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          onClick={() => handleAddSubButtonToResponse(btnIdx, rIdx)}
+                                          style={{
+                                            fontSize: '0.66rem',
+                                            padding: '0.15rem 0.45rem',
+                                            color: '#00a884',
+                                            borderColor: 'rgba(0, 168, 132, 0.3)',
+                                            background: 'rgba(0, 168, 132, 0.08)',
+                                            borderRadius: '4px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.2rem',
+                                            fontWeight: 600
+                                          }}
+                                        >
+                                          <Plus size={11} />
+                                          <span>+ Adicionar Botão</span>
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                        {subButtons.map((sBtn, sbIdx) => {
+                                          const sText = typeof sBtn === 'string' ? sBtn : (sBtn?.text || '');
+                                          return (
+                                            <div
+                                              key={sBtn.id || sbIdx}
+                                              style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.35rem',
+                                                background: 'rgba(0, 0, 0, 0.25)',
+                                                border: '1px solid rgba(0, 168, 132, 0.2)',
+                                                borderRadius: '4px',
+                                                padding: '0.2rem 0.4rem'
+                                              }}
+                                            >
+                                              <span style={{ fontSize: '0.64rem', color: '#00a884', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                                                #{sbIdx + 1}
+                                              </span>
+                                              <input
+                                                type="text"
+                                                className="form-control"
+                                                value={sText}
+                                                maxLength={25}
+                                                onChange={(e) => handleUpdateSubButtonText(btnIdx, rIdx, sbIdx, e.target.value)}
+                                                placeholder="Texto do botão (ex: Quero saber mais)"
+                                                style={{
+                                                  fontSize: '0.74rem',
+                                                  padding: '0.2rem 0.45rem',
+                                                  height: 'auto',
+                                                  fontWeight: 600,
+                                                  flex: 1,
+                                                  borderColor: 'rgba(0, 168, 132, 0.3)'
+                                                }}
+                                              />
+                                              <span style={{ fontSize: '0.62rem', color: '#8696a0', whiteSpace: 'nowrap' }}>
+                                                {sText.length}/25
+                                              </span>
+                                              <button
+                                                type="button"
+                                                className="btn-ghost"
+                                                onClick={() => handleRemoveSubButton(btnIdx, rIdx, sbIdx)}
+                                                style={{ color: '#ef4444', padding: '0.1rem 0.25rem' }}
+                                                title="Remover este botão"
+                                              >
+                                                <Trash2 size={11} />
+                                              </button>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Caixinha de + para adicionar mais campos pós-clique */}
+                          <button
+                            type="button"
+                            className="btn-secondary"
+                            onClick={() => handleAddButtonResponse(btnIdx)}
+                            style={{
+                              alignSelf: 'flex-start',
+                              fontSize: '0.72rem',
+                              padding: '0.3rem 0.65rem',
+                              color: '#00a884',
+                              borderColor: 'rgba(0, 168, 132, 0.35)',
+                              background: 'rgba(0, 168, 132, 0.1)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              fontWeight: 700,
+                              borderRadius: '5px',
+                              marginTop: '0.15rem'
+                            }}
+                          >
+                            <Plus size={13} />
+                            <span>+ Adicionar Próxima Mensagem pós-clique</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Botão de adicionar mais um botão (até 3 botões) */}
               {currentButtons.length < 3 && (
