@@ -37,7 +37,7 @@ import {
   Sparkles,
   Mail
 } from 'lucide-react';
-import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, getChannelCategory, normalizeAttachments } from '../data/initialData';
+import { BRABO_CHANNELS, DISPARO_STAGES, extractCopyVariables, extractBracketVariables, resolveCopyVariables, getStageObj, getChannelsByCategory, getChannelCategory, normalizeAttachments, isIndividualDispatch } from '../data/initialData';
 import { deleteAttachmentFile, getAttachmentUrl, triggerFileDownload, processAttachmentFiles } from '../services/attachmentStorage';
 import ChannelPreview from './ChannelPreview';
 
@@ -470,12 +470,7 @@ export default function RecordDetailModal({
   const customColumns = campaign?.customColumns || [];
 
   const isEmailChannel = formData.channel === 'Email';
-  const isApiChannel = formData.channel === 'Individual Janela Fechada WhatsApp' ||
-    formData.channel === 'WhatsApp Cloud API' ||
-    formData.channel === 'Unnichat API' ||
-    !!formData.templateName ||
-    (Array.isArray(formData.buttons) && formData.buttons.length > 0) ||
-    !!formData.buttonText;
+  const isIndividualMessage = isIndividualDispatch(formData.channel);
 
   const renderCopyField = (customLabel = 'Copy', customPlaceholder = 'Escreva a copy do disparo aqui...') => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
@@ -520,36 +515,6 @@ export default function RecordDetailModal({
           borderRadius: '6px'
         }}
       />
-
-      {/* Non-API channel toggle to enable button / HSM */}
-      {!isEmailChannel && !isApiChannel && (
-        <button
-          type="button"
-          className="btn-ghost"
-          onClick={() => {
-            handleUpdateButtons([
-              { id: 'btn_1', text: 'Quero Participar', responses: ['Excelente escolha! Segue o seu link de acesso com desconto: [LINK]'] }
-            ]);
-            handleChange('templateName', 'novo_template');
-          }}
-          style={{
-            fontSize: '0.72rem',
-            color: '#00a884',
-            padding: '0.25rem 0.6rem',
-            alignSelf: 'flex-start',
-            border: '1px dashed rgba(0, 168, 132, 0.4)',
-            borderRadius: '5px',
-            background: 'rgba(0, 168, 132, 0.05)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.3rem'
-          }}
-          title="Adicionar botões de resposta rápida estilo Unnichat / HSM"
-        >
-          <CornerDownRight size={12} />
-          <span>+ Adicionar Botões de Resposta / Template HSM</span>
-        </button>
-      )}
 
       {/* Tags [ ] no texto */}
       {detectedBracketTags.length > 0 && (
@@ -799,7 +764,7 @@ export default function RecordDetailModal({
           )
         }
       ]
-    : isApiChannel
+    : isIndividualMessage
     ? [
         {
           id: 'templateName',

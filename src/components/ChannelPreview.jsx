@@ -28,7 +28,7 @@ import {
   BatteryMedium,
   Camera
 } from 'lucide-react';
-import { BRABO_CHANNELS, resolveCopyVariables, normalizeAttachments } from '../data/initialData';
+import { BRABO_CHANNELS, resolveCopyVariables, normalizeAttachments, isIndividualDispatch } from '../data/initialData';
 import { triggerFileDownload } from '../services/attachmentStorage';
 
 export const YouTubeIcon = ({ size = 16, color = '#ef4444' }) => (
@@ -396,8 +396,14 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
   const predefinedLinks = campaign?.predefinedLinks || [];
   const channelObj = BRABO_CHANNELS.find(ch => ch.value === record.channel) || BRABO_CHANNELS[0];
 
+  const isIndividual = isIndividualDispatch(record?.channel);
+
   // Helper to extract buttons (up to 3) with fallback for legacy records
+  // ATENÇÃO: Botões de mensagem são exclusivos para disparos individuais
   const getButtonsFromRecord = (rec) => {
+    if (!isIndividualDispatch(rec?.channel)) {
+      return [];
+    }
     if (Array.isArray(rec.buttons) && rec.buttons.length > 0) {
       return rec.buttons;
     }
@@ -816,8 +822,8 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
         {/* Message Bubble Container */}
         <div className="wa-bubble-container" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', width: '100%' }}>
           
-          {/* Unnichat / Meta Cloud API Template Status Pill */}
-          {(record.channel === 'Individual Janela Fechada WhatsApp' || !!record.templateName || buttonsList.length > 0 || !!record.buttonText) && (
+          {/* Unnichat / Meta Cloud API Template Status Pill (Apenas para disparos individuais) */}
+          {isIndividual && (
             <div style={{
               background: 'rgba(0, 168, 132, 0.12)',
               border: '1px solid rgba(0, 168, 132, 0.3)',

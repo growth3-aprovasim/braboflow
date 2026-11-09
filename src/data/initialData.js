@@ -32,6 +32,15 @@ export function getChannelsByCategory(category) {
   return BRABO_CHANNELS.filter(ch => ch.category === category);
 }
 
+export function isIndividualDispatch(channelValue) {
+  if (!channelValue) return false;
+  const ch = String(channelValue).trim().toLowerCase();
+  if (ch.includes('grupo') || ch.includes('email') || ch.includes('youtube') || ch.includes('comunidade')) {
+    return false;
+  }
+  return ch.includes('individual') || ch.includes('janela fechada') || ch.includes('api') || ch.includes('template') || ch.includes('hsm');
+}
+
 export const DISPARO_STAGES = [
   { value: 'Em Rascunho', label: 'Em Rascunho', color: '#94a3b8', bg: 'rgba(148, 163, 184, 0.15)', border: '#475569', badgeIcon: '📝' },
   { value: 'Programada', label: 'Programada', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.15)', border: '#0284c7', badgeIcon: '⏰' },
