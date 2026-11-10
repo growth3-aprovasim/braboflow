@@ -275,6 +275,12 @@ function evaluateSingleRule(item, rule) {
     rawValue = item.attachment;
   } else if (field === 'attachmentPosition') {
     rawValue = item.attachment?.position || 'before';
+  } else if (field === 'date' || field === 'scheduledDate') {
+    rawValue = item.scheduledDate || item.date || '';
+  } else if (field === 'time' || field === 'scheduledTime') {
+    rawValue = item.scheduledTime || item.time || '';
+  } else if (field === 'copy' || field === 'copyText') {
+    rawValue = item.copyText || item.copy || '';
   } else {
     rawValue = item[field];
   }
@@ -285,6 +291,50 @@ function evaluateSingleRule(item, rule) {
   const todayIso = new Date().toISOString().split('T')[0];
 
   switch (operator) {
+    // Multi-tag / Set operators (Airtable / Excel tag filter)
+    case 'is_any_of':
+    case 'in': {
+      const allowed = Array.isArray(value)
+        ? value
+        : typeof value === 'string'
+          ? value.split(',').map(s => s.trim())
+          : [];
+      if (allowed.length === 0) return true;
+      if (field === 'stage') {
+        const itemStageObj = getStageObj(item.stage);
+        return allowed.some(v => getStageObj(v).value === itemStageObj.value);
+      }
+      if (field === 'date' || field === 'scheduledDate') {
+        const itemDate = item.scheduledDate || item.date || '';
+        return allowed.some(v => {
+          if (v === '__empty__' || v === 'Sem Data' || v === 'Sem Data Definida') return !itemDate;
+          return itemDate === v;
+        });
+      }
+      return allowed.some(v => String(v).trim().toLowerCase() === lowerStr);
+    }
+
+    case 'is_none_of':
+    case 'not_in': {
+      const forbidden = Array.isArray(value)
+        ? value
+        : typeof value === 'string'
+          ? value.split(',').map(s => s.trim())
+          : [];
+      if (forbidden.length === 0) return true;
+      if (field === 'stage') {
+        const itemStageObj = getStageObj(item.stage);
+        return !forbidden.some(v => getStageObj(v).value === itemStageObj.value);
+      }
+      if (field === 'date' || field === 'scheduledDate') {
+        const itemDate = item.scheduledDate || item.date || '';
+        return !forbidden.some(v => {
+          if (v === '__empty__' || v === 'Sem Data' || v === 'Sem Data Definida') return !itemDate;
+          return itemDate === v;
+        });
+      }
+      return !forbidden.some(v => String(v).trim().toLowerCase() === lowerStr);
+    }
     // Universal emptiness
     case 'is_empty':
       if (field === 'attachment') return !item.attachment || !item.attachment.name;
@@ -451,6 +501,36 @@ export function matchRecordWithFilter(item, filter) {
   }
 
   return true;
+}
+
+export function findMatchingFilterId(customFilters, currentFilter) {
+  if (!currentFilter || !currentFilter.rules || currentFilter.rules.length === 0) {
+    return 'all';
+  }
+  if (!Array.isArray(customFilters)) return null;
+
+  for (const f of customFilters) {
+    if (!f.rules || f.rules.length !== currentFilter.rules.length) continue;
+    if ((f.conjunction || 'AND').toUpperCase() !== (currentFilter.conjunction || 'AND').toUpperCase()) continue;
+
+    const allMatch = f.rules.every(r => {
+      return currentFilter.rules.some(cr => {
+        const fieldMatch = cr.field === r.field ||
+          (cr.field === 'date' && r.field === 'scheduledDate') ||
+          (cr.field === 'scheduledDate' && r.field === 'date');
+        if (!fieldMatch) return false;
+        if (cr.operator !== r.operator) return false;
+
+        if (Array.isArray(cr.value) && Array.isArray(r.value)) {
+          return cr.value.length === r.value.length && cr.value.every(v => r.value.includes(v));
+        }
+        return String(cr.value || '').trim().toLowerCase() === String(r.value || '').trim().toLowerCase();
+      });
+    });
+
+    if (allMatch) return f.id;
+  }
+  return null;
 }
 
 export const initialCampaigns = [

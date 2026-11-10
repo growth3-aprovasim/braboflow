@@ -452,6 +452,9 @@ export default function GridView({
   onUpdateCampaign,
   hiddenColumns = [],
   activeFlowCategory = 'whatsapp',
+  universalFilter = { conjunction: 'AND', rules: [] },
+  onUpdateUniversalFilter,
+  allRecords = [],
   onSortBy,
   onGroupBy,
   onFilterBy,
@@ -459,6 +462,7 @@ export default function GridView({
 }) {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
+  const [tagFilterModal, setTagFilterModal] = useState(null);
   const [newColName, setNewColName] = useState('');
   const [newColType, setNewColType] = useState('checkbox');
 
@@ -501,7 +505,10 @@ export default function GridView({
   React.useEffect(() => {
     const handleCloseMenu = () => setHeaderContextMenu(null);
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') setHeaderContextMenu(null);
+      if (e.key === 'Escape') {
+        setHeaderContextMenu(null);
+        setTagFilterModal(null);
+      }
     };
     window.addEventListener('click', handleCloseMenu);
     window.addEventListener('keydown', handleKeyDown);
@@ -1080,25 +1087,59 @@ export default function GridView({
       transition: 'background 0.15s ease, border 0.15s ease'
     };
 
-    const renderHeaderContent = (label, iconElement, isCustom = false, customCol = null) => (
-      <div
-        className="grid-header-cell-inner"
-        style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.35rem', overflow: 'hidden' }}
-      >
-        {iconElement}
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-          {label}
-        </span>
-        <button
-          type="button"
-          className="header-dropdown-trigger"
-          onClick={(e) => handleHeaderContextMenu(e, colId, label, isCustom, customCol)}
-          title="Opções da Coluna (Airtable)"
+    const renderHeaderContent = (label, iconElement, isCustom = false, customCol = null) => {
+      const targetField = colId === 'date' ? 'scheduledDate' : colId === 'time' ? 'scheduledTime' : colId === 'copy' ? 'copyText' : colId;
+      const isFiltered = (universalFilter?.rules || []).some(r => r.field === colId || r.field === targetField);
+
+      return (
+        <div
+          className="grid-header-cell-inner"
+          style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '0.35rem', overflow: 'hidden' }}
         >
-          <ChevronDown size={12} />
-        </button>
-      </div>
-    );
+          {iconElement}
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+            {label}
+          </span>
+          {isFiltered && (
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'rgba(56, 189, 248, 0.22)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                color: '#38bdf8',
+                borderRadius: '4px',
+                padding: '2px 4px',
+                cursor: 'pointer',
+                flexShrink: 0
+              }}
+              title="Filtro ativo nesta coluna! Clique para alterar ou ver as tags filtradas"
+              onClick={(e) => {
+                e.stopPropagation();
+                const rect = e.currentTarget.getBoundingClientRect();
+                setTagFilterModal({
+                  colId,
+                  colLabel: label,
+                  x: Math.min(rect.left, window.innerWidth - 320),
+                  y: rect.bottom + 4
+                });
+              }}
+            >
+              <Filter size={11} color="#38bdf8" />
+            </span>
+          )}
+          <button
+            type="button"
+            className="header-dropdown-trigger"
+            onClick={(e) => handleHeaderContextMenu(e, colId, label, isCustom, customCol)}
+            title="Opções da Coluna (Airtable)"
+          >
+            <ChevronDown size={12} />
+          </button>
+        </div>
+      );
+    };
 
     if (colId === 'title') {
       return (
@@ -2331,17 +2372,44 @@ export default function GridView({
 
           <div className="airtable-ctx-divider" />
 
-          {/* 4. Filtrar por este campo */}
-          <div
-            className="airtable-ctx-item"
-            onClick={() => {
-              if (onFilterBy) onFilterBy(headerContextMenu.colId);
-              setHeaderContextMenu(null);
-            }}
-          >
-            <Filter size={14} className="airtable-ctx-icon" />
-            <span>Filtrar por este campo</span>
-          </div>
+          {/* 4. Filtrar por este campo / Escolher tags */}
+          {['stage', 'channel', 'date'].includes(headerContextMenu.colId) ? (
+            <div
+              className="airtable-ctx-item"
+              style={{
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: '#38bdf8',
+                fontWeight: 600,
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: '5px',
+                margin: '2px 0'
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setTagFilterModal({
+                  colId: headerContextMenu.colId,
+                  colLabel: headerContextMenu.colLabel,
+                  x: Math.min(headerContextMenu.x, window.innerWidth - 330),
+                  y: Math.min(headerContextMenu.y, window.innerHeight - 440)
+                });
+                setHeaderContextMenu(null);
+              }}
+            >
+              <Filter size={14} className="airtable-ctx-icon" color="#38bdf8" />
+              <span>Filtrar por tags de {headerContextMenu.colLabel}...</span>
+            </div>
+          ) : (
+            <div
+              className="airtable-ctx-item"
+              onClick={() => {
+                if (onFilterBy) onFilterBy(headerContextMenu.colId);
+                setHeaderContextMenu(null);
+              }}
+            >
+              <Filter size={14} className="airtable-ctx-icon" />
+              <span>Filtrar por este campo</span>
+            </div>
+          )}
 
           {/* 5. Agrupar por este campo */}
           <div
@@ -2397,6 +2465,22 @@ export default function GridView({
             </div>
           )}
         </div>
+      )}
+
+      {/* Column Tag Filter Popover (Right Click on Header) */}
+      {tagFilterModal && (
+        <ColumnTagFilterModal
+          colId={tagFilterModal.colId}
+          colLabel={tagFilterModal.colLabel}
+          x={tagFilterModal.x}
+          y={tagFilterModal.y}
+          allRecords={allRecords && allRecords.length > 0 ? allRecords : records}
+          availableChannels={availableChannels}
+          availableStages={availableStages}
+          universalFilter={universalFilter}
+          onUpdateUniversalFilter={onUpdateUniversalFilter}
+          onClose={() => setTagFilterModal(null)}
+        />
       )}
 
       {/* Floating Action Bar for Batch Deletion */}
@@ -2471,6 +2555,435 @@ export default function GridView({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------
+// COLUMN TAG FILTER POPOVER (RIGHT CLICK ON HEADER)
+// ----------------------------------------------------
+function ColumnTagFilterModal({
+  colId,
+  colLabel,
+  x,
+  y,
+  allRecords = [],
+  availableChannels = [],
+  availableStages = [],
+  universalFilter = { conjunction: 'AND', rules: [] },
+  onUpdateUniversalFilter,
+  onClose
+}) {
+  const modalRef = React.useRef(null);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Target rule field name
+  const targetField = colId === 'date' ? 'scheduledDate' : colId;
+
+  // Compute available options and counts based on colId
+  const options = React.useMemo(() => {
+    if (colId === 'stage') {
+      return availableStages.map(st => {
+        const count = allRecords.filter(r => {
+          const itemSt = getStageObj(r.stage);
+          const targetSt = getStageObj(st.value);
+          return itemSt.value === targetSt.value;
+        }).length;
+        return {
+          id: st.value,
+          value: st.value,
+          label: st.label,
+          color: st.color,
+          bg: st.bg,
+          badgeIcon: st.badgeIcon || '●',
+          count
+        };
+      });
+    }
+
+    if (colId === 'channel') {
+      return availableChannels.map(ch => {
+        const count = allRecords.filter(r => {
+          return r.channel === ch.value || r.channel === ch.label;
+        }).length;
+        return {
+          id: ch.value,
+          value: ch.value,
+          label: ch.label,
+          color: ch.color,
+          bg: ch.bg,
+          badgeIcon: ch.badgeText || '●',
+          count
+        };
+      });
+    }
+
+    if (colId === 'date') {
+      const dateCounts = {};
+      let emptyCount = 0;
+      allRecords.forEach(r => {
+        const d = r.scheduledDate || r.date;
+        if (!d) {
+          emptyCount++;
+        } else {
+          dateCounts[d] = (dateCounts[d] || 0) + 1;
+        }
+      });
+
+      const sortedDates = Object.keys(dateCounts).sort();
+      const list = sortedDates.map(d => {
+        let label = d;
+        try {
+          const dateObj = new Date(d + 'T12:00:00');
+          if (!isNaN(dateObj.getTime())) {
+            const dateStr = dateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const weekday = dateObj.toLocaleDateString('pt-BR', { weekday: 'short' });
+            label = `${dateStr} (${weekday})`;
+          }
+        } catch { /* fallback to d */ }
+        return {
+          id: d,
+          value: d,
+          label,
+          color: '#38bdf8',
+          bg: 'rgba(56, 189, 248, 0.15)',
+          badgeIcon: '📅',
+          count: dateCounts[d]
+        };
+      });
+
+      if (emptyCount > 0) {
+        list.push({
+          id: '__empty__',
+          value: '__empty__',
+          label: 'Sem Data Definida',
+          color: '#94a3b8',
+          bg: 'rgba(148, 163, 184, 0.15)',
+          badgeIcon: '⏳',
+          count: emptyCount
+        });
+      }
+      return list;
+    }
+
+    return [];
+  }, [colId, allRecords, availableStages, availableChannels]);
+
+  // Existing rule in universalFilter
+  const existingRule = React.useMemo(() => {
+    return (universalFilter?.rules || []).find(r => r.field === colId || r.field === targetField);
+  }, [universalFilter, colId, targetField]);
+
+  // Initialize selected values:
+  // If rule exists: extract values. If no rule exists: all options selected.
+  const [selectedValues, setSelectedValues] = useState(() => {
+    if (existingRule) {
+      if (existingRule.operator === 'equals') {
+        return [existingRule.value];
+      }
+      if (existingRule.operator === 'is_any_of' || existingRule.operator === 'in') {
+        return Array.isArray(existingRule.value) ? existingRule.value : [existingRule.value];
+      }
+      if (existingRule.operator === 'is_empty') {
+        return ['__empty__'];
+      }
+    }
+    return options.map(o => o.value);
+  });
+
+  // Click outside to close
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [onClose]);
+
+  const toggleSelectValue = (val) => {
+    setSelectedValues(prev =>
+      prev.includes(val) ? prev.filter(v => v !== val) : [...prev, val]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedValues(options.map(o => o.value));
+  };
+
+  const handleClearAll = () => {
+    setSelectedValues([]);
+  };
+
+  const handleApply = () => {
+    const rules = [...(universalFilter?.rules || [])].filter(r => r.field !== colId && r.field !== targetField);
+
+    // If all options are selected OR none are selected, remove the filter rule for this column
+    if (selectedValues.length === 0 || selectedValues.length === options.length) {
+      if (onUpdateUniversalFilter) {
+        onUpdateUniversalFilter({
+          conjunction: universalFilter?.conjunction || 'AND',
+          rules
+        });
+      }
+      onClose();
+      return;
+    }
+
+    let newRule;
+    if (selectedValues.length === 1) {
+      newRule = {
+        id: existingRule?.id || `r-${targetField}-${Date.now()}`,
+        field: targetField,
+        operator: selectedValues[0] === '__empty__' ? 'is_empty' : 'equals',
+        value: selectedValues[0],
+        value2: ''
+      };
+    } else {
+      newRule = {
+        id: existingRule?.id || `r-${targetField}-${Date.now()}`,
+        field: targetField,
+        operator: 'is_any_of',
+        value: selectedValues,
+        value2: ''
+      };
+    }
+
+    if (onUpdateUniversalFilter) {
+      onUpdateUniversalFilter({
+        conjunction: universalFilter?.conjunction || 'AND',
+        rules: [...rules, newRule]
+      });
+    }
+    onClose();
+  };
+
+  const handleRemoveFilter = () => {
+    const rules = [...(universalFilter?.rules || [])].filter(r => r.field !== colId && r.field !== targetField);
+    if (onUpdateUniversalFilter) {
+      onUpdateUniversalFilter({
+        conjunction: universalFilter?.conjunction || 'AND',
+        rules
+      });
+    }
+    onClose();
+  };
+
+  const filteredOptions = options.filter(o =>
+    !searchTerm || o.label.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div
+      ref={modalRef}
+      style={{
+        position: 'fixed',
+        top: `${Math.min(y, window.innerHeight - 380)}px`,
+        left: `${Math.min(x, window.innerWidth - 320)}px`,
+        width: '300px',
+        maxHeight: '420px',
+        background: '#161b26',
+        border: '1px solid #3b82f6',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.65), 0 0 15px rgba(59, 130, 246, 0.25)',
+        borderRadius: '10px',
+        zIndex: 10000,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'slideDown 0.15s ease-out'
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header */}
+      <div style={{
+        padding: '0.65rem 0.85rem',
+        borderBottom: '1px solid #232b3a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'rgba(0,0,0,0.2)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Filter size={14} color="#38bdf8" />
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9' }}>
+            Filtrar: {colLabel}
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+        >
+          <X size={14} />
+        </button>
+      </div>
+
+      {/* Search Input */}
+      {options.length > 5 && (
+        <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid #232b3a' }}>
+          <input
+            type="text"
+            className="form-control"
+            placeholder="Buscar tag..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.5rem' }}
+          />
+        </div>
+      )}
+
+      {/* Select All / Clear Row */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.4rem 0.85rem',
+        fontSize: '0.72rem',
+        background: 'rgba(255,255,255,0.02)',
+        borderBottom: '1px solid #232b3a'
+      }}>
+        <span style={{ color: '#94a3b8' }}>
+          {selectedValues.length} de {options.length} selecionado(s)
+        </span>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={handleSelectAll}
+            style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+          >
+            Todos
+          </button>
+          <span style={{ color: '#475569' }}>•</span>
+          <button
+            type="button"
+            onClick={handleClearAll}
+            style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 0 }}
+          >
+            Nenhum
+          </button>
+        </div>
+      </div>
+
+      {/* Options List */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0.4rem 0.5rem', maxHeight: '220px', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+        {filteredOptions.map(opt => {
+          const isChecked = selectedValues.includes(opt.value);
+          return (
+            <div
+              key={opt.id}
+              onClick={() => toggleSelectValue(opt.value)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.35rem 0.55rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                background: isChecked ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+                transition: 'background 0.12s ease'
+              }}
+              onMouseOver={(e) => {
+                if (!isChecked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+              }}
+              onMouseOut={(e) => {
+                if (!isChecked) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => {}}
+                  style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                />
+                <span style={{
+                  fontSize: '0.78rem',
+                  color: isChecked ? '#f1f5f9' : '#94a3b8',
+                  fontWeight: isChecked ? 600 : 400,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {opt.label}
+                </span>
+              </div>
+              <span style={{
+                fontSize: '0.7rem',
+                color: '#64748b',
+                background: 'rgba(255,255,255,0.05)',
+                padding: '1px 6px',
+                borderRadius: '4px',
+                flexShrink: 0
+              }}>
+                {opt.count}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer Actions */}
+      <div style={{
+        padding: '0.55rem 0.75rem',
+        borderTop: '1px solid #232b3a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: 'rgba(0,0,0,0.25)'
+      }}>
+        {existingRule ? (
+          <button
+            type="button"
+            onClick={handleRemoveFilter}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#f87171',
+              fontSize: '0.74rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: 0
+            }}
+          >
+            Limpar Filtro
+          </button>
+        ) : <div />}
+
+        <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '0.35rem 0.7rem',
+              fontSize: '0.74rem',
+              color: '#cbd5e1',
+              cursor: 'pointer'
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleApply}
+            style={{
+              background: '#38bdf8',
+              border: 'none',
+              borderRadius: '5px',
+              padding: '0.35rem 0.85rem',
+              fontSize: '0.74rem',
+              fontWeight: 700,
+              color: '#0f172a',
+              cursor: 'pointer'
+            }}
+          >
+            Aplicar
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

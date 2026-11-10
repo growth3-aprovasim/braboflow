@@ -24,6 +24,7 @@ import { BRABO_CHANNELS, DISPARO_STAGES, matchRecordWithFilter, getChannelsByCat
 export default function CustomFiltersSidebar({
   customFilters,
   activeFilterId,
+  currentFilter = null,
   onSelectFilter,
   onCreateFilter,
   onUpdateFilter,
@@ -345,6 +346,54 @@ export default function CustomFiltersSidebar({
         flexDirection: 'column',
         gap: '0.4rem'
       }}>
+        {/* Dynamic Card for Active Custom Filter (Created via Top Toolbar or Column Headers) */}
+        {activeFilterId === 'custom' && currentFilter && currentFilter.rules && currentFilter.rules.length > 0 && (
+          <div
+            style={{
+              padding: '0.6rem 0.75rem',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.12)',
+              border: '1px solid rgba(56, 189, 248, 0.45)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              marginBottom: '0.3rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={13} color="#38bdf8" /> Filtro Ativo
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setFilterName(`Filtro (${currentFilter.rules.length} regras)`);
+                  setConjunction(currentFilter.conjunction || 'AND');
+                  setRules(Array.isArray(currentFilter.rules) ? currentFilter.rules : []);
+                  setEditingFilterId(null);
+                  setIsModalOpen(true);
+                }}
+                style={{
+                  background: 'rgba(56, 189, 248, 0.2)',
+                  border: 'none',
+                  color: '#38bdf8',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  padding: '2px 7px',
+                  borderRadius: '4px'
+                }}
+                title="Salvar como filtro permanente na lista"
+              >
+                + Salvar
+              </button>
+            </div>
+            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+              Modificado pelo topo ou colunas ({currentFilter.rules.length} {currentFilter.rules.length === 1 ? 'regra' : 'regras'})
+            </div>
+          </div>
+        )}
+
         <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', padding: '0.2rem 0.4rem' }}>
           Filtros Salvos ({customFilters.length})
         </span>

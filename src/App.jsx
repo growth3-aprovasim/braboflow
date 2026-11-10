@@ -15,7 +15,7 @@ import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import ImportCsvModal from './components/ImportCsvModal';
 import EditCampaignModal from './components/EditCampaignModal';
 
-import { matchRecordWithFilter, extractAllCampaignBracketTags } from './data/initialData';
+import { matchRecordWithFilter, extractAllCampaignBracketTags, findMatchingFilterId } from './data/initialData';
 import {
   fetchAllCampaignsFromDb,
   dbClearAllData,
@@ -348,6 +348,16 @@ export default function App() {
   const [activeCustomFilterId, setActiveCustomFilterId] = useState('all');
   const [isCustomSidebarOpen, setIsCustomSidebarOpen] = useState(true);
 
+  // Universal dynamic multi-rule filter state (single source of truth for Toolbar, Sidebar & Column headers)
+  const [toolbarFilter, setToolbarFilter] = useState(() => {
+    try {
+      const saved = localStorage.getItem('brabo_airtable_toolbar_filter');
+      return saved ? JSON.parse(saved) : { conjunction: 'AND', rules: [] };
+    } catch {
+      return { conjunction: 'AND', rules: [] };
+    }
+  });
+
   useEffect(() => {
     try {
       localStorage.setItem('brabo_airtable_custom_filters_v2', JSON.stringify(customFilters));
@@ -356,9 +366,44 @@ export default function App() {
     }
   }, [customFilters]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('brabo_airtable_toolbar_filter', JSON.stringify(toolbarFilter));
+    } catch (e) {
+      console.warn('Erro ao salvar toolbarFilter:', e);
+    }
+  }, [toolbarFilter]);
+
+  // Synchronized Filter Handlers
+  const handleUpdateUniversalFilter = (newFilter) => {
+    const updated = typeof newFilter === 'function' ? newFilter(toolbarFilter) : newFilter;
+    setToolbarFilter(updated);
+
+    // Sync with sidebar saved filters
+    const matchedId = findMatchingFilterId(customFilters, updated);
+    if (matchedId) {
+      setActiveCustomFilterId(matchedId);
+    } else {
+      setActiveCustomFilterId('custom');
+    }
+  };
+
+  const handleSelectSidebarFilter = (filter) => {
+    setActiveCustomFilterId(filter.id);
+    const newRules = Array.isArray(filter.rules) ? JSON.parse(JSON.stringify(filter.rules)) : [];
+    setToolbarFilter({
+      conjunction: filter.conjunction || 'AND',
+      rules: newRules
+    });
+  };
+
   const handleCreateCustomFilter = (newFilter) => {
     setCustomFilters(prev => [...prev, newFilter]);
     setActiveCustomFilterId(newFilter.id);
+    setToolbarFilter({
+      conjunction: newFilter.conjunction || 'AND',
+      rules: Array.isArray(newFilter.rules) ? JSON.parse(JSON.stringify(newFilter.rules)) : []
+    });
     dbSaveCustomFilter(newFilter).catch(err => console.warn('Sync custom filter error:', err));
   };
 
@@ -366,7 +411,15 @@ export default function App() {
     setCustomFilters(prev => {
       const updated = prev.map(f => f.id === filterId ? { ...f, ...updates } : f);
       const target = updated.find(f => f.id === filterId);
-      if (target) dbSaveCustomFilter(target).catch(err => console.warn('Sync custom filter update error:', err));
+      if (target) {
+        dbSaveCustomFilter(target).catch(err => console.warn('Sync custom filter update error:', err));
+        if (activeCustomFilterId === filterId) {
+          setToolbarFilter({
+            conjunction: target.conjunction || 'AND',
+            rules: Array.isArray(target.rules) ? JSON.parse(JSON.stringify(target.rules)) : []
+          });
+        }
+      }
       return updated;
     });
   };
@@ -375,6 +428,7 @@ export default function App() {
     setCustomFilters(prev => prev.filter(f => f.id !== filterId));
     if (activeCustomFilterId === filterId) {
       setActiveCustomFilterId('all');
+      setToolbarFilter({ conjunction: 'AND', rules: [] });
     }
     dbDeleteCustomFilter(filterId).catch(err => console.warn('Sync delete custom filter error:', err));
   };
@@ -465,24 +519,6 @@ export default function App() {
     }
   };
 
-  // Toolbar dynamic multi-rule filter state
-  const [toolbarFilter, setToolbarFilter] = useState(() => {
-    try {
-      const saved = localStorage.getItem('brabo_airtable_toolbar_filter');
-      return saved ? JSON.parse(saved) : { conjunction: 'AND', rules: [] };
-    } catch {
-      return { conjunction: 'AND', rules: [] };
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('brabo_airtable_toolbar_filter', JSON.stringify(toolbarFilter));
-    } catch (e) {
-      console.warn('Erro ao salvar toolbarFilter:', e);
-    }
-  }, [toolbarFilter]);
-
   // Filter & Sort Messages for the Active Campaign & Selected Flow
   const filteredMessages = useMemo(() => {
     return flowMessages.filter(item => {
@@ -503,16 +539,11 @@ export default function App() {
         return false;
       }
 
-      // Toolbar Dynamic Multi-Rule Filter
+      // Universal Dynamic Multi-Rule Filter (Synchronized across Toolbar, Sidebar & Columns)
       if (toolbarFilter && toolbarFilter.rules && toolbarFilter.rules.length > 0) {
         if (!matchRecordWithFilter(item, toolbarFilter)) {
           return false;
         }
-      }
-
-      // Active Custom Filter Criteria from sidebar
-      if (activeCustomFilter && !matchRecordWithFilter(item, activeCustomFilter)) {
-        return false;
       }
 
       return true;
@@ -559,7 +590,7 @@ export default function App() {
       }
       return sortDirection === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
     });
-  }, [flowMessages, searchQuery, filterChannel, toolbarFilter, activeCustomFilter, sortBy, sortDirection]);
+  }, [flowMessages, searchQuery, filterChannel, toolbarFilter, sortBy, sortDirection]);
 
   // Automatic Dispatch: Quando o disparo estiver com o status "PROGRAMADO" e der o horário dele, muda automaticamente para "Disparada"
   useEffect(() => {
@@ -626,7 +657,7 @@ export default function App() {
       value: targetField === 'stage' ? 'Programada' : '',
       value2: ''
     };
-    setToolbarFilter(prev => ({
+    handleUpdateUniversalFilter(prev => ({
       conjunction: prev?.conjunction || 'AND',
       rules: [...(prev?.rules || []), newRule]
     }));
@@ -989,7 +1020,7 @@ export default function App() {
           filterChannel={filterChannel}
           setFilterChannel={setFilterChannel}
           toolbarFilter={toolbarFilter}
-          onUpdateToolbarFilter={setToolbarFilter}
+          onUpdateToolbarFilter={handleUpdateUniversalFilter}
           groupBy={groupBy}
           setGroupBy={setGroupBy}
           sortBy={sortBy}
@@ -1025,7 +1056,8 @@ export default function App() {
             <CustomFiltersSidebar
               customFilters={customFilters}
               activeFilterId={activeCustomFilterId}
-              onSelectFilter={(f) => setActiveCustomFilterId(f.id)}
+              currentFilter={toolbarFilter}
+              onSelectFilter={handleSelectSidebarFilter}
               onCreateFilter={handleCreateCustomFilter}
               onUpdateFilter={handleUpdateCustomFilter}
               onDeleteFilter={handleDeleteCustomFilter}
@@ -1041,6 +1073,7 @@ export default function App() {
               {activeView === 'grid' && (
                 <GridView
                   records={filteredMessages}
+                  allRecords={flowMessages}
                   campaign={activeCampaign}
                   onUpdateRecord={handleUpdateRecord}
                   onOpenRecord={handleOpenRecord}
@@ -1056,6 +1089,8 @@ export default function App() {
                   onUpdateCampaign={handleUpdateCampaign}
                   hiddenColumns={activeHiddenColumns}
                   activeFlowCategory={activeFlowCategory}
+                  universalFilter={toolbarFilter}
+                  onUpdateUniversalFilter={handleUpdateUniversalFilter}
                   onSortBy={(fieldId, dir) => {
                     setSortBy(fieldId);
                     setSortDirection(dir);

@@ -174,11 +174,13 @@ export default function ViewToolbar({
       case 'channel':
         return [
           { value: 'equals', label: 'é igual a' },
-          { value: 'not_equals', label: 'não é igual a' }
+          { value: 'not_equals', label: 'não é igual a' },
+          { value: 'is_any_of', label: 'é qualquer um de (tags)' }
         ];
       case 'date':
         return [
           { value: 'exact_date', label: 'data exata' },
+          { value: 'is_any_of', label: 'é qualquer uma das datas' },
           { value: 'is_today', label: 'é hoje' },
           { value: 'before', label: 'antes de' },
           { value: 'after', label: 'depois de' },
@@ -509,7 +511,26 @@ export default function ViewToolbar({
                         {/* Value Input */}
                         {!isNoVal && (
                           <div style={{ flex: '1.4' }}>
-                            {fieldObj.type === 'stage' ? (
+                            {rule.operator === 'is_any_of' || rule.operator === 'in' ? (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  fontSize: '0.74rem',
+                                  padding: '0.25rem 0.5rem',
+                                  background: 'rgba(56, 189, 248, 0.12)',
+                                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                                  borderRadius: '4px',
+                                  color: '#38bdf8',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis'
+                                }}
+                                title={Array.isArray(rule.value) ? rule.value.join(', ') : String(rule.value || '')}
+                              >
+                                {Array.isArray(rule.value) ? rule.value.join(', ') : String(rule.value || '')}
+                              </div>
+                            ) : fieldObj.type === 'stage' ? (
                               <select
                                 className="form-control"
                                 style={{ width: '100%', fontSize: '0.76rem', padding: '0.25rem 0.4rem' }}
