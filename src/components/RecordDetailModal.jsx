@@ -783,23 +783,21 @@ export default function RecordDetailModal({
               <input
                 type="text"
                 className="form-control"
-                placeholder="Ex: aviso_abertura_lote (apenas letras minúsculas e _)"
+                placeholder="Ex: Aviso Abertura de Lote ou aviso_abertura_lote"
                 value={formData.templateName || ''}
                 onChange={(e) => {
-                  const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                  handleChange('templateName', val);
+                  handleChange('templateName', e.target.value);
                 }}
                 style={{
                   fontSize: '0.82rem',
                   padding: '0.4rem 0.75rem',
                   width: '100%',
-                  fontFamily: 'var(--font-mono)',
                   color: '#34d399',
                   borderColor: 'rgba(0, 168, 132, 0.4)'
                 }}
               />
               <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                Nome exato do template aprovado na Unnichat / Meta para disparo via API (sem espaços e sem caracteres especiais).
+                Nome do template aprovado na Unnichat / Meta para disparo via API.
               </span>
             </div>
           )
