@@ -46,7 +46,7 @@ export function renderAttachmentBadge(att, maxWidth = '100%') {
     triggerFileDownload(att);
   };
 
-  const imgSource = att.previewUrl || att.dataUrl;
+  const imgSource = att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl;
 
   if (att.type === 'image') {
     return (
@@ -87,7 +87,7 @@ export function renderAttachmentBadge(att, maxWidth = '100%') {
   }
 
   if (att.type === 'video') {
-    const thumb = att.thumbnailUrl || att.previewUrl;
+    const thumb = att.thumbnailUrl;
 
     return (
       <div style={{

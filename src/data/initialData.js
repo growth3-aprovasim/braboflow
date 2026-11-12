@@ -136,8 +136,36 @@ export function extractAllCampaignBracketTags(messages = []) {
 
 export function normalizeAttachments(attachmentField) {
   if (!attachmentField) return [];
+  if (typeof attachmentField === 'string') {
+    const trimmed = attachmentField.trim();
+    if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return normalizeAttachments(parsed);
+      } catch {
+        // not valid JSON string
+      }
+    }
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return [{
+        url: trimmed,
+        publicUrl: trimmed,
+        name: trimmed.split('/').pop()?.split('?')[0] || 'anexo'
+      }];
+    }
+    return [];
+  }
   if (Array.isArray(attachmentField)) return attachmentField.filter(Boolean);
-  if (typeof attachmentField === 'object' && (attachmentField.id || attachmentField.name || attachmentField.previewUrl || attachmentField.publicUrl)) {
+  if (typeof attachmentField === 'object' && (
+    attachmentField.id ||
+    attachmentField.name ||
+    attachmentField.previewUrl ||
+    attachmentField.publicUrl ||
+    attachmentField.url ||
+    attachmentField.fileUrl ||
+    attachmentField.storagePath ||
+    attachmentField.dataUrl
+  )) {
     return [attachmentField];
   }
   return [];

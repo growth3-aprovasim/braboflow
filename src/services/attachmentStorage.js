@@ -1,3 +1,4 @@
+import { supabase } from './supabase';
 import { uploadAttachmentToSupabase } from './supabaseService';
 
 // IndexedDB storage service for file attachments (audio, video, image, PDF, docs)
@@ -99,16 +100,91 @@ export async function getAttachmentBlob(id) {
   }
 }
 
+export function isRemoteUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  return url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//');
+}
+
+/**
+ * Extracts bucket and path if a URL matches Supabase Storage patterns.
+ * e.g. https://...supabase.co/storage/v1/object/public/midia/copymetrix/...
+ */
+export function parseSupabaseStorageUrl(urlOrPath) {
+  if (!urlOrPath || typeof urlOrPath !== 'string') return null;
+
+  const match = urlOrPath.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/]+)\/(.+)$/);
+  if (match) {
+    const bucket = decodeURIComponent(match[1]);
+    const rawPath = match[2].split('?')[0];
+    return {
+      bucket,
+      path: decodeURIComponent(rawPath)
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Resolves the primary remote URL from an attachment object if present.
+ */
+export function resolveAttachmentRemoteUrl(attachment) {
+  if (!attachment) return null;
+  if (typeof attachment === 'string' && isRemoteUrl(attachment)) {
+    return attachment;
+  }
+  if (typeof attachment === 'object') {
+    const candidates = [
+      attachment.publicUrl,
+      attachment.url,
+      attachment.fileUrl,
+      attachment.previewUrl
+    ];
+    for (const cand of candidates) {
+      if (typeof cand === 'string' && isRemoteUrl(cand)) {
+        return cand;
+      }
+    }
+  }
+  return null;
+}
+
 export async function getAttachmentUrl(attachmentOrId) {
   if (!attachmentOrId) return null;
+
   if (typeof attachmentOrId === 'object') {
-    if (attachmentOrId.publicUrl) return attachmentOrId.publicUrl;
-    if (attachmentOrId.fileUrl) return attachmentOrId.fileUrl;
+    // 1. Direct remote URL (publicUrl, url, fileUrl, or remote previewUrl)
+    const remoteUrl = resolveAttachmentRemoteUrl(attachmentOrId);
+    if (remoteUrl) return remoteUrl;
+
+    // 2. Storage Path on Supabase
+    if (attachmentOrId.storagePath) {
+      try {
+        const bucket = attachmentOrId.bucket || 'bflow-attachments';
+        const { data } = supabase.storage.from(bucket).getPublicUrl(attachmentOrId.storagePath);
+        if (data?.publicUrl) return data.publicUrl;
+      } catch (err) {
+        console.warn('Erro ao obter publicUrl do storagePath:', err);
+      }
+    }
+
+    // 3. Local dataUrl
     if (attachmentOrId.dataUrl) return attachmentOrId.dataUrl;
+
+    // 4. Local blob previewUrl
+    if (attachmentOrId.previewUrl && typeof attachmentOrId.previewUrl === 'string') {
+      return attachmentOrId.previewUrl;
+    }
+
+    // 5. Lookup by ID in IndexedDB
     if (attachmentOrId.id) return getAttachmentUrl(attachmentOrId.id);
     return null;
   }
+
   const id = attachmentOrId;
+  if (typeof id === 'string' && isRemoteUrl(id)) {
+    return id;
+  }
   if (objectUrlCache.has(id)) {
     return objectUrlCache.get(id);
   }
@@ -144,58 +220,127 @@ export async function deleteAttachmentFile(id) {
   }
 }
 
+async function triggerDirectBlobDownload(blob, filename) {
+  const downloadUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = downloadUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => {
+    try {
+      URL.revokeObjectURL(downloadUrl);
+    } catch {
+      // ignore
+    }
+  }, 10000);
+}
+
 /**
  * Triggers browser download for an attached file.
- * Checks IndexedDB first, then fallback to dataUrl if available.
+ * Prioritizes downloading from Supabase Storage / Remote URL first,
+ * falling back to IndexedDB local cache or dataUrl.
  */
 export async function triggerFileDownload(attachment) {
-  if (!attachment) return;
+  if (!attachment) return false;
 
-  const filename = attachment.name || 'arquivo_anexo';
+  let att = attachment;
+  if (typeof att === 'string') {
+    if (isRemoteUrl(att)) {
+      att = { url: att };
+    } else {
+      att = { id: att };
+    }
+  }
+
+  // Determine a sensible filename
+  let filename = att.name;
+  if (!filename) {
+    const candUrl = resolveAttachmentRemoteUrl(att) || att.storagePath || '';
+    if (candUrl) {
+      const cleanPath = candUrl.split('?')[0].split('#')[0];
+      const parts = cleanPath.split('/');
+      filename = parts[parts.length - 1];
+    }
+  }
+  if (!filename || filename.trim() === '') {
+    filename = att.type === 'video' ? 'video.mp4' : att.type === 'image' ? 'imagem.png' : 'arquivo_anexo';
+  }
 
   try {
-    // 0. If Supabase publicUrl exists, fetch or open direct download
-    if (attachment.publicUrl) {
+    const remoteUrl = resolveAttachmentRemoteUrl(att);
+
+    // 1. Supabase Storage download via Supabase Client (.download())
+    // Handles custom auth, private buckets, and avoids browser CORS blocks
+    let storageInfo = null;
+    if (att.storagePath) {
+      storageInfo = {
+        bucket: att.bucket || 'bflow-attachments',
+        path: att.storagePath
+      };
+    } else if (remoteUrl) {
+      storageInfo = parseSupabaseStorageUrl(remoteUrl);
+    }
+
+    if (storageInfo && storageInfo.bucket && storageInfo.path) {
       try {
-        const resp = await fetch(attachment.publicUrl);
-        const blob = await resp.blob();
-        const downloadUrl = URL.createObjectURL(blob);
+        const { data: blob, error } = await supabase.storage
+          .from(storageInfo.bucket)
+          .download(storageInfo.path);
+
+        if (!error && blob && blob.size > 0) {
+          await triggerDirectBlobDownload(blob, filename);
+          return true;
+        }
+      } catch (storageErr) {
+        console.warn('Supabase storage .download() falhou, tentando fallback por URL/fetch:', storageErr);
+      }
+    }
+
+    // 2. Fetch remote URL directly (if available)
+    if (remoteUrl) {
+      try {
+        const resp = await fetch(remoteUrl, { mode: 'cors' });
+        if (resp.ok) {
+          const blob = await resp.blob();
+          await triggerDirectBlobDownload(blob, filename);
+          return true;
+        }
+      } catch (fetchErr) {
+        console.warn('Fetch direto falhou (provável restrição de CORS). Tentando link direto:', fetchErr);
+      }
+
+      // If fetch failed due to CORS or network, open directly / simulate download link
+      try {
         const a = document.createElement('a');
-        a.href = downloadUrl;
+        a.href = remoteUrl;
         a.download = filename;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
         return true;
       } catch {
-        window.open(attachment.publicUrl, '_blank');
+        window.open(remoteUrl, '_blank');
         return true;
       }
     }
 
-    // 1. Try fetching blob from IndexedDB
-    let blob = null;
-    if (attachment.id) {
-      blob = await getAttachmentBlob(attachment.id);
+    // 3. Try fetching blob from IndexedDB (local browser cache)
+    if (att.id) {
+      const blob = await getAttachmentBlob(att.id);
+      if (blob) {
+        await triggerDirectBlobDownload(blob, filename);
+        return true;
+      }
     }
 
-    if (blob) {
-      const downloadUrl = URL.createObjectURL(blob);
+    // 4. Fallback: if attachment has dataUrl
+    if (att.dataUrl) {
       const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 5000);
-      return true;
-    }
-
-    // 2. Fallback: if attachment has dataUrl
-    if (attachment.dataUrl) {
-      const a = document.createElement('a');
-      a.href = attachment.dataUrl;
+      a.href = att.dataUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -203,11 +348,22 @@ export async function triggerFileDownload(attachment) {
       return true;
     }
 
-    alert(`Arquivo "${filename}" não encontrado no cache local. Por favor, anexe o arquivo novamente.`);
+    // 5. Fallback: previewUrl (e.g. blob:...)
+    if (att.previewUrl && typeof att.previewUrl === 'string') {
+      const a = document.createElement('a');
+      a.href = att.previewUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return true;
+    }
+
+    alert(`Não foi possível localizar o arquivo "${filename}" no servidor Supabase ou localmente.`);
     return false;
   } catch (err) {
     console.error('Falha ao baixar arquivo:', err);
-    alert('Erro ao realizar o download do arquivo.');
+    alert('Erro ao realizar o download do arquivo. Por favor, tente novamente.');
     return false;
   }
 }

@@ -1500,9 +1500,9 @@ export default function RecordDetailModal({
                   >
                     {/* Left: Thumbnail & Name */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                      {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl)) ? (
+                      {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl)) ? (
                         <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       ) : (
                         <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
