@@ -30,7 +30,6 @@ export default function Header({
   onExportData, 
   onImportData, 
   onResetData,
-  onOpenImportCsv,
   supabaseStatus = 'connected'
 }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
@@ -188,9 +187,9 @@ export default function Header({
             borderRadius: '6px',
             fontSize: '0.75rem',
             fontWeight: 600,
-            background: supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : supabaseStatus === 'syncing' ? 'rgba(56, 189, 248, 0.1)' : 'rgba(239, 68, 68, 0.1)',
-            border: `1px solid ${supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.25)' : supabaseStatus === 'syncing' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
-            color: supabaseStatus === 'connected' ? '#4ade80' : supabaseStatus === 'syncing' ? '#38bdf8' : '#f87171',
+            background: supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : supabaseStatus === 'syncing' ? 'rgba(247, 186, 18, 0.12)' : 'rgba(239, 68, 68, 0.1)',
+            border: `1px solid ${supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.25)' : supabaseStatus === 'syncing' ? 'rgba(247, 186, 18, 0.35)' : 'rgba(239, 68, 68, 0.25)'}`,
+            color: supabaseStatus === 'connected' ? '#4ade80' : supabaseStatus === 'syncing' ? '#F7BA12' : '#f87171',
             letterSpacing: '0.2px'
           }}
           title={supabaseStatus === 'connected' ? 'Conectado ao Supabase (bflow_*)' : supabaseStatus === 'syncing' ? 'Sincronizando com Supabase...' : 'Aguardando sincronização com Supabase'}
@@ -206,7 +205,7 @@ export default function Header({
               width: '6px', 
               height: '6px', 
               borderRadius: '50%', 
-              backgroundColor: supabaseStatus === 'connected' ? '#22c55e' : supabaseStatus === 'syncing' ? '#38bdf8' : '#ef4444',
+              backgroundColor: supabaseStatus === 'connected' ? '#22c55e' : supabaseStatus === 'syncing' ? '#F7BA12' : '#ef4444',
               boxShadow: supabaseStatus === 'connected' ? '0 0 6px #22c55e' : 'none'
             }} 
           />
@@ -235,17 +234,6 @@ export default function Header({
           {showExportMenu && (
             <div className="popover-menu" style={{ right: 0, minWidth: '220px' }}>
               <div className="popover-title">Backup & Exportação</div>
-              <div 
-                className="popover-item"
-                onClick={() => {
-                  if (onOpenImportCsv) onOpenImportCsv();
-                  setShowExportMenu(false);
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#38bdf8', fontWeight: 600 }}>
-                  <FileSpreadsheet size={14} color="#38bdf8" /> Importar CSV do Airtable
-                </span>
-              </div>
               <div 
                 className="popover-item"
                 onClick={() => { onExportData('json'); setShowExportMenu(false); }}
@@ -281,7 +269,7 @@ export default function Header({
                 }}
               >
                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Upload size={14} color="#3b82f6" /> Importar Backup JSON
+                  <Upload size={14} color="#F7BA12" /> Importar Backup JSON
                 </span>
               </div>
             </div>

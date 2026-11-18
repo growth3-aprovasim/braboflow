@@ -278,7 +278,7 @@ function CreativeGridCell({ record, onOpenRecord, onUpdateRecord, colWidth }) {
           </span>
         </div>
       ) : isUploading ? (
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#38bdf8', fontSize: '0.72rem', fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#F7BA12', fontSize: '0.72rem', fontWeight: 600 }}>
           <Loader2 size={13} className="animate-spin" />
           <span style={{ whiteSpace: 'nowrap' }}>Salvando...</span>
         </div>
@@ -305,7 +305,7 @@ function CreativeGridCell({ record, onOpenRecord, onUpdateRecord, colWidth }) {
               onClick={() => onOpenRecord(record)}
               title={`Imagem: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''} - Clique para abrir ou arraste outro arquivo (máx 100MB)`}
             >
-              <div className="grid-creative-thumb" style={{ border: '1px solid rgba(56, 189, 248, 0.4)' }}>
+              <div className="grid-creative-thumb" style={{ border: '1px solid rgba(247, 186, 18, 0.4)' }}>
                 {mediaUrl ? (
                   <img
                     src={mediaUrl}
@@ -313,10 +313,10 @@ function CreativeGridCell({ record, onOpenRecord, onUpdateRecord, colWidth }) {
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
-                  <ImageIcon size={14} color="#38bdf8" />
+                  <ImageIcon size={14} color="#F7BA12" />
                 )}
               </div>
-              <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.72rem', color: '#F7BA12', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {firstAtt.name}
               </span>
               {extraBadge}
@@ -1106,9 +1106,9 @@ export default function GridView({
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                background: 'rgba(56, 189, 248, 0.22)',
-                border: '1px solid rgba(56, 189, 248, 0.45)',
-                color: '#38bdf8',
+                background: 'rgba(247, 186, 18, 0.2)',
+                border: '1px solid rgba(247, 186, 18, 0.45)',
+                color: '#F7BA12',
                 borderRadius: '4px',
                 padding: '2px 4px',
                 cursor: 'pointer',
@@ -1126,7 +1126,7 @@ export default function GridView({
                 });
               }}
             >
-              <Filter size={11} color="#38bdf8" />
+              <Filter size={11} color="#F7BA12" />
             </span>
           )}
           <button
@@ -2377,10 +2377,10 @@ export default function GridView({
             <div
               className="airtable-ctx-item"
               style={{
-                background: 'rgba(56, 189, 248, 0.12)',
-                color: '#38bdf8',
+                background: 'rgba(247, 186, 18, 0.12)',
+                color: '#F7BA12',
                 fontWeight: 600,
-                border: '1px solid rgba(56, 189, 248, 0.25)',
+                border: '1px solid rgba(247, 186, 18, 0.3)',
                 borderRadius: '5px',
                 margin: '2px 0'
               }}
@@ -2395,7 +2395,7 @@ export default function GridView({
                 setHeaderContextMenu(null);
               }}
             >
-              <Filter size={14} className="airtable-ctx-icon" color="#38bdf8" />
+              <Filter size={14} className="airtable-ctx-icon" color="#F7BA12" />
               <span>Filtrar por tags de {headerContextMenu.colLabel}...</span>
             </div>
           ) : (
@@ -2784,8 +2784,8 @@ function ColumnTagFilterModal({
         width: '300px',
         maxHeight: '420px',
         background: '#161b26',
-        border: '1px solid #3b82f6',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.65), 0 0 15px rgba(59, 130, 246, 0.25)',
+        border: '1px solid #F7BA12',
+        boxShadow: '0 12px 36px rgba(0,0,0,0.65), 0 0 15px rgba(247, 186, 18, 0.25)',
         borderRadius: '10px',
         zIndex: 10000,
         display: 'flex',
@@ -2805,7 +2805,7 @@ function ColumnTagFilterModal({
         background: 'rgba(0,0,0,0.2)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Filter size={14} color="#38bdf8" />
+          <Filter size={14} color="#F7BA12" />
           <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9' }}>
             Filtrar: {colLabel}
           </span>
@@ -2850,7 +2850,7 @@ function ColumnTagFilterModal({
           <button
             type="button"
             onClick={handleSelectAll}
-            style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', fontWeight: 600, padding: 0 }}
+            style={{ background: 'transparent', border: 'none', color: '#F7BA12', cursor: 'pointer', fontWeight: 600, padding: 0 }}
           >
             Todos
           </button>
@@ -2880,7 +2880,7 @@ function ColumnTagFilterModal({
                 padding: '0.35rem 0.55rem',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                background: isChecked ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+                background: isChecked ? 'rgba(247, 186, 18, 0.12)' : 'transparent',
                 transition: 'background 0.12s ease'
               }}
               onMouseOver={(e) => {
@@ -2895,7 +2895,7 @@ function ColumnTagFilterModal({
                   type="checkbox"
                   checked={isChecked}
                   onChange={() => {}}
-                  style={{ accentColor: '#38bdf8', cursor: 'pointer' }}
+                  style={{ accentColor: '#F7BA12', cursor: 'pointer' }}
                 />
                 <span style={{
                   fontSize: '0.78rem',
@@ -2970,13 +2970,13 @@ function ColumnTagFilterModal({
             type="button"
             onClick={handleApply}
             style={{
-              background: '#38bdf8',
+              background: 'linear-gradient(135deg, #F7BA12 0%, #e5ab0d 100%)',
               border: 'none',
               borderRadius: '5px',
               padding: '0.35rem 0.85rem',
               fontSize: '0.74rem',
               fontWeight: 700,
-              color: '#0f172a',
+              color: '#0c0d12',
               cursor: 'pointer'
             }}
           >

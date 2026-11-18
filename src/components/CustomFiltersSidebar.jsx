@@ -361,8 +361,8 @@ export default function CustomFiltersSidebar({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <Sparkles size={13} color="#38bdf8" /> Filtro Ativo
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#F7BA12', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Sparkles size={13} color="#F7BA12" /> Filtro Ativo
               </span>
               <button
                 type="button"
@@ -374,9 +374,9 @@ export default function CustomFiltersSidebar({
                   setIsModalOpen(true);
                 }}
                 style={{
-                  background: 'rgba(56, 189, 248, 0.2)',
+                  background: 'rgba(247, 186, 18, 0.2)',
                   border: 'none',
-                  color: '#38bdf8',
+                  color: '#F7BA12',
                   fontSize: '0.7rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -491,7 +491,7 @@ export default function CustomFiltersSidebar({
                 {/* Edit Button */}
                 <button
                   className="btn-ghost"
-                  style={{ padding: '0.2rem', color: '#38bdf8' }}
+                  style={{ padding: '0.2rem', color: '#F7BA12' }}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenEditModal(filter);
@@ -701,7 +701,7 @@ export default function CustomFiltersSidebar({
                         {/* 2. Operator Select */}
                         <select
                           className="form-control"
-                          style={{ fontSize: '0.78rem', padding: '0.4rem 0.5rem', color: '#38bdf8', fontWeight: 600 }}
+                          style={{ fontSize: '0.78rem', padding: '0.4rem 0.5rem', color: '#F7BA12', fontWeight: 600 }}
                           value={rule.operator}
                           onChange={(e) => handleRuleChange(rule.id, { operator: e.target.value })}
                         >

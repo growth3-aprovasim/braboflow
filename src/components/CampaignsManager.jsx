@@ -21,7 +21,6 @@ import {
   Check
 } from 'lucide-react';
 import { YouTubeIcon } from './ChannelPreview';
-import ImportCsvModal from './ImportCsvModal';
 import EditCampaignModal, { CAMPAIGN_COLORS } from './EditCampaignModal';
 
 export default function CampaignsManager({
@@ -33,7 +32,6 @@ export default function CampaignsManager({
   onOpenTagsModal
 }) {
   const [isCreating, setIsCreating] = useState(false);
-  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [newCampaignName, setNewCampaignName] = useState('');
@@ -67,11 +65,6 @@ export default function CampaignsManager({
     setNewBadgeColor('#facc15');
   };
 
-  const handleCsvImported = async (importedCampaign) => {
-    await onAddNewCampaign(importedCampaign);
-    setIsImportModalOpen(false);
-  };
-
   return (
     <div style={{ padding: '2rem', maxWidth: '1350px', margin: '0 auto' }}>
       {/* Page Title & Actions */}
@@ -85,31 +78,11 @@ export default function CampaignsManager({
             Campanhas & Fluxos de Disparo
           </h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-            Selecione uma campanha ou importe uma tabela CSV completa do Airtable com todas as linhas e colunas.
+            Selecione uma campanha ou crie um novo fluxo estratégico de disparos.
           </p>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setIsImportModalOpen(true)}
-            style={{ 
-              padding: '0.55rem 1rem', 
-              fontSize: '0.85rem', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.45rem',
-              color: '#38bdf8',
-              borderColor: 'rgba(56, 189, 248, 0.3)',
-              background: 'rgba(56, 189, 248, 0.08)'
-            }}
-            title="Importar planilha exportada do Airtable em CSV"
-          >
-            <FileSpreadsheet size={16} />
-            <span>Importar CSV do Airtable</span>
-          </button>
-
           <button
             className="btn-primary"
             onClick={() => setIsCreating(true)}
@@ -153,26 +126,17 @@ export default function CampaignsManager({
             Nenhuma campanha cadastrada no Supabase
           </h3>
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', maxWidth: '440px', lineHeight: 1.5 }}>
-            Você pode importar uma planilha do Airtable em CSV (todas as linhas e colunas serão criadas automaticamente) ou cadastrar manualmente.
+            Você pode cadastrar uma nova campanha manualmente para gerenciar os seus disparos e fluxos.
           </p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
             <button
               className="btn-primary"
-              onClick={() => setIsImportModalOpen(true)}
+              onClick={() => setIsCreating(true)}
               style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
             >
-              <FileSpreadsheet size={16} />
-              <span>Importar CSV do Airtable</span>
-            </button>
-
-            <button
-              className="btn-secondary"
-              onClick={() => setIsCreating(true)}
-              style={{ padding: '0.65rem 1.25rem', fontSize: '0.9rem' }}
-            >
               <Plus size={16} strokeWidth={2} />
-              <span>Criar Manualmente</span>
+              <span>Criar Nova Campanha</span>
             </button>
           </div>
         </div>
@@ -444,31 +408,6 @@ export default function CampaignsManager({
             </div>
 
             <form onSubmit={handleSubmitNewCampaign} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem', overflowY: 'auto' }}>
-              {/* Shortcut to Import from Airtable */}
-              <div 
-                onClick={() => { setIsCreating(false); setIsImportModalOpen(true); }}
-                style={{
-                  background: 'rgba(56, 189, 248, 0.08)',
-                  border: '1px dashed rgba(56, 189, 248, 0.3)',
-                  borderRadius: '8px',
-                  padding: '0.75rem 1rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  cursor: 'pointer',
-                  transition: 'var(--transition-fast)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                  <FileSpreadsheet size={18} color="#38bdf8" />
-                  <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#38bdf8' }}>Prefere importar do Airtable?</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Suba o arquivo .csv e criaremos todas as linhas e colunas 100% automático.</div>
-                  </div>
-                </div>
-                <ArrowRight size={14} color="#38bdf8" />
-              </div>
-
               <div className="form-group">
                 <label className="form-label">Nome da Campanha *</label>
                 <input
@@ -571,13 +510,6 @@ export default function CampaignsManager({
           </div>
         </div>
       )}
-
-      {/* Airtable CSV Import Modal */}
-      <ImportCsvModal
-        isOpen={isImportModalOpen}
-        onClose={() => setIsImportModalOpen(false)}
-        onImportCampaign={handleCsvImported}
-      />
 
       {/* Edit Campaign Modal */}
       <EditCampaignModal

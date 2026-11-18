@@ -517,10 +517,10 @@ export default function ViewToolbar({
                                   width: '100%',
                                   fontSize: '0.74rem',
                                   padding: '0.25rem 0.5rem',
-                                  background: 'rgba(56, 189, 248, 0.12)',
-                                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                                  background: 'rgba(247, 186, 18, 0.12)',
+                                  border: '1px solid rgba(247, 186, 18, 0.35)',
                                   borderRadius: '4px',
-                                  color: '#38bdf8',
+                                  color: '#F7BA12',
                                   fontWeight: 600,
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
@@ -676,7 +676,7 @@ export default function ViewToolbar({
                 <button
                   type="button"
                   onClick={onShowAllColumns}
-                  style={{ background: 'transparent', border: 'none', color: '#38bdf8', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                  style={{ background: 'transparent', border: 'none', color: '#F7BA12', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
                   title="Restaurar todas as colunas visíveis"
                 >
                   Mostrar Todas

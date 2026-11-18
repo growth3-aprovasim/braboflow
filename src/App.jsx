@@ -12,7 +12,6 @@ import CampaignTagsModal from './components/CampaignTagsModal';
 import { Sparkles, Plus, Copy, Check, ExternalLink, Edit3, X } from 'lucide-react';
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
-import ImportCsvModal from './components/ImportCsvModal';
 import EditCampaignModal from './components/EditCampaignModal';
 
 import { matchRecordWithFilter, extractAllCampaignBracketTags, findMatchingFilterId } from './data/initialData';
@@ -450,9 +449,6 @@ export default function App() {
 
   const activeTagsCount = activeTags.length;
 
-  // Global Airtable CSV Import Modal state
-  const [isGlobalImportModalOpen, setIsGlobalImportModalOpen] = useState(false);
-
   // Active Campaign Edit Modal state
   const [isEditActiveCampaignModalOpen, setIsEditActiveCampaignModalOpen] = useState(false);
 
@@ -591,6 +587,36 @@ export default function App() {
       return sortDirection === 'asc' ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
     });
   }, [flowMessages, searchQuery, filterChannel, toolbarFilter, sortBy, sortDirection]);
+
+  // Ordenação exata da tabela que o usuário está visualizando (agrupamento, filtros e ordenação)
+  const currentTableOrderedRecords = useMemo(() => {
+    if (!filteredMessages || filteredMessages.length === 0) return [];
+    if (!groupBy || groupBy === 'none') {
+      return filteredMessages;
+    }
+    const groups = {};
+    filteredMessages.forEach(rec => {
+      let key = 'Sem Categoria';
+      if (groupBy === 'date' || groupBy === 'scheduledDate') {
+        key = rec.scheduledDate || 'Sem Data Definida';
+      } else if (groupBy === 'stage') {
+        key = rec.stage || 'Em Rascunho';
+      } else if (groupBy === 'channel') {
+        key = rec.channel || 'Sem Canal';
+      } else if (groupBy === 'time' || groupBy === 'scheduledTime') {
+        key = rec.scheduledTime || 'Sem Horário';
+      } else if (groupBy === 'title') {
+        key = rec.title || 'Sem Nome';
+      } else if (rec[groupBy]) {
+        key = rec[groupBy];
+      } else if (rec.customFields && rec.customFields[groupBy] !== undefined) {
+        key = String(rec.customFields[groupBy] || 'Vazio');
+      }
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(rec);
+    });
+    return Object.values(groups).flat();
+  }, [filteredMessages, groupBy]);
 
   // Automatic Dispatch: Quando o disparo estiver com o status "PROGRAMADO" e der o horário dele, muda automaticamente para "Disparada"
   useEffect(() => {
@@ -1008,7 +1034,6 @@ export default function App() {
         onExportData={handleExportData}
         onImportData={handleImportData}
         onResetData={handleResetData}
-        onOpenImportCsv={() => setIsGlobalImportModalOpen(true)}
         supabaseStatus={supabaseStatus}
       />
 
@@ -1318,7 +1343,7 @@ export default function App() {
                                           transition: 'color 0.15s ease'
                                         }}
                                         title="Clique para abrir e modificar este disparo diretamente"
-                                        onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = '#F7BA12'}
                                         onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
                                       >
                                         {liveMsg.title}
@@ -1340,12 +1365,12 @@ export default function App() {
                                         style={{ 
                                           fontSize: '0.72rem', 
                                           padding: '0.2rem 0.55rem', 
-                                          color: editingPageMsgId === m.id ? '#f59e0b' : '#38bdf8', 
-                                          borderColor: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.45)' : 'rgba(56, 189, 248, 0.4)', 
+                                          color: editingPageMsgId === m.id ? '#f59e0b' : '#F7BA12', 
+                                          borderColor: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.45)' : 'rgba(247, 186, 18, 0.4)', 
                                           display: 'flex', 
                                           alignItems: 'center', 
                                           gap: '0.3rem',
-                                          background: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(56, 189, 248, 0.1)',
+                                          background: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(247, 186, 18, 0.1)',
                                           borderRadius: '4px'
                                         }}
                                         title="Editar este disparo diretamente no quadradinho"
@@ -1404,12 +1429,12 @@ export default function App() {
                                       gap: '0.65rem',
                                       marginTop: '0.35rem',
                                       background: 'rgba(15, 23, 42, 0.95)',
-                                      border: '1px solid rgba(56, 189, 248, 0.4)',
+                                      border: '1px solid rgba(247, 186, 18, 0.4)',
                                       borderRadius: '6px',
                                       padding: '0.85rem'
                                     }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                        <span style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ fontSize: '0.74rem', color: '#F7BA12', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                           <Edit3 size={12} /> Editar Mensagem no Card
                                         </span>
                                         <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
@@ -1488,9 +1513,9 @@ export default function App() {
                                           style={{
                                             fontSize: '0.74rem',
                                             padding: '0.28rem 0.75rem',
-                                            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                                            color: '#fff',
-                                            fontWeight: 600,
+                                            background: 'linear-gradient(135deg, #F7BA12 0%, #e5ab0d 100%)',
+                                            color: '#0c0d12',
+                                            fontWeight: 700,
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '0.35rem'
@@ -1514,7 +1539,7 @@ export default function App() {
                                         <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Texto com Tag:</span>
                                         <div style={{
                                           background: 'rgba(0, 0, 0, 0.5)',
-                                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                                          border: '1px solid rgba(247, 186, 18, 0.25)',
                                           borderRadius: '6px',
                                           padding: '0.75rem',
                                           color: '#f1f5f9',
@@ -1557,9 +1582,9 @@ export default function App() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '0.35rem',
-                                            color: '#38bdf8',
-                                            borderColor: 'rgba(56, 189, 248, 0.4)',
-                                            background: 'rgba(56, 189, 248, 0.1)'
+                                            color: '#F7BA12',
+                                            borderColor: 'rgba(247, 186, 18, 0.4)',
+                                            background: 'rgba(247, 186, 18, 0.1)'
                                           }}
                                           title="Editar o texto deste disparo diretamente no quadradinho"
                                         >
@@ -1576,9 +1601,9 @@ export default function App() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '0.35rem',
-                                            background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                                            color: '#fff',
-                                            fontWeight: 600
+                                            background: 'linear-gradient(135deg, #F7BA12 0%, #e5ab0d 100%)',
+                                            color: '#0c0d12',
+                                            fontWeight: 700
                                           }}
                                           title="Abrir detalhes deste disparo em tela inteira"
                                         >
@@ -1616,6 +1641,10 @@ export default function App() {
       <RecordDetailModal
         record={selectedRecord}
         campaign={activeCampaign}
+        recordsList={currentTableOrderedRecords}
+        onNavigateRecord={(targetRecord) => {
+          handleOpenRecord(targetRecord);
+        }}
         isOpen={isRecordModalOpen}
         onClose={() => {
           setIsRecordModalOpen(false);
@@ -1645,16 +1674,6 @@ export default function App() {
           setIsTagsModalOpen(false);
           setTagsModalCampaign(null);
           handleOpenRecord(rec);
-        }}
-      />
-
-      {/* 8. Global Airtable CSV Import Modal */}
-      <ImportCsvModal
-        isOpen={isGlobalImportModalOpen}
-        onClose={() => setIsGlobalImportModalOpen(false)}
-        onImportCampaign={(newCamp) => {
-          handleAddNewCampaign(newCamp);
-          setIsGlobalImportModalOpen(false);
         }}
       />
 

@@ -27,6 +27,8 @@ import {
   EyeOff,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Layers,
   CheckSquare,
   Type,
@@ -44,6 +46,8 @@ import ChannelPreview from './ChannelPreview';
 export default function RecordDetailModal({
   record,
   campaign,
+  recordsList = [],
+  onNavigateRecord,
   isOpen,
   onClose,
   onUpdateRecord,
@@ -63,12 +67,62 @@ export default function RecordDetailModal({
   const modalDragCounter = useRef(0);
   const [collapsedButtons, setCollapsedButtons] = useState({});
 
+  // Current position in the ordered table list
+  const currentIndex = useMemo(() => {
+    if (!Array.isArray(recordsList) || recordsList.length === 0 || !record) return -1;
+    return recordsList.findIndex(r => r.id === record.id);
+  }, [recordsList, record?.id]);
+
+  const hasPrev = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < recordsList.length - 1;
+
+  const prevRecord = hasPrev ? recordsList[currentIndex - 1] : null;
+  const nextRecord = hasNext ? recordsList[currentIndex + 1] : null;
+
+  const handleNavigate = (direction) => {
+    if (direction === 'prev' && hasPrev && prevRecord) {
+      if (onNavigateRecord) onNavigateRecord(prevRecord);
+    } else if (direction === 'next' && hasNext && nextRecord) {
+      if (onNavigateRecord) onNavigateRecord(nextRecord);
+    }
+  };
+
+  // Keyboard navigation: ArrowLeft / ArrowRight to switch records when not typing
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isInput = tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable;
+
+      if (!isInput) {
+        if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          if (hasPrev) {
+            e.preventDefault();
+            handleNavigate('prev');
+          }
+        } else if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+          if (hasNext) {
+            e.preventDefault();
+            handleNavigate('next');
+          }
+        }
+      }
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, hasPrev, hasNext, prevRecord, nextRecord]);
+
   // Sync when opening or when record content changes
   useEffect(() => {
     if (record && isOpen) {
       setFormData(record);
     }
-  }, [isOpen, record?.id, record?.copyText, record?.title, record?.stage, record?.channel]);
+  }, [isOpen, record?.id, record?.copyText, record?.title, record?.stage, record?.channel, record?.selectedLinkId, record?.variables, record?.customFields, record?.attachment]);
 
   // Load preview URLs from IndexedDB for all attachments if not present
   useEffect(() => {
@@ -1812,71 +1866,201 @@ export default function RecordDetailModal({
   const hiddenFieldsList = allFields.filter(f => hiddenColumns.includes(f.id));
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '0.5rem'
+      }}
+    >
+      {/* Wrapper to hold side navigation arrows and modal container */}
       <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
         style={{
-          width: '94vw',
-          maxWidth: '1180px',
-          height: '92vh',
-          maxHeight: '92vh',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 0,
-          borderRadius: '10px',
-          border: '1px solid var(--border-color)',
-          background: 'var(--bg-card)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)'
-        }}
-      >
-        {/* Minimalist Top Header Bar (Airtable Style) */}
-        <div style={{
-          padding: '0.75rem 1.25rem',
-          borderBottom: '1px solid var(--border-color)',
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          background: 'var(--bg-sidebar)',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: 0, marginRight: '1rem' }}>
-            <span style={{
-              fontSize: '0.72rem',
-              fontWeight: 600,
-              color: 'var(--text-muted)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              padding: '0.15rem 0.5rem',
-              borderRadius: '4px',
-              border: '1px solid var(--border-subtle)',
-              flexShrink: 0
-            }}>
-              {campaign ? campaign.name : 'DISPARO'}
-            </span>
+          justifyContent: 'center',
+          maxWidth: '100vw',
+          maxHeight: '100vh'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Setinha Lateral Esquerda (Disparo Anterior) */}
+        {hasPrev && (
+          <button
+            type="button"
+            className="disparo-side-arrow disparo-side-arrow-prev"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigate('prev');
+            }}
+            title={`Anterior: "${prevRecord?.title || 'Disparo anterior'}" (← Seta esquerda)`}
+            aria-label="Disparo anterior"
+            style={{
+              position: 'absolute',
+              left: '-60px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 110,
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              background: '#12151C',
+              border: '1.5px solid rgba(247, 186, 18, 0.5)',
+              color: '#F7BA12',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.65), 0 0 16px rgba(247, 186, 18, 0.25)',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+              e.currentTarget.style.background = '#171B24';
+              e.currentTarget.style.borderColor = '#F7BA12';
+              e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.8), 0 0 22px rgba(247, 186, 18, 0.45)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              e.currentTarget.style.background = '#12151C';
+              e.currentTarget.style.borderColor = 'rgba(247, 186, 18, 0.5)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.65), 0 0 16px rgba(247, 186, 18, 0.25)';
+            }}
+          >
+            <ChevronLeft size={26} strokeWidth={2.6} />
+          </button>
+        )}
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: 0 }}>
-              <Type size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
-              <input
-                type="text"
-                value={formData.title || ''}
-                onChange={(e) => handleChange('title', e.target.value)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#ffffff',
-                  fontSize: '1.15rem',
-                  fontWeight: 700,
-                  fontFamily: 'inherit',
-                  width: '100%',
-                  outline: 'none',
-                  padding: '0.1rem 0'
-                }}
-                placeholder="Nome do disparo..."
-              />
+        <div
+          className="modal-content"
+          style={{
+            width: '94vw',
+            maxWidth: '1180px',
+            height: '92vh',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            padding: 0,
+            borderRadius: '10px',
+            border: '1px solid var(--border-color)',
+            background: 'var(--bg-card)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7)'
+          }}
+        >
+          {/* Minimalist Top Header Bar (Airtable Style) */}
+          <div style={{
+            padding: '0.75rem 1.25rem',
+            borderBottom: '1px solid var(--border-color)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--bg-sidebar)',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flex: 1, minWidth: 0, marginRight: '1rem' }}>
+              <span style={{
+                fontSize: '0.72rem',
+                fontWeight: 600,
+                color: 'var(--text-muted)',
+                background: 'rgba(255, 255, 255, 0.05)',
+                padding: '0.15rem 0.5rem',
+                borderRadius: '4px',
+                border: '1px solid var(--border-subtle)',
+                flexShrink: 0
+              }}>
+                {campaign ? campaign.name : 'DISPARO'}
+              </span>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flex: 1, minWidth: 0 }}>
+                <Type size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                <input
+                  type="text"
+                  value={formData.title || ''}
+                  onChange={(e) => handleChange('title', e.target.value)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ffffff',
+                    fontSize: '1.15rem',
+                    fontWeight: 700,
+                    fontFamily: 'inherit',
+                    width: '100%',
+                    outline: 'none',
+                    padding: '0.1rem 0'
+                  }}
+                  placeholder="Nome do disparo..."
+                />
+              </div>
             </div>
-          </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+              {/* Header Navigation: < X de Y > */}
+              {recordsList && recordsList.length > 1 && currentIndex >= 0 && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.2rem',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '6px',
+                    padding: '0.15rem 0.35rem',
+                    marginRight: '0.35rem'
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => handleNavigate('prev')}
+                    disabled={!hasPrev}
+                    style={{
+                      padding: '0.2rem 0.35rem',
+                      opacity: hasPrev ? 1 : 0.25,
+                      cursor: hasPrev ? 'pointer' : 'not-allowed',
+                      color: hasPrev ? '#F7BA12' : 'inherit'
+                    }}
+                    title={hasPrev ? `Anterior: "${prevRecord?.title}" (←)` : 'Primeiro disparo da tabela'}
+                  >
+                    <ChevronLeft size={15} strokeWidth={2.5} />
+                  </button>
+
+                  <span
+                    style={{
+                      fontSize: '0.72rem',
+                      color: 'var(--text-muted)',
+                      fontWeight: 600,
+                      padding: '0 0.35rem',
+                      whiteSpace: 'nowrap',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <strong style={{ color: '#F7BA12' }}>{currentIndex + 1}</strong> de {recordsList.length}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => handleNavigate('next')}
+                    disabled={!hasNext}
+                    style={{
+                      padding: '0.2rem 0.35rem',
+                      opacity: hasNext ? 1 : 0.25,
+                      cursor: hasNext ? 'pointer' : 'not-allowed',
+                      color: hasNext ? '#F7BA12' : 'inherit'
+                    }}
+                    title={hasNext ? `Próximo: "${nextRecord?.title}" (→)` : 'Último disparo da tabela'}
+                  >
+                    <ChevronRight size={15} strokeWidth={2.5} />
+                  </button>
+                </div>
+              )}
             <button
               type="button"
               className="btn-ghost"
@@ -2056,6 +2240,54 @@ export default function RecordDetailModal({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Setinha Lateral Direita (Próximo Disparo) */}
+      {hasNext && (
+          <button
+            type="button"
+            className="disparo-side-arrow disparo-side-arrow-next"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNavigate('next');
+            }}
+            title={`Próximo: "${nextRecord?.title || 'Próximo disparo'}" (→ Seta direita)`}
+            aria-label="Próximo disparo"
+            style={{
+              position: 'absolute',
+              right: '-60px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              zIndex: 110,
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              background: '#12151C',
+              border: '1.5px solid rgba(247, 186, 18, 0.5)',
+              color: '#F7BA12',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 8px 24px rgba(0,0,0,0.65), 0 0 16px rgba(247, 186, 18, 0.25)',
+              transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1.1)';
+              e.currentTarget.style.background = '#171B24';
+              e.currentTarget.style.borderColor = '#F7BA12';
+              e.currentTarget.style.boxShadow = '0 12px 30px rgba(0,0,0,0.8), 0 0 22px rgba(247, 186, 18, 0.45)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(-50%) scale(1)';
+              e.currentTarget.style.background = '#12151C';
+              e.currentTarget.style.borderColor = 'rgba(247, 186, 18, 0.5)';
+              e.currentTarget.style.boxShadow = '0 8px 24px rgba(0,0,0,0.65), 0 0 16px rgba(247, 186, 18, 0.25)';
+            }}
+          >
+            <ChevronRight size={26} strokeWidth={2.6} />
+          </button>
+        )}
       </div>
     </div>
   );
