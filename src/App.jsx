@@ -41,6 +41,7 @@ import { supabase } from './services/supabase';
 export default function App() {
   // Authentication & Role State ('editor' = full access, 'viewer' = read-only)
   const [currentUser, setCurrentUser] = useState(() => getSavedSession());
+  const [isPostLoginLoading, setIsPostLoginLoading] = useState(false);
   const isReadOnly = !canUserEdit(currentUser);
 
   // Light / Dark Theme State
@@ -1099,7 +1100,11 @@ export default function App() {
   if (!currentUser) {
     return (
       <LoginScreen
-        onLogin={(user) => setCurrentUser(user)}
+        onLogin={(user) => {
+          setIsPostLoginLoading(true);
+          setCurrentUser(user);
+          setTimeout(() => setIsPostLoginLoading(false), 1400);
+        }}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -1108,6 +1113,37 @@ export default function App() {
 
   return (
     <div className="app-container">
+      {isPostLoginLoading && (
+        <div className="post-login-loader" role="status" aria-label="Carregando painel">
+          <div className="post-login-orbit-stage">
+            <div className="post-login-orbit-ring" />
+            <div className="post-login-orbit-plane-arm">
+              <svg
+                className="post-login-orbit-plane"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M2.5 4.25a.75.75 0 0 1 1.07-.68l17.5 8a.75.75 0 0 1 0 1.36l-17.5 8a.75.75 0 0 1-1.02-.96L5.1 13H12a.75.75 0 0 0 0-1.5H5.1L2.55 4.53a.75.75 0 0 1-.05-.28Z" />
+              </svg>
+            </div>
+            <img
+              src="/icon.png?v=2"
+              alt="BraboFlow"
+              className="post-login-logo-b"
+              style={{
+                filter: theme === 'light'
+                  ? 'brightness(0.15) drop-shadow(0 2px 6px rgba(15, 23, 42, 0.12))'
+                  : 'drop-shadow(0 0 12px rgba(247, 186, 18, 0.25))'
+              }}
+            />
+          </div>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+            Carregando fluxos...
+          </span>
+        </div>
+      )}
       {/* 1. Header estilo Airtable */}
       <Header
         campaigns={campaigns}
