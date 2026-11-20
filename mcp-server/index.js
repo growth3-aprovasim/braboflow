@@ -887,6 +887,76 @@ const mcpInfoHandler = (req, res) => {
 
 app.get(['/api/mcp-info', '/health'], mcpInfoHandler);
 
+// Runtime public env config for Supabase (avoid exposing passwords to client)
+app.get('/env-config.js', (req, res) => {
+  // Re-read .env if created/updated at runtime by EasyPanel
+  dotenv.config({ path: path.resolve(__dirname, '../.env'), override: false });
+  const runtimeEnv = {
+    VITE_SUPABASE_URL: process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '',
+    VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_KEY || ''
+  };
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(`window.__ENV__ = ${JSON.stringify(runtimeEnv)};`);
+});
+
+// Runtime auth endpoint reading credentials from .env / process.env at request time
+app.post('/api/auth/login', (req, res) => {
+  dotenv.config({ path: path.resolve(__dirname, '../.env'), override: false });
+
+  const { identifier, password } = req.body || {};
+  const cleanId = String(identifier || '').trim().toLowerCase();
+  const cleanPass = String(password || '');
+
+  if (!cleanId || !cleanPass) {
+    return res.status(400).json({ success: false, error: 'Preencha e-mail e senha.' });
+  }
+
+  const adminEmail = String(process.env.VITE_ADMIN_EMAIL || process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+  const adminPassword = String(process.env.VITE_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || '');
+  const viewerEmail = String(process.env.VITE_VIEWER_EMAIL || process.env.VIEWER_EMAIL || '').trim().toLowerCase();
+  const viewerPassword = String(process.env.VITE_VIEWER_PASSWORD || process.env.VIEWER_PASSWORD || '');
+
+  if (!adminEmail && !viewerEmail) {
+    return res.status(500).json({
+      success: false,
+      error: 'Credenciais não configuradas nas variáveis de ambiente (.env).'
+    });
+  }
+
+  let matchedUser = null;
+
+  if (adminEmail && adminPassword && cleanId === adminEmail && cleanPass === adminPassword) {
+    matchedUser = {
+      id: 'user-editor',
+      email: adminEmail,
+      name: 'Administrador',
+      role: 'editor',
+      roleLabel: 'Editor (Acesso Total)'
+    };
+  } else if (viewerEmail && viewerPassword && cleanId === viewerEmail && cleanPass === viewerPassword) {
+    matchedUser = {
+      id: 'user-viewer',
+      email: viewerEmail,
+      name: 'Visualizador',
+      role: 'viewer',
+      roleLabel: 'Visualizador (Somente Leitura)'
+    };
+  }
+
+  if (!matchedUser) {
+    return res.status(401).json({ success: false, error: 'E-mail ou senha inválidos.' });
+  }
+
+  return res.json({
+    success: true,
+    user: {
+      ...matchedUser,
+      loggedInAt: new Date().toISOString()
+    }
+  });
+});
+
 const distPath = path.resolve(__dirname, '../dist');
 const hasDist = fs.existsSync(distPath);
 

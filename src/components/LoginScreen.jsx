@@ -11,21 +11,21 @@ export default function LoginScreen({ onLogin, theme, onToggleTheme }) {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const result = authenticateUser(identifier, password);
-      setIsSubmitting(false);
-
+    try {
+      const result = await authenticateUser(identifier, password);
       if (result.success) {
         onLogin(result.user);
       } else {
         setError(result.error || 'Usuário ou senha inválidos.');
       }
-    }, 180);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
