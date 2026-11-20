@@ -13,6 +13,9 @@ import { Sparkles, Plus, Copy, Check, ExternalLink, Edit3, X } from 'lucide-reac
 import RecordDetailModal from './components/RecordDetailModal';
 import CustomFiltersSidebar from './components/CustomFiltersSidebar';
 import EditCampaignModal from './components/EditCampaignModal';
+import BulkEditModal from './components/BulkEditModal';
+import LoginScreen from './components/LoginScreen';
+import { getSavedSession, logoutSession, canUserEdit } from './services/authService';
 
 import { matchRecordWithFilter, extractAllCampaignBracketTags, findMatchingFilterId } from './data/initialData';
 import {
@@ -36,6 +39,37 @@ import {
 import { supabase } from './services/supabase';
 
 export default function App() {
+  // Authentication & Role State ('editor' = full access, 'viewer' = read-only)
+  const [currentUser, setCurrentUser] = useState(() => getSavedSession());
+  const isReadOnly = !canUserEdit(currentUser);
+
+  // Light / Dark Theme State
+  const [theme, setTheme] = useState(() => {
+    try {
+      return localStorage.getItem('bflow_theme') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('bflow_theme', theme);
+    } catch { /* ignore */ }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
+  const handleLogout = () => {
+    logoutSession();
+    setCurrentUser(null);
+    setSelectedRecord(null);
+    setIsRecordModalOpen(false);
+  };
+
   // Supabase Connection Status
   const [supabaseStatus, setSupabaseStatus] = useState('syncing'); // 'syncing' | 'connected' | 'offline'
 
@@ -397,6 +431,7 @@ export default function App() {
   };
 
   const handleCreateCustomFilter = (newFilter) => {
+    if (isReadOnly) return;
     setCustomFilters(prev => [...prev, newFilter]);
     setActiveCustomFilterId(newFilter.id);
     setToolbarFilter({
@@ -407,6 +442,7 @@ export default function App() {
   };
 
   const handleUpdateCustomFilter = (filterId, updates) => {
+    if (isReadOnly) return;
     setCustomFilters(prev => {
       const updated = prev.map(f => f.id === filterId ? { ...f, ...updates } : f);
       const target = updated.find(f => f.id === filterId);
@@ -424,6 +460,7 @@ export default function App() {
   };
 
   const handleDeleteCustomFilter = (filterId) => {
+    if (isReadOnly) return;
     setCustomFilters(prev => prev.filter(f => f.id !== filterId));
     if (activeCustomFilterId === filterId) {
       setActiveCustomFilterId('all');
@@ -436,6 +473,7 @@ export default function App() {
   const [selectedRecord, setSelectedRecord] = useState(null);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState(false);
   const [selectedRecordIds, setSelectedRecordIds] = useState([]);
+  const [isBulkEditModalOpen, setIsBulkEditModalOpen] = useState(false);
 
   // Campaign Tags Modal state
   const [isTagsModalOpen, setIsTagsModalOpen] = useState(false);
@@ -699,6 +737,7 @@ export default function App() {
   };
 
   const handleAddNewCampaign = async (newCamp) => {
+    if (isReadOnly) return;
     setCampaigns(prev => [newCamp, ...prev]);
     setActiveCampaignId(newCamp.id);
     setActiveTable('disparos');
@@ -712,6 +751,7 @@ export default function App() {
   };
 
   const handleUpdateCampaign = (campaignId, updates) => {
+    if (isReadOnly) return;
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, ...updates };
@@ -722,6 +762,7 @@ export default function App() {
   };
 
   const handleDeleteCampaign = (campaignId) => {
+    if (isReadOnly) return;
     const updated = campaigns.filter(c => c.id !== campaignId);
     setCampaigns(updated);
     if (activeCampaignId === campaignId) {
@@ -731,6 +772,7 @@ export default function App() {
   };
 
   const handleUpdateCampaignLinks = (campaignId, updatedLinks) => {
+    if (isReadOnly) return;
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, predefinedLinks: updatedLinks };
@@ -741,7 +783,7 @@ export default function App() {
   };
 
   const handleUpdateCampaignCustomColumns = (newCols) => {
-    if (!activeCampaign) return;
+    if (isReadOnly || !activeCampaign) return;
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
         return { ...c, customColumns: newCols };
@@ -752,11 +794,13 @@ export default function App() {
   };
 
   const handleOpenTagsModal = (camp) => {
+    if (isReadOnly) return;
     setTagsModalCampaign(camp || activeCampaign);
     setIsTagsModalOpen(true);
   };
 
   const handleUpdateCampaignPlaceholders = (campaignId, updatedPlaceholders) => {
+    if (isReadOnly) return;
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, customPlaceholders: updatedPlaceholders };
@@ -772,7 +816,7 @@ export default function App() {
 
   // Message Actions within active campaign
   const handleUpdateRecord = (messageId, updates) => {
-    if (!activeCampaign) return;
+    if (isReadOnly || !activeCampaign) return;
 
     // Registra timestamp da alteração local para impedir que reloads do realtime desfaçam os checks
     lastLocalUpdateTimestampRef.current[messageId] = Date.now();
@@ -814,7 +858,7 @@ export default function App() {
   };
 
   const handleAddNewMessage = (initialOverrides = {}) => {
-    if (!activeCampaign) return;
+    if (isReadOnly || !activeCampaign) return;
 
     // Pick first predefined link if exists
     const defaultLink = activeCampaign.predefinedLinks?.[0];
@@ -867,7 +911,7 @@ export default function App() {
   };
 
   const handleDeleteRecord = (messageId) => {
-    if (!activeCampaign) return;
+    if (isReadOnly || !activeCampaign) return;
 
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
@@ -885,6 +929,7 @@ export default function App() {
   };
 
   const handleDeleteMultipleRecords = (recordIdsToDelete) => {
+    if (isReadOnly) return;
     const ids = Array.isArray(recordIdsToDelete) ? recordIdsToDelete : selectedRecordIds;
     if (!activeCampaign || !ids || ids.length === 0) return;
 
@@ -919,8 +964,41 @@ export default function App() {
     });
   };
 
+  const handleBulkUpdateRecords = (recordIds, updates) => {
+    if (isReadOnly || !activeCampaign) return;
+    const ids = Array.isArray(recordIds) ? recordIds : selectedRecordIds;
+    if (!ids || ids.length === 0 || !updates || Object.keys(updates).length === 0) return;
+
+    const idsSet = new Set(ids);
+    const updatedForSync = [];
+
+    setCampaigns(prev => prev.map(c => {
+      if (c.id !== activeCampaign.id) return c;
+      const updatedMessages = (c.messages || []).map(m => {
+        if (!idsSet.has(m.id)) return m;
+        lastLocalUpdateTimestampRef.current[m.id] = Date.now();
+        const mergedCustom = updates.customFields
+          ? { ...(m.customFields || {}), ...updates.customFields }
+          : m.customFields;
+
+        const mergedMsg = {
+          ...m,
+          ...updates,
+          ...(mergedCustom !== undefined ? { customFields: mergedCustom } : {})
+        };
+        updatedForSync.push(mergedMsg);
+        return mergedMsg;
+      });
+      return { ...c, messages: updatedMessages };
+    }));
+
+    updatedForSync.forEach(msg => {
+      dbUpdateDisparo(msg.id, msg, activeCampaign.id).catch(err => console.warn('Sync bulk update disparo error:', err));
+    });
+  };
+
   const handleDuplicateRecord = (record) => {
-    if (!activeCampaign) return;
+    if (isReadOnly || !activeCampaign) return;
 
     const duplicated = {
       ...record,
@@ -1018,6 +1096,16 @@ export default function App() {
     }
   };
 
+  if (!currentUser) {
+    return (
+      <LoginScreen
+        onLogin={(user) => setCurrentUser(user)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
+    );
+  }
+
   return (
     <div className="app-container">
       {/* 1. Header estilo Airtable */}
@@ -1035,6 +1123,11 @@ export default function App() {
         onImportData={handleImportData}
         onResetData={handleResetData}
         supabaseStatus={supabaseStatus}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        readOnly={isReadOnly}
       />
 
       {/* 2. View Toolbar (Controls for Active Campaign's messages) */}
@@ -1068,7 +1161,9 @@ export default function App() {
           flowCounts={flowCounts}
           selectedRecordIds={selectedRecordIds}
           onDeleteMultipleRecords={handleDeleteMultipleRecords}
+          onOpenBulkEdit={() => setIsBulkEditModalOpen(true)}
           onClearSelection={() => setSelectedRecordIds([])}
+          readOnly={isReadOnly}
         />
       )}
 
@@ -1110,6 +1205,7 @@ export default function App() {
                   selectedRecordIds={selectedRecordIds}
                   setSelectedRecordIds={setSelectedRecordIds}
                   onDeleteMultipleRecords={handleDeleteMultipleRecords}
+                  onOpenBulkEdit={() => setIsBulkEditModalOpen(true)}
                   onUpdateCustomColumns={handleUpdateCampaignCustomColumns}
                   onUpdateCampaign={handleUpdateCampaign}
                   hiddenColumns={activeHiddenColumns}
@@ -1125,6 +1221,7 @@ export default function App() {
                   }}
                   onFilterBy={handleFilterByColumn}
                   onToggleColumnVisibility={handleToggleColumnVisibility}
+                  readOnly={isReadOnly}
                 />
               )}
 
@@ -1178,6 +1275,7 @@ export default function App() {
             onUpdateCampaign={handleUpdateCampaign}
             onDeleteCampaign={handleDeleteCampaign}
             onOpenTagsModal={handleOpenTagsModal}
+            readOnly={isReadOnly}
           />
         )}
 
@@ -1186,38 +1284,41 @@ export default function App() {
           <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div>
-                <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--accent-text)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Campanha: {activeCampaign.name}
                 </span>
-                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: '#fff', margin: '0.2rem 0' }}>
+                <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0.2rem 0' }}>
                   Tags [ ] da Campanha
                 </h2>
-                <p style={{ fontSize: '0.82rem', color: '#94a3b8', margin: 0 }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
                   Altere em um só lugar tudo o que estiver entre colchetes como [LINK], [DATA], [CUPOM] em todas as mensagens. As tags permanecem intactas nas mensagens e são substituídas dinamicamente no preview e ao copiar o texto final.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <button
-                  className="btn-primary"
-                  onClick={() => handleOpenTagsModal(activeCampaign)}
-                  style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', color: '#0b1120', fontWeight: 700 }}
-                >
-                  <Sparkles size={14} />
-                  <span>⚡ Abrir Central de Tags [ ]</span>
-                </button>
-              </div>
+              {!isReadOnly && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <button
+                    className="btn-primary"
+                    onClick={() => handleOpenTagsModal(activeCampaign)}
+                  >
+                    <Sparkles size={14} />
+                    <span>⚡ Abrir Central de Tags [ ]</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Content for Tags */}
             <div style={{ display: 'grid', gap: '0.85rem' }}>
               {activeTags.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: '#94a3b8' }}>
-                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f8fafc' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
-                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>Escreva termos entre colchetes como [DATA], [LINK] ou [CUPOM] nas copies para gerenciá-los aqui.</p>
-                  <button className="btn-secondary" style={{ marginTop: '0.5rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
-                    + Cadastrar Tag na Central
-                  </button>
+                <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: 'var(--bg-card)', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                  <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Nenhuma tag [ ] detectada nas mensagens ainda.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Escreva termos entre colchetes como [DATA], [LINK] ou [CUPOM] nas copies para gerenciá-los aqui.</p>
+                  {!isReadOnly && (
+                    <button className="btn-secondary" style={{ marginTop: '0.5rem', color: 'var(--accent-text)', borderColor: 'var(--accent-border)' }} onClick={() => handleOpenTagsModal(activeCampaign)}>
+                      + Cadastrar Tag na Central
+                    </button>
+                  )}
                 </div>
               ) : (
                 activeTags.map(tag => {
@@ -1242,9 +1343,9 @@ export default function App() {
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <span style={{
-                            background: 'rgba(245, 158, 11, 0.15)',
-                            border: '1px solid rgba(245, 158, 11, 0.35)',
-                            color: '#fbbf24',
+                            background: 'var(--accent-soft)',
+                            border: '1px solid var(--accent-border)',
+                            color: 'var(--accent-text)',
                             fontWeight: 700,
                             fontSize: '0.9rem',
                             padding: '0.25rem 0.65rem',
@@ -1254,15 +1355,15 @@ export default function App() {
                             {rawKey}
                           </span>
                           <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#fff' }}>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                               {tag.messages.length} {tag.messages.length === 1 ? 'mensagem usa esta tag' : 'mensagens usam esta tag'} ({tag.count} ocorrências)
                             </span>
                             {hasVal ? (
-                              <span style={{ fontSize: '0.74rem', color: '#4ade80', fontWeight: 600 }}>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--success-text)', fontWeight: 600 }}>
                                 ✅ Valor configurado: "{cfg.text}"
                               </span>
                             ) : (
-                              <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 600 }}>
+                              <span style={{ fontSize: '0.74rem', color: 'var(--amber-text)', fontWeight: 600 }}>
                                 ⚠️ Falta preencher link ou frase
                               </span>
                             )}
@@ -1277,8 +1378,8 @@ export default function App() {
                               style={{
                                 fontSize: '0.76rem',
                                 padding: '0.35rem 0.65rem',
-                                color: isPageExpanded ? '#fbbf24' : '#94a3b8',
-                                background: isPageExpanded ? 'rgba(245, 158, 11, 0.14)' : 'rgba(255, 255, 255, 0.04)',
+                                color: isPageExpanded ? 'var(--amber-text)' : 'var(--text-secondary)',
+                                background: isPageExpanded ? 'var(--accent-soft)' : 'var(--bg-card-hover)',
                                 borderRadius: '6px'
                               }}
                             >
@@ -1288,7 +1389,7 @@ export default function App() {
                           <button
                             className="btn-secondary"
                             onClick={() => handleOpenTagsModal(activeCampaign)}
-                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
+                            style={{ fontSize: '0.78rem', padding: '0.35rem 0.75rem', color: 'var(--amber-text)', borderColor: 'var(--accent-border)' }}
                           >
                             Configurar Tag
                           </button>
@@ -1298,15 +1399,15 @@ export default function App() {
                       {/* Expandable Messages in Page View */}
                       {isPageExpanded && tag.messages.length > 0 && (
                         <div style={{
-                          background: 'rgba(0, 0, 0, 0.35)',
-                          border: '1px solid rgba(245, 158, 11, 0.25)',
+                          background: 'var(--surface-nested)',
+                          border: '1px solid var(--accent-border)',
                           borderRadius: '8px',
                           padding: '0.85rem',
                           display: 'flex',
                           flexDirection: 'column',
                           gap: '0.6rem'
                         }}>
-                          <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase' }}>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--amber-text)', fontWeight: 700, textTransform: 'uppercase' }}>
                             Ocorrências nas Mensagens ({tag.messages.length}):
                           </span>
 
@@ -1321,8 +1422,8 @@ export default function App() {
                                 <div
                                   key={m.id}
                                   style={{
-                                    background: isMsgExpanded ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.02)',
-                                    border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-subtle)',
+                                    background: isMsgExpanded ? 'var(--bg-card)' : 'var(--bg-cell)',
+                                    border: isMsgExpanded ? '1px solid var(--accent-border)' : '1px solid var(--border-color)',
                                     borderRadius: '6px',
                                     padding: '0.65rem 0.85rem',
                                     display: 'flex',
@@ -1335,7 +1436,7 @@ export default function App() {
                                       <strong 
                                         onClick={() => handleOpenRecord(liveMsg)}
                                         style={{ 
-                                          color: '#fff', 
+                                          color: 'var(--text-primary)', 
                                           fontSize: '0.82rem', 
                                           cursor: 'pointer', 
                                           textDecoration: 'underline',
@@ -1343,41 +1444,43 @@ export default function App() {
                                           transition: 'color 0.15s ease'
                                         }}
                                         title="Clique para abrir e modificar este disparo diretamente"
-                                        onMouseEnter={(e) => e.currentTarget.style.color = '#F7BA12'}
-                                        onMouseLeave={(e) => e.currentTarget.style.color = '#fff'}
+                                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent-text)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
                                       >
                                         {liveMsg.title}
                                       </strong>
                                     </div>
                                     <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                                      <button
-                                        type="button"
-                                        className="btn-secondary"
-                                        onClick={() => {
-                                          if (editingPageMsgId === m.id) {
-                                            setEditingPageMsgId(null);
-                                          } else {
-                                            setEditingPageMsgId(m.id);
-                                            setEditingPageMsgTitle(liveMsg.title || '');
-                                            setEditingPageMsgDraft(rawMsgText);
-                                          }
-                                        }}
-                                        style={{ 
-                                          fontSize: '0.72rem', 
-                                          padding: '0.2rem 0.55rem', 
-                                          color: editingPageMsgId === m.id ? '#f59e0b' : '#F7BA12', 
-                                          borderColor: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.45)' : 'rgba(247, 186, 18, 0.4)', 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
-                                          gap: '0.3rem',
-                                          background: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(247, 186, 18, 0.1)',
-                                          borderRadius: '4px'
-                                        }}
-                                        title="Editar este disparo diretamente no quadradinho"
-                                      >
-                                        <Edit3 size={12} />
-                                        <span>{editingPageMsgId === m.id ? 'Fechar' : 'Editar'}</span>
-                                      </button>
+                                      {!isReadOnly && (
+                                        <button
+                                          type="button"
+                                          className="btn-secondary"
+                                          onClick={() => {
+                                            if (editingPageMsgId === m.id) {
+                                              setEditingPageMsgId(null);
+                                            } else {
+                                              setEditingPageMsgId(m.id);
+                                              setEditingPageMsgTitle(liveMsg.title || '');
+                                              setEditingPageMsgDraft(rawMsgText);
+                                            }
+                                          }}
+                                          style={{ 
+                                            fontSize: '0.72rem', 
+                                            padding: '0.2rem 0.55rem', 
+                                            color: editingPageMsgId === m.id ? '#f59e0b' : '#F7BA12', 
+                                            borderColor: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.45)' : 'rgba(247, 186, 18, 0.4)', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: '0.3rem',
+                                            background: editingPageMsgId === m.id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(247, 186, 18, 0.1)',
+                                            borderRadius: '4px'
+                                          }}
+                                          title="Editar este disparo diretamente no quadradinho"
+                                        >
+                                          <Edit3 size={12} />
+                                          <span>{editingPageMsgId === m.id ? 'Fechar' : 'Editar'}</span>
+                                        </button>
+                                      )}
                                       <button
                                         type="button"
                                         className="btn-secondary"
@@ -1528,7 +1631,7 @@ export default function App() {
                                   ) : !isMsgExpanded ? (
                                     <p 
                                       onClick={() => setExpandedPageMessageIds(p => ({ ...p, [m.id]: true }))}
-                                      style={{ color: '#cbd5e1', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                      style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.76rem', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                                       title="Clique para expandir o texto e visualizar na íntegra"
                                     >
                                       {rawMsgText}
@@ -1536,13 +1639,13 @@ export default function App() {
                                   ) : (
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                       <div>
-                                        <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>Texto com Tag:</span>
+                                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Texto com Tag:</span>
                                         <div style={{
-                                          background: 'rgba(0, 0, 0, 0.5)',
-                                          border: '1px solid rgba(247, 186, 18, 0.25)',
+                                          background: 'var(--bg-cell)',
+                                          border: '1px solid var(--accent-border)',
                                           borderRadius: '6px',
                                           padding: '0.75rem',
-                                          color: '#f1f5f9',
+                                          color: 'var(--text-primary)',
                                           fontSize: '0.8rem',
                                           lineHeight: '1.5',
                                           whiteSpace: 'pre-wrap',
@@ -1552,13 +1655,13 @@ export default function App() {
                                         </div>
                                       </div>
                                       <div>
-                                        <span style={{ fontSize: '0.68rem', color: '#4ade80', textTransform: 'uppercase', fontWeight: 600 }}>Preview Resolvido (Ao Copiar):</span>
+                                        <span style={{ fontSize: '0.68rem', color: '#16a34a', textTransform: 'uppercase', fontWeight: 600 }}>Preview Resolvido (Ao Copiar):</span>
                                         <div style={{
-                                          background: 'rgba(34, 197, 94, 0.05)',
-                                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                                          background: 'rgba(34, 197, 94, 0.08)',
+                                          border: '1px solid rgba(34, 197, 94, 0.35)',
                                           borderRadius: '6px',
                                           padding: '0.75rem',
-                                          color: '#f8fafc',
+                                          color: 'var(--text-primary)',
                                           fontSize: '0.8rem',
                                           lineHeight: '1.5',
                                           whiteSpace: 'pre-wrap',
@@ -1568,29 +1671,31 @@ export default function App() {
                                         </div>
                                       </div>
                                       <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem', marginTop: '0.3rem' }}>
-                                        <button
-                                          type="button"
-                                          className="btn-secondary"
-                                          onClick={() => {
-                                            setEditingPageMsgId(m.id);
-                                            setEditingPageMsgTitle(liveMsg.title || '');
-                                            setEditingPageMsgDraft(rawMsgText);
-                                          }}
-                                          style={{
-                                            fontSize: '0.75rem',
-                                            padding: '0.35rem 0.75rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '0.35rem',
-                                            color: '#F7BA12',
-                                            borderColor: 'rgba(247, 186, 18, 0.4)',
-                                            background: 'rgba(247, 186, 18, 0.1)'
-                                          }}
-                                          title="Editar o texto deste disparo diretamente no quadradinho"
-                                        >
-                                          <Edit3 size={13} />
-                                          <span>Editar neste Card</span>
-                                        </button>
+                                        {!isReadOnly && (
+                                          <button
+                                            type="button"
+                                            className="btn-secondary"
+                                            onClick={() => {
+                                              setEditingPageMsgId(m.id);
+                                              setEditingPageMsgTitle(liveMsg.title || '');
+                                              setEditingPageMsgDraft(rawMsgText);
+                                            }}
+                                            style={{
+                                              fontSize: '0.75rem',
+                                              padding: '0.35rem 0.75rem',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              gap: '0.35rem',
+                                              color: '#F7BA12',
+                                              borderColor: 'rgba(247, 186, 18, 0.4)',
+                                              background: 'rgba(247, 186, 18, 0.1)'
+                                            }}
+                                            title="Editar o texto deste disparo diretamente no quadradinho"
+                                          >
+                                            <Edit3 size={13} />
+                                            <span>Editar neste Card</span>
+                                          </button>
+                                        )}
                                         <button
                                           type="button"
                                           className="btn-primary"
@@ -1658,6 +1763,7 @@ export default function App() {
         activeFlowCategory={activeFlowCategory}
         hiddenColumns={activeHiddenColumns}
         onToggleColumnVisibility={handleToggleColumnVisibility}
+        readOnly={isReadOnly}
       />
 
       {/* 6. Campaign Tags Modal */}
@@ -1684,6 +1790,17 @@ export default function App() {
           onClose={() => setIsEditActiveCampaignModalOpen(false)}
           campaign={activeCampaign}
           onUpdateCampaign={handleUpdateCampaign}
+        />
+      )}
+
+      {/* 10. Bulk Edit Modal for Selected Disparos */}
+      {!isReadOnly && (
+        <BulkEditModal
+          isOpen={isBulkEditModalOpen}
+          onClose={() => setIsBulkEditModalOpen(false)}
+          selectedCount={selectedRecordIds.length}
+          campaign={activeCampaign}
+          onApplyBulkEdit={(updates) => handleBulkUpdateRecords(selectedRecordIds, updates)}
         />
       )}
     </div>

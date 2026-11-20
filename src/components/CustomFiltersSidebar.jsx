@@ -308,8 +308,8 @@ export default function CustomFiltersSidebar({
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-          <SlidersHorizontal size={15} color="#f59e0b" />
-          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#fff', letterSpacing: '0.02em' }}>
+          <SlidersHorizontal size={15} color="var(--accent-text)" />
+          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
             Filtros Dinâmicos
           </span>
         </div>
@@ -423,7 +423,7 @@ export default function CustomFiltersSidebar({
                 <span style={{
                   fontSize: '0.8rem',
                   fontWeight: isActive ? 700 : 600,
-                  color: isActive ? '#fbbf24' : '#cbd5e1',
+                  color: isActive ? 'var(--accent-text)' : 'var(--text-secondary)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -533,7 +533,7 @@ export default function CustomFiltersSidebar({
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <SlidersHorizontal size={18} color="#f59e0b" />
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                   {editingFilterId ? 'Editar Filtro Personalizado' : 'Criar Novo Filtro Dinâmico'}
                 </h3>
               </div>
@@ -567,7 +567,7 @@ export default function CustomFiltersSidebar({
                 borderRadius: '8px',
                 border: '1px solid var(--border-subtle)'
               }}>
-                <span style={{ fontSize: '0.78rem', color: '#cbd5e1', fontWeight: 600 }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                   Corresponder disparos que atendem a:
                 </span>
 
@@ -637,7 +637,7 @@ export default function CustomFiltersSidebar({
                       gap: '0.4rem'
                     }}>
                       <Sparkles size={20} color="#fbbf24" />
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f8fafc' }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                         Sem nenhuma condição definida
                       </span>
                       <span style={{ fontSize: '0.74rem', color: '#94a3b8', maxWidth: '380px' }}>
@@ -855,7 +855,7 @@ export default function CustomFiltersSidebar({
                 alignItems: 'center',
                 justifyContent: 'space-between'
               }}>
-                <span style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   Resultado em tempo real com os disparos atuais:
                 </span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#fbbf24' }}>

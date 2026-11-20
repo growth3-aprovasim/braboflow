@@ -29,7 +29,8 @@ export default function CampaignsManager({
   onAddNewCampaign,
   onUpdateCampaign,
   onDeleteCampaign,
-  onOpenTagsModal
+  onOpenTagsModal,
+  readOnly = false
 }) {
   const [isCreating, setIsCreating] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
@@ -82,16 +83,18 @@ export default function CampaignsManager({
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button
-            className="btn-primary"
-            onClick={() => setIsCreating(true)}
-            style={{ padding: '0.55rem 1rem', fontSize: '0.85rem' }}
-          >
-            <Plus size={16} strokeWidth={2} />
-            <span>Nova Campanha</span>
-          </button>
-        </div>
+        {!readOnly && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              className="btn-primary"
+              onClick={() => setIsCreating(true)}
+              style={{ padding: '0.55rem 1rem', fontSize: '0.85rem' }}
+            >
+              <Plus size={16} strokeWidth={2} />
+              <span>Nova Campanha</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Empty State when no campaigns in database */}
@@ -202,43 +205,45 @@ export default function CampaignsManager({
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.35rem' }}>
-                  <button
-                    className="btn-ghost"
-                    style={{ padding: '0.3rem', color: '#38bdf8' }}
-                    onClick={() => {
-                      setEditingCampaign(campaign);
-                      setIsEditModalOpen(true);
-                    }}
-                    title="Editar Nome, Datas e Status da Campanha"
-                  >
-                    <Edit3 size={15} />
-                  </button>
-
-                  {onOpenTagsModal && (
+                {!readOnly && (
+                  <div style={{ display: 'flex', gap: '0.35rem' }}>
                     <button
                       className="btn-ghost"
-                      style={{ padding: '0.3rem', color: '#fbbf24' }}
-                      onClick={() => onOpenTagsModal(campaign)}
-                      title="Configurar Tags [ ] desta Campanha"
+                      style={{ padding: '0.3rem', color: '#F7BA12' }}
+                      onClick={() => {
+                        setEditingCampaign(campaign);
+                        setIsEditModalOpen(true);
+                      }}
+                      title="Editar Nome, Datas e Status da Campanha"
                     >
-                      <Sparkles size={15} />
+                      <Edit3 size={15} />
                     </button>
-                  )}
 
-                  <button
-                    className="btn-ghost"
-                    style={{ padding: '0.3rem', color: '#ef4444' }}
-                    onClick={() => {
-                      if (window.confirm(`Excluir a campanha "${campaign.name}" e todas as suas mensagens?`)) {
-                        onDeleteCampaign(campaign.id);
-                      }
-                    }}
-                    title="Excluir Campanha"
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+                    {onOpenTagsModal && (
+                      <button
+                        className="btn-ghost"
+                        style={{ padding: '0.3rem', color: '#fbbf24' }}
+                        onClick={() => onOpenTagsModal(campaign)}
+                        title="Configurar Tags [ ] desta Campanha"
+                      >
+                        <Sparkles size={15} />
+                      </button>
+                    )}
+
+                    <button
+                      className="btn-ghost"
+                      style={{ padding: '0.3rem', color: '#ef4444' }}
+                      onClick={() => {
+                        if (window.confirm(`Excluir a campanha "${campaign.name}" e todas as suas mensagens?`)) {
+                          onDeleteCampaign(campaign.id);
+                        }
+                      }}
+                      title="Excluir Campanha"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Title & Tagline */}
@@ -398,7 +403,7 @@ export default function CampaignsManager({
                 <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700, textTransform: 'uppercase' }}>
                   Brabo Concursos • Nova Campanha
                 </span>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff' }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Criar Nova Campanha
                 </h3>
               </div>

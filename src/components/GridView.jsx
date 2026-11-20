@@ -400,7 +400,7 @@ function CreativeGridCell({ record, onOpenRecord, onUpdateRecord, colWidth }) {
               title={`Documento: ${firstAtt.name} (${firstAtt.size}) ${extraCount > 0 ? `+ ${extraCount} outro(s) anexo(s)` : ''}`}
             >
               <FileText size={12} color="#94a3b8" />
-              <span style={{ fontSize: '0.7rem', color: '#cbd5e1', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {firstAtt.name}
               </span>
               {extraBadge}
@@ -448,6 +448,7 @@ export default function GridView({
   selectedRecordIds = [],
   setSelectedRecordIds,
   onDeleteMultipleRecords,
+  onOpenBulkEdit,
   onUpdateCustomColumns,
   onUpdateCampaign,
   hiddenColumns = [],
@@ -458,7 +459,8 @@ export default function GridView({
   onSortBy,
   onGroupBy,
   onFilterBy,
-  onToggleColumnVisibility
+  onToggleColumnVisibility,
+  readOnly = false
 }) {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [isAddColumnModalOpen, setIsAddColumnModalOpen] = useState(false);
@@ -1357,13 +1359,13 @@ export default function GridView({
               <option
                 key={st.value || st.label}
                 value={st.value || st.label}
-                style={{ background: '#161b26', color: st.color }}
+                style={{ background: 'var(--bg-card)', color: st.color }}
               >
                 {st.badgeIcon || '●'} {st.label || st.value}
               </option>
             ))}
             {!availableStages.some(s => s.value === record.stage || s.label === record.stage) && (
-              <option value={record.stage} style={{ background: '#161b26', color: '#fff' }}>
+              <option value={record.stage} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
                 {record.stage}
               </option>
             )}
@@ -1401,13 +1403,13 @@ export default function GridView({
               <option
                 key={ch.value || ch.label}
                 value={ch.value || ch.label}
-                style={{ background: '#161b26', color: '#fff' }}
+                style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}
               >
                 {ch.label || ch.value}
               </option>
             ))}
             {!filteredChannels.some(ch => (ch.value || ch.label) === record.channel) && (
-              <option value={record.channel} style={{ background: '#161b26', color: '#fff' }}>
+              <option value={record.channel} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
                 {record.channel}
               </option>
             )}
@@ -1469,7 +1471,7 @@ export default function GridView({
         <div
           key="copy"
           className="grid-cell"
-          style={{ width: `${colWidths.copy}px`, minWidth: `${colWidths.copy}px`, cursor: 'pointer', color: '#cbd5e1' }}
+          style={{ width: `${colWidths.copy}px`, minWidth: `${colWidths.copy}px`, cursor: 'pointer', color: 'var(--text-secondary)' }}
           onClick={() => onOpenRecord(record)}
           title="Clique para editar copy completa e variáveis"
         >
@@ -1570,14 +1572,14 @@ export default function GridView({
                     onUpdateRecord(record.id, { customFields: updatedCustom });
                   }}
                 >
-                  <option value="" style={{ background: '#161b26', color: '#94a3b8' }}>
+                  <option value="" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>
                     -- Vazio --
                   </option>
                   {(customCol.options || []).map(opt => (
                     <option
                       key={opt.id || opt.label}
                       value={opt.label}
-                      style={{ background: '#161b26', color: opt.color, fontWeight: 600 }}
+                      style={{ background: 'var(--bg-card)', color: opt.color, fontWeight: 600 }}
                     >
                       ● {opt.label}
                     </option>
@@ -1617,7 +1619,7 @@ export default function GridView({
   const visibleColumns = columnOrder.filter(id => !hiddenColumns.includes(id));
 
   return (
-    <div className={`airtable-grid row-${rowDensity}`}>
+    <div className={`airtable-grid row-${rowDensity}${readOnly ? ' read-only-form' : ''}`}>
       {/* Column Headers with Resizer Handles and Drag & Drop Reordering */}
       <div className="grid-header-row">
         {/* Index / Select (Fixed at left) */}
@@ -1625,13 +1627,17 @@ export default function GridView({
           className="grid-header-cell"
           style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0 }}
         >
-          <input
-            type="checkbox"
-            checked={records.length > 0 && selectedRecordIds.length === records.length}
-            onChange={toggleSelectAll}
-            title="Selecionar Todos"
-            style={{ cursor: 'pointer' }}
-          />
+          {!readOnly ? (
+            <input
+              type="checkbox"
+              checked={records.length > 0 && selectedRecordIds.length === records.length}
+              onChange={toggleSelectAll}
+              title="Selecionar Todos"
+              style={{ cursor: 'pointer' }}
+            />
+          ) : (
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>#</span>
+          )}
         </div>
 
         {/* Expand Column Spacer (No line, no title, clean spacing) */}
@@ -1644,20 +1650,22 @@ export default function GridView({
         {visibleColumns.map(colId => renderHeaderCell(colId))}
 
         {/* Add Custom Column Header Button */}
-        <div
-          className="grid-header-cell"
-          style={{
-            width: '42px',
-            minWidth: '42px',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            background: 'rgba(59, 130, 246, 0.08)'
-          }}
-          onClick={() => setIsAddColumnModalOpen(true)}
-          title="Adicionar Nova Coluna Customizada (ex: Verificação, Tags, Responsável)"
-        >
-          <Plus size={15} color="var(--accent-primary)" />
-        </div>
+        {!readOnly && (
+          <div
+            className="grid-header-cell"
+            style={{
+              width: '42px',
+              minWidth: '42px',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              background: 'rgba(247, 186, 18, 0.08)'
+            }}
+            onClick={() => setIsAddColumnModalOpen(true)}
+            title="Adicionar Nova Coluna Customizada (ex: Verificação, Tags, Responsável)"
+          >
+            <Plus size={15} color="var(--accent-primary)" />
+          </div>
+        )}
 
         {/* Ações (Fixed at right) */}
         <div
@@ -1670,30 +1678,47 @@ export default function GridView({
       </div>
 
       {/* Top Banner when records are selected */}
-      {selectedRecordIds && selectedRecordIds.length > 0 && (
+      {!readOnly && selectedRecordIds && selectedRecordIds.length > 0 && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '6px 14px',
-          background: 'rgba(239, 68, 68, 0.09)',
-          borderBottom: '1px solid rgba(239, 68, 68, 0.25)',
+          background: 'var(--accent-soft)',
+          borderBottom: '1px solid var(--accent-border)',
           position: 'sticky',
           left: 0,
           zIndex: 8
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem' }}>
-            <CheckSquare size={15} color="#ef4444" />
-            <span style={{ color: '#f1f5f9', fontWeight: 600 }}>
-              <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.88rem' }}>{selectedRecordIds.length}</span> {selectedRecordIds.length === 1 ? 'disparo selecionado' : 'disparos selecionados'}
-              <span style={{ color: '#94a3b8', fontWeight: 400, marginLeft: '4px' }}>de {records.length}</span>
+            <CheckSquare size={15} color="var(--accent-text)" />
+            <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+              <span style={{ color: 'var(--accent-text)', fontWeight: 700, fontSize: '0.88rem' }}>{selectedRecordIds.length}</span> {selectedRecordIds.length === 1 ? 'disparo selecionado' : 'disparos selecionados'}
+              <span style={{ color: 'var(--text-muted)', fontWeight: 400, marginLeft: '4px' }}>de {records.length}</span>
             </span>
-            <span style={{ color: '#64748b', fontSize: '0.74rem', marginLeft: '6px' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.74rem', marginLeft: '6px' }}>
               • Dica: clique em um disparo, segure <strong>Ctrl</strong> (ou <strong>Shift</strong>) e clique em outro para selecionar todos no intervalo
             </span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => onOpenBulkEdit && onOpenBulkEdit()}
+              style={{
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '0.76rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px'
+              }}
+              title="Alterar tags, canal, status, data ou horário dos disparos selecionados"
+            >
+              <Edit3 size={12} />
+              Editar Selecionados ({selectedRecordIds.length})
+            </button>
             <button
               type="button"
               onClick={() => onDeleteMultipleRecords && onDeleteMultipleRecords(selectedRecordIds)}
@@ -1713,19 +1738,16 @@ export default function GridView({
               title="Excluir disparos selecionados"
             >
               <Trash2 size={12} />
-              Excluir Selecionados ({selectedRecordIds.length})
+              Excluir ({selectedRecordIds.length})
             </button>
             <button
               type="button"
+              className="btn-secondary"
               onClick={() => setSelectedRecordIds([])}
               style={{
-                background: 'rgba(255, 255, 255, 0.08)',
-                color: '#cbd5e1',
-                border: 'none',
                 borderRadius: '6px',
                 padding: '4px 8px',
-                fontSize: '0.76rem',
-                cursor: 'pointer'
+                fontSize: '0.76rem'
               }}
               title="Desmarcar todos"
             >
@@ -1785,7 +1807,12 @@ export default function GridView({
                 <div
                   key={record.id}
                   className={`grid-row ${isSelected ? 'selected' : ''}`}
+                  style={readOnly ? { cursor: 'pointer' } : undefined}
                   onClick={(e) => {
+                    if (readOnly) {
+                      onOpenRecord(record);
+                      return;
+                    }
                     if (e.ctrlKey || e.shiftKey || e.metaKey) {
                       e.preventDefault();
                       toggleSelectRecord(record.id, e);
@@ -1797,20 +1824,27 @@ export default function GridView({
                     className="grid-cell"
                     style={{ width: `${colWidths.select || 38}px`, minWidth: `${colWidths.select || 38}px`, justifyContent: 'center', padding: 0, cursor: 'pointer' }}
                     onClick={(e) => {
+                      if (readOnly) return;
                       e.stopPropagation();
                       toggleSelectRecord(record.id, e);
                     }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleSelectRecord(record.id, e);
-                      }}
-                      onChange={() => {}}
-                      style={{ cursor: 'pointer' }}
-                    />
+                    {!readOnly ? (
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectRecord(record.id, e);
+                        }}
+                        onChange={() => {}}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        •
+                      </span>
+                    )}
                   </div>
 
                   {/* Expand Record Button (Clean column with spacing, no line) */}
@@ -1832,7 +1866,7 @@ export default function GridView({
                   {visibleColumns.map(colId => renderRowCell(colId, record, channelObj, stageObj, resolvedCopy))}
 
                   {/* Empty cell spacer aligning with the + header */}
-                  <div className="grid-cell" style={{ width: '42px', minWidth: '42px' }} />
+                  {!readOnly && <div className="grid-cell" style={{ width: '42px', minWidth: '42px' }} />}
 
                   {/* Actions */}
                   <div
@@ -1842,8 +1876,11 @@ export default function GridView({
                     <button
                       className="btn-ghost"
                       style={{ padding: '0.2rem' }}
-                      onClick={() => onOpenRecord(record)}
-                      title="Abrir Simulador Adaptativo"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenRecord(record);
+                      }}
+                      title="Visualizar Disparo"
                     >
                       {record.channel === 'Email' ? (
                         <Mail size={15} color="#a78bfa" />
@@ -1853,22 +1890,32 @@ export default function GridView({
                         <Smartphone size={15} color="#25D366" />
                       )}
                     </button>
-                    <button
-                      className="btn-ghost"
-                      style={{ padding: '0.2rem' }}
-                      onClick={() => onDuplicateRecord(record)}
-                      title="Duplicar Disparo"
-                    >
-                      <Copy size={14} color="#94a3b8" />
-                    </button>
-                    <button
-                      className="btn-ghost"
-                      style={{ padding: '0.2rem' }}
-                      onClick={() => onDeleteRecord(record.id)}
-                      title="Excluir Registro"
-                    >
-                      <Trash2 size={14} color="#ef4444" />
-                    </button>
+                    {!readOnly && (
+                      <>
+                        <button
+                          className="btn-ghost"
+                          style={{ padding: '0.2rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDuplicateRecord(record);
+                          }}
+                          title="Duplicar Disparo"
+                        >
+                          <Copy size={14} color="#94a3b8" />
+                        </button>
+                        <button
+                          className="btn-ghost"
+                          style={{ padding: '0.2rem' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteRecord(record.id);
+                          }}
+                          title="Excluir Registro"
+                        >
+                          <Trash2 size={14} color="#ef4444" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               );
@@ -1878,10 +1925,12 @@ export default function GridView({
       })}
 
       {/* Add Row Bar */}
-      <div className="add-row-bar" onClick={onAddNewRow} id="btn-add-grid-row">
-        <Plus size={16} />
-        <span>Adicionar novo disparo ao fluxo desta campanha</span>
-      </div>
+      {!readOnly && (
+        <div className="add-row-bar" onClick={onAddNewRow} id="btn-add-grid-row">
+          <Plus size={16} />
+          <span>Adicionar novo disparo ao fluxo desta campanha</span>
+        </div>
+      )}
 
       {/* Modal to Add Custom Column with Predefined Tags and Colors */}
       {isAddColumnModalOpen && (
@@ -1894,7 +1943,7 @@ export default function GridView({
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Plus size={18} color="var(--accent-primary)" />
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Adicionar Nova Coluna
                 </h3>
               </div>
@@ -2090,7 +2139,7 @@ export default function GridView({
             <div className="modal-header">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Settings size={18} color="var(--accent-primary)" />
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#fff' }}>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                   Configurar Coluna
                 </h3>
               </div>
@@ -2783,9 +2832,9 @@ function ColumnTagFilterModal({
         left: `${Math.min(x, window.innerWidth - 320)}px`,
         width: '300px',
         maxHeight: '420px',
-        background: '#161b26',
+        background: 'var(--bg-card)',
         border: '1px solid #F7BA12',
-        boxShadow: '0 12px 36px rgba(0,0,0,0.65), 0 0 15px rgba(247, 186, 18, 0.25)',
+        boxShadow: 'var(--shadow-lg)',
         borderRadius: '10px',
         zIndex: 10000,
         display: 'flex',
@@ -2798,22 +2847,22 @@ function ColumnTagFilterModal({
       {/* Header */}
       <div style={{
         padding: '0.65rem 0.85rem',
-        borderBottom: '1px solid #232b3a',
+        borderBottom: '1px solid var(--border-color)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(0,0,0,0.2)'
+        background: 'var(--bg-sidebar)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Filter size={14} color="#F7BA12" />
-          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9' }}>
+          <Filter size={14} color="var(--accent-text)" />
+          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             Filtrar: {colLabel}
           </span>
         </div>
         <button
           type="button"
           onClick={onClose}
-          style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px' }}
+          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
         >
           <X size={14} />
         </button>
@@ -2821,7 +2870,7 @@ function ColumnTagFilterModal({
 
       {/* Search Input */}
       {options.length > 5 && (
-        <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid #232b3a' }}>
+        <div style={{ padding: '0.5rem 0.75rem', borderBottom: '1px solid var(--border-color)' }}>
           <input
             type="text"
             className="form-control"
@@ -2899,7 +2948,7 @@ function ColumnTagFilterModal({
                 />
                 <span style={{
                   fontSize: '0.78rem',
-                  color: isChecked ? '#f1f5f9' : '#94a3b8',
+                  color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontWeight: isChecked ? 600 : 400,
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -2910,8 +2959,8 @@ function ColumnTagFilterModal({
               </div>
               <span style={{
                 fontSize: '0.7rem',
-                color: '#64748b',
-                background: 'rgba(255,255,255,0.05)',
+                color: 'var(--text-muted)',
+                background: 'var(--bg-cell-hover)',
                 padding: '1px 6px',
                 borderRadius: '4px',
                 flexShrink: 0
@@ -2926,11 +2975,11 @@ function ColumnTagFilterModal({
       {/* Footer Actions */}
       <div style={{
         padding: '0.55rem 0.75rem',
-        borderTop: '1px solid #232b3a',
+        borderTop: '1px solid var(--border-color)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        background: 'rgba(0,0,0,0.25)'
+        background: 'var(--bg-sidebar)'
       }}>
         {existingRule ? (
           <button
@@ -2939,7 +2988,7 @@ function ColumnTagFilterModal({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#f87171',
+              color: '#ef4444',
               fontSize: '0.74rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -2953,15 +3002,12 @@ function ColumnTagFilterModal({
         <div style={{ display: 'flex', gap: '0.4rem' }}>
           <button
             type="button"
+            className="btn-secondary"
             onClick={onClose}
             style={{
-              background: 'rgba(255,255,255,0.08)',
-              border: 'none',
               borderRadius: '5px',
               padding: '0.35rem 0.7rem',
-              fontSize: '0.74rem',
-              color: '#cbd5e1',
-              cursor: 'pointer'
+              fontSize: '0.74rem'
             }}
           >
             Cancelar

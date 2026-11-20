@@ -57,7 +57,8 @@ export default function RecordDetailModal({
   onUpdateCampaignPlaceholders,
   activeFlowCategory = 'whatsapp',
   hiddenColumns = [],
-  onToggleColumnVisibility
+  onToggleColumnVisibility,
+  readOnly = false
 }) {
   const [formData, setFormData] = useState(record || {});
   const [copiedFull, setCopiedFull] = useState(false);
@@ -170,6 +171,7 @@ export default function RecordDetailModal({
   const predefinedLinks = campaign?.predefinedLinks || [];
 
   const handleChange = (field, value, extraUpdates = {}) => {
+    if (readOnly) return;
     let updatedStage = formData.stage;
     // Se alterar qualquer campo (exceto a própria Status ou campos customizados de verificação) e não estiver em rascunho, volta para rascunho
     if (field !== 'stage' && field !== 'customFields' && formData.stage && formData.stage !== 'Em Rascunho') {
@@ -187,6 +189,7 @@ export default function RecordDetailModal({
   };
 
   const handleVariableChange = (varKey, updates) => {
+    if (readOnly) return;
     const currentVars = formData.variables || {};
     const updatedVars = {
       ...currentVars,
@@ -200,6 +203,7 @@ export default function RecordDetailModal({
 
   // Insert bracket tag into copyText at cursor position
   const handleInsertTag = (tag = '[LINK]') => {
+    if (readOnly) return;
     const text = formData.copyText || '';
     const textarea = document.getElementById('record-copy-textarea');
     let newCopyText = text;
@@ -228,7 +232,7 @@ export default function RecordDetailModal({
   const currentAttachments = normalizeAttachments(formData.attachment);
 
   const handleProcessAndAddFiles = async (files) => {
-    if (!files || files.length === 0) return;
+    if (readOnly || !files || files.length === 0) return;
     try {
       const { items, errors } = await processAttachmentFiles(files, record?.id);
       if (errors && errors.length > 0) {
@@ -245,12 +249,14 @@ export default function RecordDetailModal({
   };
 
   const handleFilesSelected = async (e) => {
+    if (readOnly) return;
     const files = Array.from(e.target.files || []);
     await handleProcessAndAddFiles(files);
     e.target.value = '';
   };
 
   const handleRemoveAttachmentIndex = async (indexToRemove) => {
+    if (readOnly) return;
     const target = currentAttachments[indexToRemove];
     if (target?.id) {
       await deleteAttachmentFile(target.id);
@@ -573,8 +579,8 @@ export default function RecordDetailModal({
       {/* Tags [ ] no texto */}
       {detectedBracketTags.length > 0 && (
         <div style={{
-          background: 'rgba(245, 158, 11, 0.05)',
-          border: '1px solid rgba(245, 158, 11, 0.25)',
+          background: 'var(--accent-soft)',
+          border: '1px solid var(--accent-border)',
           borderRadius: '6px',
           padding: '0.65rem 0.8rem',
           display: 'flex',
@@ -583,14 +589,14 @@ export default function RecordDetailModal({
           marginTop: '0.35rem'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-              <Edit3 size={12} color="#fbbf24" /> Tags [ ] Detectadas ({detectedBracketTags.length})
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--amber-text)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Edit3 size={12} color="var(--amber-text)" /> Tags [ ] Detectadas ({detectedBracketTags.length})
             </span>
             {onOpenTagsModal && (
               <button
                 type="button"
                 className="btn-ghost"
-                style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: '#fbbf24' }}
+                style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', color: 'var(--amber-text)' }}
                 onClick={() => onOpenTagsModal(campaign)}
               >
                 ⚡ Central de Tags [ ] da Campanha
@@ -613,17 +619,17 @@ export default function RecordDetailModal({
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    background: 'rgba(0, 0, 0, 0.3)',
+                    background: 'var(--surface-nested)',
                     padding: '0.45rem 0.65rem',
                     borderRadius: '6px',
-                    border: '1px solid var(--border-subtle)',
+                    border: '1px solid var(--border-color)',
                     flexWrap: 'wrap'
                   }}
                 >
                   <span style={{
-                    background: 'rgba(245, 158, 11, 0.15)',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    color: '#fbbf24',
+                    background: 'var(--accent-soft)',
+                    border: '1px solid var(--accent-border)',
+                    color: 'var(--accent-text)',
                     fontWeight: 700,
                     fontSize: '0.74rem',
                     padding: '0.15rem 0.5rem',
@@ -638,7 +644,7 @@ export default function RecordDetailModal({
                     <input
                       type="text"
                       className="form-control"
-                      style={{ width: '100%', fontSize: '0.78rem', padding: '0.3rem 0.55rem', background: 'transparent' }}
+                      style={{ width: '100%', fontSize: '0.78rem', padding: '0.3rem 0.55rem', background: 'var(--bg-cell)' }}
                       placeholder="Digite o link (ex: https://...) ou frase para esta tag..."
                       value={currentVal}
                       onChange={(e) => {
@@ -656,11 +662,11 @@ export default function RecordDetailModal({
                   </div>
 
                   {currentVal ? (
-                    <span style={{ fontSize: '0.7rem', color: '#4ade80', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--success-text)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <Check size={12} strokeWidth={3} /> Preenchida
                     </span>
                   ) : (
-                    <span style={{ fontSize: '0.7rem', color: '#fbbf24', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--amber-text)', fontWeight: 600 }}>
                       Falta Preencher
                     </span>
                   )}
@@ -963,7 +969,7 @@ export default function RecordDetailModal({
 
                         <strong style={{
                           fontSize: '0.8rem',
-                          color: btn.text ? '#f8fafc' : '#8696a0',
+                          color: btn.text ? 'var(--text-primary)' : 'var(--text-muted)',
                           maxWidth: '220px',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -974,8 +980,8 @@ export default function RecordDetailModal({
 
                         <span style={{
                           fontSize: '0.66rem',
-                          color: '#8696a0',
-                          background: 'rgba(255, 255, 255, 0.04)',
+                          color: 'var(--text-muted)',
+                          background: 'var(--bg-card-hover)',
                           padding: '0.1rem 0.35rem',
                           borderRadius: '4px'
                         }}>
@@ -985,9 +991,9 @@ export default function RecordDetailModal({
                         {totalSubButtons > 0 && (
                           <span style={{
                             fontSize: '0.66rem',
-                            color: '#38bdf8',
-                            background: 'rgba(56, 189, 248, 0.1)',
-                            border: '1px solid rgba(56, 189, 248, 0.25)',
+                            color: 'var(--info-text)',
+                            background: 'rgba(25, 103, 210, 0.1)',
+                            border: '1px solid rgba(25, 103, 210, 0.25)',
                             padding: '0.1rem 0.35rem',
                             borderRadius: '4px',
                             display: 'flex',
@@ -1054,8 +1060,8 @@ export default function RecordDetailModal({
 
                         {/* Sequential Responses for this specific button */}
                         <div style={{
-                          background: 'rgba(0, 0, 0, 0.35)',
-                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          background: 'var(--surface-nested)',
+                          border: '1px solid var(--border-color)',
                           borderRadius: '6px',
                           padding: '0.65rem',
                           display: 'flex',
@@ -1069,12 +1075,12 @@ export default function RecordDetailModal({
                                 Próximas Mensagens ao Clicar no Botão #{btnIdx + 1}
                               </span>
                             </div>
-                            <span style={{ fontSize: '0.68rem', color: '#8696a0' }}>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                               {(btn.responses || []).length} mensagem(ns) configurada(s)
                             </span>
                           </div>
 
-                          <p style={{ fontSize: '0.7rem', color: '#94a3b8', margin: 0, lineHeight: '1.35' }}>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', margin: 0, lineHeight: '1.35' }}>
                             Defina as mensagens e botões que o lead receberá sequencialmente após clicar no botão "{btn.text || 'Opção'}".
                           </p>
 
@@ -1088,8 +1094,8 @@ export default function RecordDetailModal({
                                 <div
                                   key={rIdx}
                                   style={{
-                                    background: 'rgba(255, 255, 255, 0.02)',
-                                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                                    background: 'var(--bg-card)',
+                                    border: '1px solid var(--border-color)',
                                     borderRadius: '5px',
                                     padding: '0.45rem 0.6rem',
                                     display: 'flex',
@@ -1098,7 +1104,7 @@ export default function RecordDetailModal({
                                   }}
                                 >
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8' }}>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--info-text)' }}>
                                       Mensagem #{rIdx + 1} pós-clique
                                     </span>
                                     <button
@@ -1124,8 +1130,8 @@ export default function RecordDetailModal({
                                       fontSize: '0.78rem',
                                       lineHeight: '1.45',
                                       padding: '0.4rem 0.55rem',
-                                      background: 'rgba(0, 0, 0, 0.25)',
-                                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                                      background: 'var(--surface-nested-soft)',
+                                      border: '1px solid var(--border-color)',
                                       borderRadius: '4px',
                                       width: '100%'
                                     }}
@@ -1397,12 +1403,12 @@ export default function RecordDetailModal({
             ? availableChannels
             : availableChannels.filter(ch => ch.category === activeFlowCategory || getChannelCategory(ch.value) === activeFlowCategory)
           ).map(ch => (
-            <option key={ch.value} value={ch.value} style={{ background: '#161b26', color: '#fff' }}>
+            <option key={ch.value} value={ch.value} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {ch.label}
             </option>
           ))}
           {activeFlowCategory !== 'all' && !availableChannels.some(ch => (ch.category === activeFlowCategory || getChannelCategory(ch.value) === activeFlowCategory) && ch.value === formData.channel) && (
-            <option value={formData.channel} style={{ background: '#161b26', color: '#fff' }}>
+            <option value={formData.channel} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {formData.channel}
             </option>
           )}
@@ -1432,7 +1438,7 @@ export default function RecordDetailModal({
           onChange={(e) => handleChange('stage', e.target.value)}
         >
           {availableStages.map(st => (
-            <option key={st.value} value={st.value} style={{ background: '#161b26', color: '#fff' }}>
+            <option key={st.value} value={st.value} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
               {st.badgeIcon || ''} {st.label}
             </option>
           ))}
@@ -1497,15 +1503,20 @@ export default function RecordDetailModal({
           />
 
           {currentAttachments.length === 0 ? (
+            readOnly ? (
+              <div style={{ padding: '0.65rem 0.75rem', fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                Nenhum arquivo anexo neste disparo.
+              </div>
+            ) : (
             <div
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: isDraggingModalAtt ? '2px dashed #38bdf8' : '1px dashed #2d3748',
+                border: isDraggingModalAtt ? '2px dashed #F7BA12' : '1px dashed var(--border-color)',
                 borderRadius: '6px',
                 padding: '1.2rem',
                 textAlign: 'center',
                 cursor: 'pointer',
-                background: isDraggingModalAtt ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                background: isDraggingModalAtt ? 'rgba(247, 186, 18, 0.12)' : 'rgba(255, 255, 255, 0.02)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1520,18 +1531,19 @@ export default function RecordDetailModal({
               }}
               onMouseLeave={(e) => {
                 if (!isDraggingModalAtt) {
-                  e.currentTarget.style.borderColor = '#2d3748';
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
                   e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
                 }
               }}
             >
-              <Upload size={16} color={isDraggingModalAtt ? '#38bdf8' : 'var(--text-muted)'} />
-              <span style={{ fontSize: '0.78rem', color: isDraggingModalAtt ? '#38bdf8' : 'var(--text-muted)', fontWeight: isDraggingModalAtt ? 700 : 500 }}>
+              <Upload size={16} color={isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)'} />
+              <span style={{ fontSize: '0.78rem', color: isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)', fontWeight: isDraggingModalAtt ? 700 : 500 }}>
                 {isDraggingModalAtt
                   ? 'Solte os arquivos aqui (máx. 100MB)'
                   : 'Arraste e solte arquivos aqui ou clique para selecionar (Imagens, Vídeos, Docs até 100MB)'}
               </span>
             </div>
+            )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
               {currentAttachments.map((att, idx) => {
@@ -1543,21 +1555,21 @@ export default function RecordDetailModal({
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      background: 'rgba(0, 0, 0, 0.3)',
+                      background: 'var(--bg-cell)',
                       padding: '0.45rem 0.65rem',
                       borderRadius: '6px',
-                      border: `1px solid ${isBefore ? 'rgba(56, 189, 248, 0.25)' : 'rgba(251, 191, 36, 0.25)'}`,
+                      border: `1px solid ${isBefore ? 'rgba(56, 189, 248, 0.35)' : 'rgba(247, 186, 18, 0.4)'}`,
                       gap: '0.6rem'
                     }}
                   >
                     {/* Left: Thumbnail & Name */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
                       {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl)) ? (
-                        <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid var(--border-color)' }}>
                           <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         </div>
                       ) : (
-                        <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--bg-card-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                           {att.type === 'image' && <ImageIcon size={15} color="#60a5fa" />}
                           {att.type === 'video' && <VideoIcon size={15} color="#c084fc" />}
                           {att.type === 'audio' && <Music size={15} color="#4ade80" />}
@@ -1566,7 +1578,7 @@ export default function RecordDetailModal({
                       )}
 
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={att.name}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={att.name}>
                           {att.name}
                         </span>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
@@ -1576,47 +1588,49 @@ export default function RecordDetailModal({
                     </div>
 
                     {/* Middle: Position Toggle */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{
-                          fontSize: '0.68rem',
-                          padding: '0.2rem 0.45rem',
-                          borderRadius: '4px',
-                          background: isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                          color: isBefore ? '#38bdf8' : 'var(--text-muted)',
-                          border: isBefore ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
-                          fontWeight: isBefore ? 700 : 400
-                        }}
-                        onClick={() => handleToggleAttachmentPositionIndex(idx, 'before')}
-                        title="Enviar antes do texto da copy"
-                      >
-                        ⬆️ Antes
-                      </button>
+                    {!readOnly && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '0.2rem 0.45rem',
+                            borderRadius: '4px',
+                            background: isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                            color: isBefore ? '#38bdf8' : 'var(--text-muted)',
+                            border: isBefore ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                            fontWeight: isBefore ? 700 : 400
+                          }}
+                          onClick={() => handleToggleAttachmentPositionIndex(idx, 'before')}
+                          title="Enviar antes do texto da copy"
+                        >
+                          ⬆️ Antes
+                        </button>
 
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{
-                          fontSize: '0.68rem',
-                          padding: '0.2rem 0.45rem',
-                          borderRadius: '4px',
-                          background: !isBefore ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                          color: !isBefore ? '#fbbf24' : 'var(--text-muted)',
-                          border: !isBefore ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid transparent',
-                          fontWeight: !isBefore ? 700 : 400
-                        }}
-                        onClick={() => handleToggleAttachmentPositionIndex(idx, 'after')}
-                        title="Enviar depois do texto da copy"
-                      >
-                        ⬇️ Depois
-                      </button>
-                    </div>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '0.2rem 0.45rem',
+                            borderRadius: '4px',
+                            background: !isBefore ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                            color: !isBefore ? '#fbbf24' : 'var(--text-muted)',
+                            border: !isBefore ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid transparent',
+                            fontWeight: !isBefore ? 700 : 400
+                          }}
+                          onClick={() => handleToggleAttachmentPositionIndex(idx, 'after')}
+                          title="Enviar depois do texto da copy"
+                        >
+                          ⬇️ Depois
+                        </button>
+                      </div>
+                    )}
 
                     {/* Right: Actions */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
-                      {currentAttachments.length > 1 && (
+                      {!readOnly && currentAttachments.length > 1 && (
                         <>
                           <button
                             type="button"
@@ -1651,15 +1665,17 @@ export default function RecordDetailModal({
                         <Download size={12} />
                       </button>
 
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: '#ef4444' }}
-                        onClick={() => handleRemoveAttachmentIndex(idx)}
-                        title="Excluir este anexo"
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: '#ef4444' }}
+                          onClick={() => handleRemoveAttachmentIndex(idx)}
+                          title="Excluir este anexo"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -1715,8 +1731,8 @@ export default function RecordDetailModal({
       icon: <Layers size={14} className="field-icon" />,
       render: () => (
         <div style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid var(--border-subtle)',
+          background: 'var(--surface-nested)',
+          border: '1px solid var(--border-color)',
           borderRadius: '6px',
           padding: '0.65rem 0.85rem',
           width: '100%',
@@ -1725,7 +1741,7 @@ export default function RecordDetailModal({
           gap: '0.35rem'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#ffffff' }}>
+            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
               {campaign?.name || 'Campanha Principal'}
             </span>
             <span style={{
@@ -1733,9 +1749,9 @@ export default function RecordDetailModal({
               fontWeight: 600,
               padding: '0.15rem 0.5rem',
               borderRadius: '12px',
-              background: 'rgba(56, 189, 248, 0.15)',
-              color: '#38bdf8',
-              border: '1px solid rgba(56, 189, 248, 0.3)'
+              background: 'rgba(25, 103, 210, 0.12)',
+              color: 'var(--info-text)',
+              border: '1px solid rgba(25, 103, 210, 0.3)'
             }}>
               {campaign?.status || 'Ativa'}
             </span>
@@ -1983,11 +1999,12 @@ export default function RecordDetailModal({
                 <input
                   type="text"
                   value={formData.title || ''}
+                  readOnly={readOnly}
                   onChange={(e) => handleChange('title', e.target.value)}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '1.15rem',
                     fontWeight: 700,
                     fontFamily: 'inherit',
@@ -2001,6 +2018,23 @@ export default function RecordDetailModal({
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+              {readOnly && (
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    background: 'rgba(148, 163, 184, 0.14)',
+                    border: '1px solid var(--border-color)',
+                    padding: '0.18rem 0.5rem',
+                    borderRadius: '5px',
+                    marginRight: '0.25rem'
+                  }}
+                >
+                  Somente Leitura
+                </span>
+              )}
+
               {/* Header Navigation: < X de Y > */}
               {recordsList && recordsList.length > 1 && currentIndex >= 0 && (
                 <div
@@ -2061,30 +2095,35 @@ export default function RecordDetailModal({
                   </button>
                 </div>
               )}
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => onDuplicateRecord(formData)}
-              title="Duplicar Disparo"
-              style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
-            >
-              <Copy size={13} />
-              <span>Duplicar</span>
-            </button>
 
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => {
-                if (window.confirm('Excluir este disparo permanentemente?')) {
-                  onDeleteRecord(record.id);
-                }
-              }}
-              title="Excluir Disparo"
-              style={{ color: '#ef4444', padding: '0.3rem 0.5rem' }}
-            >
-              <Trash2 size={14} />
-            </button>
+            {!readOnly && (
+              <>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => onDuplicateRecord(formData)}
+                  title="Duplicar Disparo"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                >
+                  <Copy size={13} />
+                  <span>Duplicar</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    if (window.confirm('Excluir este disparo permanentemente?')) {
+                      onDeleteRecord(record.id);
+                    }
+                  }}
+                  title="Excluir Disparo"
+                  style={{ color: '#ef4444', padding: '0.3rem 0.5rem' }}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </>
+            )}
 
             <button
               type="button"
@@ -2106,14 +2145,14 @@ export default function RecordDetailModal({
           overflow: 'hidden'
         }}>
           {/* Left Column: Airtable Vertical Field List */}
-          <div className="airtable-record-container">
+          <div className={`airtable-record-container${readOnly ? ' read-only-form' : ''}`}>
             {/* Render Visible Fields */}
             {visibleFields.map(field => (
               <div key={field.id} className="airtable-field-row">
                 <div className="airtable-field-label-col">
                   {field.icon}
                   <span>{field.label}</span>
-                  {onToggleColumnVisibility && (
+                  {!readOnly && onToggleColumnVisibility && (
                     <button
                       type="button"
                       className="airtable-field-hide-btn"

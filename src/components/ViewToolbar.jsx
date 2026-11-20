@@ -57,7 +57,9 @@ export default function ViewToolbar({
   flowCounts = { whatsapp: 0, email: 0, youtube: 0, all: 0 },
   selectedRecordIds = [],
   onDeleteMultipleRecords,
-  onClearSelection
+  onOpenBulkEdit,
+  onClearSelection,
+  readOnly = false
 }) {
   const [openMenu, setOpenMenu] = useState(null);
   const channelsRef = useRef(null);
@@ -791,21 +793,36 @@ export default function ViewToolbar({
           )}
         </span>
 
-        {/* Batch Delete Action Button when records are selected */}
-        {selectedRecordIds && selectedRecordIds.length > 0 && (
+        {/* Batch Actions when records are selected */}
+        {!readOnly && selectedRecordIds && selectedRecordIds.length > 0 && (
           <div style={{
             display: 'flex',
             alignItems: 'center',
             gap: '0.4rem',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.35)',
+            background: 'var(--accent-soft)',
+            border: '1px solid var(--accent-border)',
             borderRadius: '6px',
             padding: '3px 8px',
             marginLeft: '0.5rem'
           }}>
-            <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#fca5a5' }}>
+            <span style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--accent-text)' }}>
               {selectedRecordIds.length} selec.
             </span>
+            <button
+              type="button"
+              onClick={() => onOpenBulkEdit && onOpenBulkEdit()}
+              className="btn-primary"
+              style={{
+                padding: '3px 8px',
+                fontSize: '0.74rem',
+                borderRadius: '4px',
+                gap: '4px'
+              }}
+              title="Alterar status, canal, data ou tags de todos os disparos selecionados"
+            >
+              <Edit3 size={12} />
+              Editar
+            </button>
             <button
               type="button"
               onClick={() => onDeleteMultipleRecords && onDeleteMultipleRecords(selectedRecordIds)}

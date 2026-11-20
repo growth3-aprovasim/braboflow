@@ -34,9 +34,9 @@ function ChannelBadge({ channel }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.25rem',
-        background: 'rgba(34, 197, 94, 0.15)',
-        color: '#4ade80',
-        border: '1px solid rgba(34, 197, 94, 0.3)',
+        background: 'rgba(34, 197, 94, 0.12)',
+        color: 'var(--success-text)',
+        border: '1px solid rgba(34, 197, 94, 0.35)',
         borderRadius: '4px',
         padding: '0.12rem 0.4rem',
         fontSize: '0.68rem',
@@ -52,9 +52,9 @@ function ChannelBadge({ channel }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.25rem',
-        background: 'rgba(168, 85, 247, 0.15)',
-        color: '#c084fc',
-        border: '1px solid rgba(168, 85, 247, 0.3)',
+        background: 'rgba(168, 85, 247, 0.12)',
+        color: 'var(--purple-text)',
+        border: '1px solid rgba(168, 85, 247, 0.35)',
         borderRadius: '4px',
         padding: '0.12rem 0.4rem',
         fontSize: '0.68rem',
@@ -70,9 +70,9 @@ function ChannelBadge({ channel }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.25rem',
-        background: 'rgba(239, 68, 68, 0.15)',
-        color: '#f87171',
-        border: '1px solid rgba(239, 68, 68, 0.3)',
+        background: 'rgba(239, 68, 68, 0.12)',
+        color: 'var(--youtube-text)',
+        border: '1px solid rgba(239, 68, 68, 0.35)',
         borderRadius: '4px',
         padding: '0.12rem 0.4rem',
         fontSize: '0.68rem',
@@ -88,9 +88,9 @@ function ChannelBadge({ channel }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.25rem',
-        background: 'rgba(139, 92, 246, 0.15)',
-        color: '#c084fc',
-        border: '1px solid rgba(139, 92, 246, 0.3)',
+        background: 'rgba(139, 92, 246, 0.12)',
+        color: 'var(--purple-text)',
+        border: '1px solid rgba(139, 92, 246, 0.35)',
         borderRadius: '4px',
         padding: '0.12rem 0.4rem',
         fontSize: '0.68rem',
@@ -106,9 +106,9 @@ function ChannelBadge({ channel }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: '0.25rem',
-        background: 'rgba(249, 115, 22, 0.15)',
-        color: '#fb923c',
-        border: '1px solid rgba(249, 115, 22, 0.3)',
+        background: 'rgba(249, 115, 22, 0.12)',
+        color: 'var(--orange-text)',
+        border: '1px solid rgba(249, 115, 22, 0.35)',
         borderRadius: '4px',
         padding: '0.12rem 0.4rem',
         fontSize: '0.68rem',
@@ -123,9 +123,9 @@ function ChannelBadge({ channel }) {
       display: 'inline-flex',
       alignItems: 'center',
       gap: '0.25rem',
-      background: 'rgba(255, 255, 255, 0.05)',
-      color: '#94a3b8',
-      border: '1px solid rgba(255, 255, 255, 0.1)',
+      background: 'var(--surface-nested-soft)',
+      color: 'var(--text-secondary)',
+      border: '1px solid var(--border-color)',
       borderRadius: '4px',
       padding: '0.12rem 0.4rem',
       fontSize: '0.68rem',
@@ -185,14 +185,13 @@ function HighlightedText({ text, highlightTag }) {
             <mark
               key={idx}
               style={{
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.5) 100%)',
-                border: '1px solid #fbbf24',
-                color: '#fbbf24',
+                background: 'var(--accent-soft)',
+                border: '1px solid var(--accent-border)',
+                color: 'var(--accent-text)',
                 fontWeight: 800,
                 borderRadius: '5px',
                 padding: '0.1rem 0.45rem',
                 margin: '0 0.15rem',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.35)',
                 display: 'inline-block'
               }}
               title={`Tag em foco: ${p.text}`}
@@ -206,9 +205,9 @@ function HighlightedText({ text, highlightTag }) {
           <span
             key={idx}
             style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.18)',
-              color: '#cbd5e1',
+              background: 'var(--surface-nested-soft)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
               fontWeight: 600,
               borderRadius: '4px',
               padding: '0.06rem 0.35rem',
@@ -510,19 +509,19 @@ export default function CampaignTagsModal({
                 placeholder="Buscar tag (ex: LINK, DATA, CUPOM)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.8rem', outline: 'none', width: '100%' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', width: '100%' }}
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
+                <button onClick={() => setSearchTerm('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
               )}
             </div>
 
             {/* Filter Pills with Exact Counters */}
-            <div style={{ display: 'flex', gap: '0.35rem', background: 'rgba(0, 0, 0, 0.3)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', gap: '0.35rem', background: 'var(--surface-nested-soft)', padding: '0.2rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               {[
                 { id: 'all', label: `Todas (${tagCounts.all})` },
-                { id: 'filled', label: `Preenchidas (${tagCounts.filled})`, color: '#4ade80' },
-                { id: 'pending', label: `Faltam Preencher (${tagCounts.pending})`, color: '#fbbf24' }
+                { id: 'filled', label: `Preenchidas (${tagCounts.filled})`, color: 'var(--success-text)' },
+                { id: 'pending', label: `Faltam Preencher (${tagCounts.pending})`, color: 'var(--amber-text)' }
               ].map(f => (
                 <button
                   key={f.id}
@@ -533,8 +532,8 @@ export default function CampaignTagsModal({
                     padding: '0.25rem 0.65rem',
                     borderRadius: '6px',
                     border: 'none',
-                    background: activeFilter === f.id ? (f.id === 'filled' ? 'rgba(34, 197, 94, 0.2)' : 'rgba(245, 158, 11, 0.2)') : 'transparent',
-                    color: activeFilter === f.id ? (f.color || '#fbbf24') : '#94a3b8',
+                    background: activeFilter === f.id ? (f.id === 'filled' ? 'rgba(34, 197, 94, 0.18)' : 'var(--accent-soft)') : 'transparent',
+                    color: activeFilter === f.id ? (f.color || 'var(--accent-text)') : 'var(--text-secondary)',
                     fontWeight: activeFilter === f.id ? 700 : 500,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
@@ -550,7 +549,7 @@ export default function CampaignTagsModal({
               type="button"
               className="btn-secondary"
               onClick={() => setShowAddCustomTag(!showAddCustomTag)}
-              style={{ fontSize: '0.76rem', padding: '0.35rem 0.75rem', color: '#fbbf24', borderColor: 'rgba(245, 158, 11, 0.35)' }}
+              style={{ fontSize: '0.76rem', padding: '0.35rem 0.75rem', color: 'var(--amber-text)', borderColor: 'var(--accent-border)' }}
             >
               <Plus size={13} />
               <span>Nova Tag [ ]</span>
@@ -652,9 +651,9 @@ export default function CampaignTagsModal({
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
                         <span style={{
-                          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(217, 119, 6, 0.28) 100%)',
-                          border: '1px solid rgba(245, 158, 11, 0.5)',
-                          color: '#fbbf24',
+                          background: 'var(--accent-soft)',
+                          border: '1px solid var(--accent-border)',
+                          color: 'var(--accent-text)',
                           fontWeight: 800,
                           fontSize: '0.85rem',
                           padding: '0.2rem 0.65rem',
@@ -673,7 +672,7 @@ export default function CampaignTagsModal({
                             gap: '0.25rem',
                             fontSize: '0.7rem',
                             fontWeight: 700,
-                            color: '#4ade80',
+                            color: 'var(--success-text)',
                             background: 'rgba(34, 197, 94, 0.15)',
                             border: '1px solid rgba(34, 197, 94, 0.3)',
                             borderRadius: '4px',
@@ -688,9 +687,9 @@ export default function CampaignTagsModal({
                             gap: '0.25rem',
                             fontSize: '0.7rem',
                             fontWeight: 700,
-                            color: '#fbbf24',
-                            background: 'rgba(245, 158, 11, 0.15)',
-                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            color: 'var(--amber-text)',
+                            background: 'var(--accent-soft)',
+                            border: '1px solid var(--accent-border)',
                             borderRadius: '4px',
                             padding: '0.12rem 0.45rem'
                           }}>
@@ -698,8 +697,8 @@ export default function CampaignTagsModal({
                           </span>
                         )}
 
-                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                          Presente em <strong style={{ color: '#f8fafc' }}>{tag.messages.length}</strong> {tag.messages.length === 1 ? 'mensagem' : 'mensagens'} ({tag.count}x)
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Presente em <strong style={{ color: 'var(--text-primary)' }}>{tag.messages.length}</strong> {tag.messages.length === 1 ? 'mensagem' : 'mensagens'} ({tag.count}x)
                         </span>
 
                         {tag.messages.length > 0 && (
@@ -710,9 +709,9 @@ export default function CampaignTagsModal({
                             style={{
                               fontSize: '0.72rem',
                               padding: '0.15rem 0.5rem',
-                              color: isExpanded ? '#fbbf24' : '#94a3b8',
-                              background: isExpanded ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                              border: '1px solid rgba(245, 158, 11, 0.3)',
+                              color: isExpanded ? 'var(--amber-text)' : 'var(--text-secondary)',
+                              background: isExpanded ? 'var(--accent-soft)' : 'var(--bg-card-hover)',
+                              border: '1px solid var(--accent-border)',
                               borderRadius: '5px',
                               display: 'flex',
                               alignItems: 'center',
@@ -767,8 +766,8 @@ export default function CampaignTagsModal({
                     {isExpanded && tag.messages.length > 0 && (
                       <div style={{
                         marginTop: '0.4rem',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid rgba(245, 158, 11, 0.25)',
+                        background: 'var(--surface-nested)',
+                        border: '1px solid var(--accent-border)',
                         borderRadius: '8px',
                         padding: '0.85rem',
                         display: 'flex',
@@ -776,8 +775,8 @@ export default function CampaignTagsModal({
                         gap: '0.65rem'
                       }}>
                         {/* Occurrences Header with Expand All Toggle */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.06)', paddingBottom: '0.45rem' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '0.45rem' }}>
+                          <span style={{ fontSize: '0.74rem', color: 'var(--amber-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                             <FileText size={13} />
                             <span>Mensagens com esta Tag ({tag.messages.length})</span>
                           </span>
@@ -789,11 +788,11 @@ export default function CampaignTagsModal({
                             style={{
                               fontSize: '0.72rem',
                               padding: '0.15rem 0.55rem',
-                              color: '#fbbf24',
+                              color: 'var(--amber-text)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.3rem',
-                              background: 'rgba(245, 158, 11, 0.1)',
+                              background: 'var(--accent-soft)',
                               borderRadius: '5px'
                             }}
                           >
@@ -814,15 +813,15 @@ export default function CampaignTagsModal({
                               <div
                                 key={m.id}
                                 style={{
-                                  background: isMsgExpanded ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.025)',
-                                  border: isMsgExpanded ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid var(--border-subtle)',
+                                  background: isMsgExpanded ? 'var(--bg-card)' : 'var(--bg-cell)',
+                                  border: isMsgExpanded ? '1px solid var(--accent-border)' : '1px solid var(--border-color)',
                                   borderRadius: '8px',
                                   padding: '0.65rem 0.85rem',
                                   display: 'flex',
                                   flexDirection: 'column',
                                   gap: '0.45rem',
                                   transition: 'all 0.18s ease',
-                                  boxShadow: isMsgExpanded ? '0 4px 18px rgba(0, 0, 0, 0.4)' : 'none'
+                                  boxShadow: isMsgExpanded ? 'var(--shadow-md)' : 'none'
                                 }}
                               >
                                 {/* Message Info Bar */}
@@ -831,7 +830,7 @@ export default function CampaignTagsModal({
                                     <strong 
                                       onClick={() => onOpenRecord?.(liveMsg)}
                                       style={{ 
-                                        color: '#f8fafc', 
+                                        color: 'var(--text-primary)', 
                                         fontSize: '0.82rem', 
                                         cursor: 'pointer', 
                                         textDecoration: 'underline',
@@ -839,19 +838,19 @@ export default function CampaignTagsModal({
                                         transition: 'color 0.15s ease'
                                       }}
                                       title="Clique para abrir e modificar este disparo diretamente"
-                                      onMouseEnter={(e) => e.currentTarget.style.color = '#38bdf8'}
-                                      onMouseLeave={(e) => e.currentTarget.style.color = '#f8fafc'}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = 'var(--info-text)'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
                                     >
                                       {liveMsg.title}
                                     </strong>
                                     <ChannelBadge channel={liveMsg.channel} />
                                     {liveMsg.stage && (
-                                      <span style={{ fontSize: '0.66rem', color: '#94a3b8', background: 'rgba(255, 255, 255, 0.04)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                                      <span style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', background: 'var(--bg-card-hover)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
                                         {liveMsg.stage}
                                       </span>
                                     )}
                                     {liveMsg.scheduledDate && (
-                                      <span style={{ fontSize: '0.66rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                      <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                                         <Calendar size={10} /> {liveMsg.scheduledDate} {liveMsg.scheduledTime ? `• ${liveMsg.scheduledTime}` : ''}
                                       </span>
                                     )}
@@ -874,12 +873,12 @@ export default function CampaignTagsModal({
                                       style={{
                                         fontSize: '0.7rem',
                                         padding: '0.15rem 0.45rem',
-                                        color: editingMsgId === m.id ? '#f59e0b' : '#38bdf8',
-                                        borderColor: editingMsgId === m.id ? 'rgba(245, 158, 11, 0.5)' : 'rgba(56, 189, 248, 0.4)',
+                                        color: editingMsgId === m.id ? 'var(--amber-text)' : 'var(--info-text)',
+                                        borderColor: editingMsgId === m.id ? 'var(--accent-border)' : 'rgba(25, 103, 210, 0.35)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '0.25rem',
-                                        background: editingMsgId === m.id ? 'rgba(245, 158, 11, 0.15)' : 'rgba(56, 189, 248, 0.1)',
+                                        background: editingMsgId === m.id ? 'var(--accent-soft)' : 'rgba(25, 103, 210, 0.08)',
                                         borderRadius: '4px'
                                       }}
                                       title="Editar este disparo diretamente no card"
@@ -940,22 +939,22 @@ export default function CampaignTagsModal({
                                     flexDirection: 'column',
                                     gap: '0.6rem',
                                     marginTop: '0.25rem',
-                                    background: 'rgba(15, 23, 42, 0.95)',
+                                    background: 'var(--surface-nested)',
                                     border: '1px solid rgba(56, 189, 248, 0.45)',
                                     borderRadius: '6px',
                                     padding: '0.75rem'
                                   }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                      <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                      <span style={{ fontSize: '0.72rem', color: 'var(--info-text)', fontWeight: 700, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                         <Edit3 size={12} /> Editar Mensagem no Card
                                       </span>
-                                      <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
-                                        Preserve a tag <strong style={{ color: '#fbbf24' }}>{rawKey}</strong> no texto para manter a substituição
+                                      <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                                        Preserve a tag <strong style={{ color: 'var(--amber-text)' }}>{rawKey}</strong> no texto para manter a substituição
                                       </span>
                                     </div>
 
                                     <div>
-                                      <label style={{ display: 'block', fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                      <label style={{ display: 'block', fontSize: '0.66rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
                                         Título do Disparo:
                                       </label>
                                       <input
@@ -964,9 +963,9 @@ export default function CampaignTagsModal({
                                         onChange={(e) => setEditingMsgTitle(e.target.value)}
                                         style={{
                                           width: '100%',
-                                          background: '#0b1120',
-                                          color: '#f8fafc',
-                                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                                          background: 'var(--bg-cell)',
+                                          color: 'var(--text-primary)',
+                                          border: '1px solid rgba(56, 189, 248, 0.4)',
                                           borderRadius: '4px',
                                           padding: '0.35rem 0.6rem',
                                           fontSize: '0.78rem',
@@ -978,7 +977,7 @@ export default function CampaignTagsModal({
                                     </div>
 
                                     <div>
-                                      <label style={{ display: 'block', fontSize: '0.66rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
+                                      <label style={{ display: 'block', fontSize: '0.66rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, marginBottom: '0.2rem' }}>
                                         Texto da Mensagem:
                                       </label>
                                       <textarea
@@ -987,9 +986,9 @@ export default function CampaignTagsModal({
                                         rows={6}
                                         style={{
                                           width: '100%',
-                                          background: '#0b1120',
-                                          color: '#f8fafc',
-                                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                                          background: 'var(--bg-cell)',
+                                          color: 'var(--text-primary)',
+                                          border: '1px solid rgba(56, 189, 248, 0.4)',
                                           borderRadius: '4px',
                                           padding: '0.55rem 0.6rem',
                                           fontSize: '0.8rem',
@@ -1008,7 +1007,7 @@ export default function CampaignTagsModal({
                                         type="button"
                                         className="btn-ghost"
                                         onClick={() => setEditingMsgId(null)}
-                                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: '#94a3b8' }}
+                                        style={{ fontSize: '0.72rem', padding: '0.2rem 0.55rem', color: 'var(--text-secondary)' }}
                                       >
                                         <X size={11} style={{ marginRight: '0.2rem' }} /> Cancelar
                                       </button>
@@ -1044,7 +1043,7 @@ export default function CampaignTagsModal({
                                       <div 
                                         onClick={() => toggleExpandMessage(m.id)}
                                         style={{
-                                          color: '#cbd5e1',
+                                          color: 'var(--text-secondary)',
                                           fontSize: '0.76rem',
                                           lineHeight: '1.45',
                                           cursor: 'pointer',
@@ -1070,15 +1069,15 @@ export default function CampaignTagsModal({
                                       }}>
                                         {/* 1. Texto Original com a Tag */}
                                         <div>
-                                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px' }}>
                                             Texto da Mensagem (Tag Preservada):
                                           </span>
                                           <div style={{
-                                            background: 'rgba(0, 0, 0, 0.55)',
-                                            border: '1px solid rgba(245, 158, 11, 0.25)',
+                                            background: 'var(--surface-nested)',
+                                            border: '1px solid var(--accent-border)',
                                             borderRadius: '6px',
                                             padding: '0.75rem 0.9rem',
-                                            color: '#cbd5e1',
+                                            color: 'var(--text-primary)',
                                             fontSize: '0.8rem',
                                             lineHeight: '1.5',
                                             whiteSpace: 'pre-wrap',
@@ -1094,15 +1093,15 @@ export default function CampaignTagsModal({
 
                                         {/* 2. Preview Final Resolvido (Com a Tag Substituída) */}
                                         <div>
-                                          <span style={{ fontSize: '0.68rem', color: '#4ade80', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                            <Sparkles size={11} color="#4ade80" /> Preview Final (Como o lead receberá / Ao Copiar):
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--success-text)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                            <Sparkles size={11} color="var(--success-text)" /> Preview Final (Como o lead receberá / Ao Copiar):
                                           </span>
                                           <div style={{
-                                            background: 'rgba(34, 197, 94, 0.04)',
+                                            background: 'rgba(34, 197, 94, 0.06)',
                                             border: '1px solid rgba(34, 197, 94, 0.3)',
                                             borderRadius: '6px',
                                             padding: '0.75rem 0.9rem',
-                                            color: '#f8fafc',
+                                            color: 'var(--text-primary)',
                                             fontSize: '0.82rem',
                                             lineHeight: '1.55',
                                             whiteSpace: 'pre-wrap',

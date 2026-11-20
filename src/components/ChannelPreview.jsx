@@ -340,7 +340,7 @@ export function formatFormattedText(text, isYouTube = false) {
                 target="_blank"
                 rel="noreferrer"
                 style={{
-                  color: isYouTube ? '#3ea6ff' : '#60a5fa',
+                  color: isYouTube ? '#3ea6ff' : 'var(--wa-link-color, #60a5fa)',
                   textDecoration: 'underline',
                   wordBreak: 'break-all',
                   fontWeight: 600
@@ -375,8 +375,8 @@ export function formatFormattedText(text, isYouTube = false) {
           return (
             <span key={pIdx}>
               {formattedSubparts.map((sp, spIdx) => {
-                if (sp.bold) return <strong key={spIdx} style={{ color: '#fff', fontWeight: 700 }}>{sp.text}</strong>;
-                if (sp.italic) return <em key={spIdx} style={{ fontStyle: 'italic', color: '#cbd5e1' }}>{sp.text}</em>;
+                if (sp.bold) return <strong key={spIdx} style={{ color: 'var(--wa-bold-color, #fff)', fontWeight: 700 }}>{sp.text}</strong>;
+                if (sp.italic) return <em key={spIdx} style={{ fontStyle: 'italic', color: 'var(--wa-italic-color, #cbd5e1)' }}>{sp.text}</em>;
                 return <span key={spIdx}>{sp.text}</span>;
               })}
             </span>
@@ -890,7 +890,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                   display: 'flex',
                   flexDirection: 'column',
                   marginTop: '0.45rem',
-                  borderTop: '1px solid rgba(255, 255, 255, 0.08)'
+                  borderTop: '1px solid var(--wa-divider, rgba(255, 255, 255, 0.08))'
                 }}>
                   {buttonsList.map((btn, bIdx) => {
                     const btnId = btn.id || `btn_${bIdx}`;
@@ -901,14 +901,14 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                         key={btnId}
                         onClick={() => setActiveClickedButtonId(prev => prev === btnId ? null : btnId)}
                         style={{
-                          borderTop: bIdx > 0 ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+                          borderTop: bIdx > 0 ? '1px solid var(--wa-divider, rgba(255, 255, 255, 0.08))' : 'none',
                           padding: '0.45rem 0.35rem',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           gap: '0.4rem',
-                          color: isSelected ? '#34d399' : '#00a884',
-                          background: isSelected ? 'rgba(0, 168, 132, 0.18)' : 'transparent',
+                          color: isSelected ? 'var(--wa-btn-active-color, #34d399)' : 'var(--wa-btn-color, #00a884)',
+                          background: isSelected ? 'var(--wa-btn-active-bg, rgba(0, 168, 132, 0.18))' : 'transparent',
                           fontWeight: 700,
                           fontSize: '0.78rem',
                           cursor: 'pointer',
@@ -917,7 +917,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                         }}
                         title={`Clique para simular o clique no "${btn.text || `Botão #${bIdx + 1}`}" e ver suas próximas mensagens!`}
                       >
-                        <CornerDownRight size={13} color={isSelected ? '#34d399' : '#00a884'} />
+                        <CornerDownRight size={13} color={isSelected ? 'var(--wa-btn-active-color, #34d399)' : 'var(--wa-btn-color, #00a884)'} />
                         <span>{btn.text || `Opção ${bIdx + 1}`}</span>
                       </div>
                     );
@@ -953,21 +953,17 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
               <>
                 {/* Balão do Lead (Resposta enviada pelo usuário ao clicar no botão selecionado) */}
                 <div
-                  className="wa-message-bubble"
+                  className="wa-message-bubble wa-bubble-outgoing"
                   style={{
-                    alignSelf: 'flex-end',
-                    background: '#005c4b',
-                    borderRadius: '10px 0 10px 10px',
                     padding: '6px 10px 4px 10px',
                     maxWidth: '85%',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
                     marginTop: '0.3rem'
                   }}
                 >
-                  <div style={{ color: '#e9edef', fontSize: '0.78rem', fontWeight: 600 }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 600 }}>
                     {clickedBtn.text || 'Opção selecionada'}
                   </div>
-                  <div className="wa-bubble-meta" style={{ color: 'rgba(255,255,255,0.7)', float: 'right', marginTop: '2px' }}>
+                  <div className="wa-bubble-meta" style={{ float: 'right', marginTop: '2px' }}>
                     <span>{record.scheduledTime || '10:01'}</span>
                     <CheckCheck size={13} color="#53bdeb" />
                   </div>
@@ -987,14 +983,13 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                       className="wa-message-bubble"
                       style={{
                         alignSelf: 'flex-start',
-                        background: '#202c33',
                         borderRadius: '0 10px 10px 10px',
                         padding: '7px 9px 5px 9px',
                         maxWidth: '92%',
                         marginTop: '0.2rem'
                       }}
                     >
-                      <div style={{ fontSize: '0.64rem', color: '#00a884', fontWeight: 700, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <div style={{ fontSize: '0.64rem', color: 'var(--wa-btn-color, #00a884)', fontWeight: 700, marginBottom: '3px', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <span>🤖 Próxima Mensagem #{rIdx + 1} pós-clique ({clickedBtn.text})</span>
                       </div>
                       <div className="wa-message-text">
@@ -1008,7 +1003,7 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                           flexDirection: 'column',
                           gap: '3px',
                           marginTop: '6px',
-                          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderTop: '1px solid var(--wa-divider, rgba(255, 255, 255, 0.08))',
                           paddingTop: '5px'
                         }}>
                           {subButtons.map((sb, sbIdx) => {
@@ -1017,8 +1012,8 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                               <div
                                 key={sb.id || sbIdx}
                                 style={{
-                                  background: 'rgba(255, 255, 255, 0.06)',
-                                  color: '#00a884',
+                                  background: 'var(--wa-btn-active-bg, rgba(255, 255, 255, 0.06))',
+                                  color: 'var(--wa-btn-color, #00a884)',
                                   border: '1px solid rgba(0, 168, 132, 0.3)',
                                   borderRadius: '6px',
                                   padding: '6px 9px',

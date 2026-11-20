@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import logoImg from '../assets/logo.png';
+import logoBlackImg from '../assets/logo-preta.png';
 import { 
   Shield, 
   Plus, 
@@ -14,7 +15,12 @@ import {
   Database,
   RefreshCw,
   FileSpreadsheet,
-  Edit3
+  Edit3,
+  Sun,
+  Moon,
+  LogOut,
+  User,
+  Eye
 } from 'lucide-react';
 
 export default function Header({ 
@@ -30,7 +36,12 @@ export default function Header({
   onExportData, 
   onImportData, 
   onResetData,
-  supabaseStatus = 'connected'
+  supabaseStatus = 'connected',
+  currentUser = null,
+  onLogout,
+  theme = 'dark',
+  onToggleTheme,
+  readOnly = false
 }) {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCampaignDropdown, setShowCampaignDropdown] = useState(false);
@@ -70,7 +81,7 @@ export default function Header({
       <div className="brand-section">
 
         <div className="brand-title-group" onClick={onOpenCampaignsManager} title="Gerenciar Campanhas">
-          <img src={logoImg} alt="Logo" className="brand-logo-img" />
+          <img src={theme === 'light' ? logoBlackImg : logoImg} alt="Logo" className="brand-logo-img" />
           <span className="brand-subtitle">Central de Fluxos & Disparos</span>
         </div>
 
@@ -116,7 +127,7 @@ export default function Header({
                   }}
                 >
                   <span style={{ 
-                    color: activeCampaign?.id === camp.id ? '#ffffff' : 'var(--text-secondary)',
+                    color: activeCampaign?.id === camp.id ? 'var(--text-primary)' : 'var(--text-secondary)',
                     fontWeight: activeCampaign?.id === camp.id ? 700 : 500,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
@@ -124,7 +135,7 @@ export default function Header({
                   }}>
                     {camp.name}
                   </span>
-                  {activeCampaign?.id === camp.id && <Check size={14} color="var(--accent-primary)" />}
+                  {activeCampaign?.id === camp.id && <Check size={14} color="var(--accent-text)" />}
                 </div>
               ))}
             </div>
@@ -137,9 +148,9 @@ export default function Header({
             className="btn-ghost"
             style={{ 
               fontSize: '0.76rem', 
-              color: '#fbbf24', 
-              background: 'rgba(245, 158, 11, 0.1)', 
-              border: '1px solid rgba(245, 158, 11, 0.35)',
+              color: 'var(--amber-text)', 
+              background: 'var(--accent-soft)', 
+              border: '1px solid var(--accent-border)',
               padding: '0.25rem 0.65rem',
               display: 'flex',
               alignItems: 'center',
@@ -177,104 +188,127 @@ export default function Header({
       </div>
 
       <div className="header-actions">
-        {/* Supabase Connection Status Badge */}
-        <div 
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.35rem 0.65rem',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            fontWeight: 600,
-            background: supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.1)' : supabaseStatus === 'syncing' ? 'rgba(247, 186, 18, 0.12)' : 'rgba(239, 68, 68, 0.1)',
-            border: `1px solid ${supabaseStatus === 'connected' ? 'rgba(34, 197, 94, 0.25)' : supabaseStatus === 'syncing' ? 'rgba(247, 186, 18, 0.35)' : 'rgba(239, 68, 68, 0.25)'}`,
-            color: supabaseStatus === 'connected' ? '#4ade80' : supabaseStatus === 'syncing' ? '#F7BA12' : '#f87171',
-            letterSpacing: '0.2px'
-          }}
-          title={supabaseStatus === 'connected' ? 'Conectado ao Supabase (bflow_*)' : supabaseStatus === 'syncing' ? 'Sincronizando com Supabase...' : 'Aguardando sincronização com Supabase'}
+        {/* Theme Toggle Button (Light / Dark) */}
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+          style={{ padding: '0.38rem 0.55rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
         >
-          {supabaseStatus === 'syncing' ? (
-            <RefreshCw size={12} className="spin-animation" />
-          ) : (
-            <Database size={12} />
-          )}
-          <span>{supabaseStatus === 'connected' ? 'Supabase' : supabaseStatus === 'syncing' ? 'Sincronizando' : 'Supabase Offline'}</span>
-          <span 
-            style={{ 
-              width: '6px', 
-              height: '6px', 
-              borderRadius: '50%', 
-              backgroundColor: supabaseStatus === 'connected' ? '#22c55e' : supabaseStatus === 'syncing' ? '#F7BA12' : '#ef4444',
-              boxShadow: supabaseStatus === 'connected' ? '0 0 6px #22c55e' : 'none'
-            }} 
-          />
-        </div>
-
-        <button 
-          className="btn-primary" 
-          onClick={onNewMessage}
-          id="btn-new-broadcast"
-          title="Criar novo disparo de mensagem para esta campanha"
-        >
-          <Plus size={16} strokeWidth={2.5} />
-          <span>Novo Disparo</span>
+          {theme === 'dark' ? <Sun size={14} color="#F7BA12" /> : <Moon size={14} color="#0F172A" />}
         </button>
 
-        <div ref={exportMenuRef} style={{ position: 'relative' }}>
+        {!readOnly && (
           <button 
-            className="btn-secondary"
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            title="Exportar ou importar dados"
+            className="btn-primary" 
+            onClick={onNewMessage}
+            id="btn-new-broadcast"
+            title="Criar novo disparo de mensagem para esta campanha"
           >
-            <Download size={14} />
-            <span>Dados</span>
+            <Plus size={16} strokeWidth={2.5} />
+            <span>Novo Disparo</span>
           </button>
+        )}
 
-          {showExportMenu && (
-            <div className="popover-menu" style={{ right: 0, minWidth: '220px' }}>
-              <div className="popover-title">Backup & Exportação</div>
-              <div 
-                className="popover-item"
-                onClick={() => { onExportData('json'); setShowExportMenu(false); }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Download size={14} color="#f59e0b" /> Exportar JSON
-                </span>
+        {!readOnly && (
+          <div ref={exportMenuRef} style={{ position: 'relative' }}>
+            <button 
+              className="btn-secondary"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              title="Exportar ou importar dados"
+            >
+              <Download size={14} />
+              <span>Dados</span>
+            </button>
+
+            {showExportMenu && (
+              <div className="popover-menu" style={{ right: 0, minWidth: '220px' }}>
+                <div className="popover-title">Backup & Exportação</div>
+                <div 
+                  className="popover-item"
+                  onClick={() => { onExportData('json'); setShowExportMenu(false); }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Download size={14} color="#f59e0b" /> Exportar JSON
+                  </span>
+                </div>
+                <div 
+                  className="popover-item"
+                  onClick={() => { onExportData('csv'); setShowExportMenu(false); }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Download size={14} color="#10b981" /> Exportar Planilha CSV
+                  </span>
+                </div>
+                <div 
+                  className="popover-item"
+                  onClick={() => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.accept = '.json';
+                    input.onchange = (e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => onImportData(event.target.result);
+                        reader.readAsText(file);
+                      }
+                    };
+                    input.click();
+                    setShowExportMenu(false);
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Upload size={14} color="#F7BA12" /> Importar Backup JSON
+                  </span>
+                </div>
               </div>
-              <div 
-                className="popover-item"
-                onClick={() => { onExportData('csv'); setShowExportMenu(false); }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Download size={14} color="#10b981" /> Exportar Planilha CSV
-                </span>
-              </div>
-              <div 
-                className="popover-item"
-                onClick={() => {
-                  const input = document.createElement('input');
-                  input.type = 'file';
-                  input.accept = '.json';
-                  input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (event) => onImportData(event.target.result);
-                      reader.readAsText(file);
-                    }
-                  };
-                  input.click();
-                  setShowExportMenu(false);
-                }}
-              >
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Upload size={14} color="#F7BA12" /> Importar Backup JSON
-                </span>
-              </div>
+            )}
+          </div>
+        )}
+
+        {/* User Badge & Logout */}
+        {currentUser && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              paddingLeft: '0.4rem',
+              borderLeft: '1px solid var(--border-color)'
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                padding: '0.28rem 0.6rem',
+                borderRadius: '6px',
+                fontSize: '0.73rem',
+                fontWeight: 600,
+                background: readOnly ? 'rgba(148, 163, 184, 0.14)' : 'rgba(247, 186, 18, 0.14)',
+                border: `1px solid ${readOnly ? 'rgba(148, 163, 184, 0.3)' : 'rgba(247, 186, 18, 0.35)'}`,
+                color: readOnly ? 'var(--text-secondary)' : '#F7BA12'
+              }}
+              title={`Logado como: ${currentUser.name} (${currentUser.roleLabel})`}
+            >
+              {readOnly ? <Eye size={13} /> : <User size={13} />}
+              <span>{currentUser.name}</span>
             </div>
-          )}
-        </div>
+
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={onLogout}
+              title="Sair da conta"
+              style={{ padding: '0.32rem 0.5rem', color: '#ef4444' }}
+            >
+              <LogOut size={14} />
+            </button>
+          </div>
+        )}
       </div>
     </header>
   );
