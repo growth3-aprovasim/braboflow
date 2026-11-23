@@ -43,6 +43,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(() => getSavedSession());
   const [isPostLoginLoading, setIsPostLoginLoading] = useState(false);
   const isReadOnly = !canUserEdit(currentUser);
+  const filterRole = currentUser?.role === 'viewer' ? 'viewer' : 'editor';
+  const filterRoleRef = useRef(filterRole);
+  filterRoleRef.current = filterRole;
 
   // Light / Dark Theme State
   const [theme, setTheme] = useState(() => {
@@ -137,8 +140,8 @@ export default function App() {
         setSupabaseStatus('connected');
       }
 
-      // Fetch saved custom filters
-      const dbFilters = await fetchCustomFiltersFromDb();
+      // Fetch saved custom filters scoped to the current user's role (editor vs viewer)
+      const dbFilters = await fetchCustomFiltersFromDb(filterRoleRef.current);
       if (dbFilters && dbFilters.length > 0) {
         setCustomFilters(dbFilters);
       }
@@ -369,9 +372,19 @@ export default function App() {
     }
   ];
 
+  const customFiltersStorageKey = filterRole === 'viewer'
+    ? 'brabo_airtable_custom_filters_viewer_v1'
+    : 'brabo_airtable_custom_filters_v2';
+  const toolbarFilterStorageKey = filterRole === 'viewer'
+    ? 'brabo_airtable_toolbar_filter_viewer'
+    : 'brabo_airtable_toolbar_filter';
+  const defaultHiddenColsStorageKey = filterRole === 'viewer'
+    ? 'brabo_grid_default_hidden_columns_viewer'
+    : 'brabo_grid_default_hidden_columns';
+
   const [customFilters, setCustomFilters] = useState(() => {
     try {
-      const saved = localStorage.getItem('brabo_airtable_custom_filters_v2');
+      const saved = localStorage.getItem(customFiltersStorageKey);
       if (saved) return JSON.parse(saved);
       return defaultCustomFilters;
     } catch {
@@ -385,7 +398,7 @@ export default function App() {
   // Universal dynamic multi-rule filter state (single source of truth for Toolbar, Sidebar & Column headers)
   const [toolbarFilter, setToolbarFilter] = useState(() => {
     try {
-      const saved = localStorage.getItem('brabo_airtable_toolbar_filter');
+      const saved = localStorage.getItem(toolbarFilterStorageKey);
       return saved ? JSON.parse(saved) : { conjunction: 'AND', rules: [] };
     } catch {
       return { conjunction: 'AND', rules: [] };
@@ -394,19 +407,55 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem('brabo_airtable_custom_filters_v2', JSON.stringify(customFilters));
+      localStorage.setItem(customFiltersStorageKey, JSON.stringify(customFilters));
     } catch (e) {
       console.warn('Erro ao salvar customFilters:', e);
     }
-  }, [customFilters]);
+  }, [customFilters, customFiltersStorageKey]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('brabo_airtable_toolbar_filter', JSON.stringify(toolbarFilter));
+      localStorage.setItem(toolbarFilterStorageKey, JSON.stringify(toolbarFilter));
     } catch (e) {
       console.warn('Erro ao salvar toolbarFilter:', e);
     }
-  }, [toolbarFilter]);
+  }, [toolbarFilter, toolbarFilterStorageKey]);
+
+  // Reload role-specific filters when switching between Admin (editor) and Viewer
+  const prevFilterRoleRef = useRef(filterRole);
+  useEffect(() => {
+    if (prevFilterRoleRef.current === filterRole) return;
+    prevFilterRoleRef.current = filterRole;
+
+    try {
+      const savedFilters = localStorage.getItem(customFiltersStorageKey);
+      setCustomFilters(savedFilters ? JSON.parse(savedFilters) : defaultCustomFilters);
+    } catch {
+      setCustomFilters(defaultCustomFilters);
+    }
+
+    try {
+      const savedToolbar = localStorage.getItem(toolbarFilterStorageKey);
+      setToolbarFilter(savedToolbar ? JSON.parse(savedToolbar) : { conjunction: 'AND', rules: [] });
+    } catch {
+      setToolbarFilter({ conjunction: 'AND', rules: [] });
+    }
+
+    try {
+      const savedHidden = localStorage.getItem(defaultHiddenColsStorageKey);
+      setDefaultHiddenColumns(savedHidden ? JSON.parse(savedHidden) : []);
+    } catch {
+      setDefaultHiddenColumns([]);
+    }
+
+    setActiveCustomFilterId('all');
+
+    fetchCustomFiltersFromDb(filterRole).then(dbFilters => {
+      if (dbFilters && dbFilters.length > 0) {
+        setCustomFilters(dbFilters);
+      }
+    }).catch(() => { /* ignore */ });
+  }, [filterRole, customFiltersStorageKey, toolbarFilterStorageKey, defaultHiddenColsStorageKey]);
 
   // Synchronized Filter Handlers
   const handleUpdateUniversalFilter = (newFilter) => {
@@ -432,23 +481,21 @@ export default function App() {
   };
 
   const handleCreateCustomFilter = (newFilter) => {
-    if (isReadOnly) return;
     setCustomFilters(prev => [...prev, newFilter]);
     setActiveCustomFilterId(newFilter.id);
     setToolbarFilter({
       conjunction: newFilter.conjunction || 'AND',
       rules: Array.isArray(newFilter.rules) ? JSON.parse(JSON.stringify(newFilter.rules)) : []
     });
-    dbSaveCustomFilter(newFilter).catch(err => console.warn('Sync custom filter error:', err));
+    dbSaveCustomFilter(newFilter, filterRole).catch(err => console.warn('Sync custom filter error:', err));
   };
 
   const handleUpdateCustomFilter = (filterId, updates) => {
-    if (isReadOnly) return;
     setCustomFilters(prev => {
       const updated = prev.map(f => f.id === filterId ? { ...f, ...updates } : f);
       const target = updated.find(f => f.id === filterId);
       if (target) {
-        dbSaveCustomFilter(target).catch(err => console.warn('Sync custom filter update error:', err));
+        dbSaveCustomFilter(target, filterRole).catch(err => console.warn('Sync custom filter update error:', err));
         if (activeCustomFilterId === filterId) {
           setToolbarFilter({
             conjunction: target.conjunction || 'AND',
@@ -461,13 +508,12 @@ export default function App() {
   };
 
   const handleDeleteCustomFilter = (filterId) => {
-    if (isReadOnly) return;
     setCustomFilters(prev => prev.filter(f => f.id !== filterId));
     if (activeCustomFilterId === filterId) {
       setActiveCustomFilterId('all');
       setToolbarFilter({ conjunction: 'AND', rules: [] });
     }
-    dbDeleteCustomFilter(filterId).catch(err => console.warn('Sync delete custom filter error:', err));
+    dbDeleteCustomFilter(filterId, filterRole).catch(err => console.warn('Sync delete custom filter error:', err));
   };
 
   // 4. Modal state
@@ -507,7 +553,7 @@ export default function App() {
   // Column Visibility Management (Persisted per filter when saved filter is active, or global when in default view)
   const [defaultHiddenColumns, setDefaultHiddenColumns] = useState(() => {
     try {
-      const saved = localStorage.getItem('brabo_grid_default_hidden_columns');
+      const saved = localStorage.getItem(defaultHiddenColsStorageKey);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -536,7 +582,7 @@ export default function App() {
           ? prev.filter(id => id !== columnId)
           : [...prev, columnId];
         try {
-          localStorage.setItem('brabo_grid_default_hidden_columns', JSON.stringify(next));
+          localStorage.setItem(defaultHiddenColsStorageKey, JSON.stringify(next));
         } catch { /* ignore */ }
         return next;
       });
@@ -549,7 +595,7 @@ export default function App() {
     } else {
       setDefaultHiddenColumns([]);
       try {
-        localStorage.setItem('brabo_grid_default_hidden_columns', JSON.stringify([]));
+        localStorage.setItem(defaultHiddenColsStorageKey, JSON.stringify([]));
       } catch { /* ignore */ }
     }
   };

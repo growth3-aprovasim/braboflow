@@ -545,9 +545,19 @@ export async function uploadAttachmentToSupabase(file, messageId) {
 }
 
 // ----------------------------------------------------
-// 7. FILTROS SALVOS (bflow_custom_filters)
+// 7. FILTROS SALVOS (bflow_custom_filters) - Isolados por perfil (editor vs viewer)
 // ----------------------------------------------------
-export async function fetchCustomFiltersFromDb() {
+const VIEWER_FILTER_PREFIX = 'viewer::';
+
+function toDbFilterId(filterId, role = 'editor') {
+  const raw = String(filterId || '');
+  if (role === 'viewer') {
+    return raw.startsWith(VIEWER_FILTER_PREFIX) ? raw : `${VIEWER_FILTER_PREFIX}${raw}`;
+  }
+  return raw;
+}
+
+export async function fetchCustomFiltersFromDb(role = 'editor') {
   try {
     const { data, error } = await supabase
       .from('bflow_custom_filters')
@@ -557,8 +567,15 @@ export async function fetchCustomFiltersFromDb() {
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    return data.map(f => ({
-      id: f.id,
+    const scoped = data.filter(f => {
+      const isViewerRow = String(f.id || '').startsWith(VIEWER_FILTER_PREFIX);
+      return role === 'viewer' ? isViewerRow : !isViewerRow;
+    });
+
+    if (scoped.length === 0) return null;
+
+    return scoped.map(f => ({
+      id: role === 'viewer' ? String(f.id).slice(VIEWER_FILTER_PREFIX.length) : f.id,
       name: f.name,
       conjunction: f.conjunction || 'AND',
       rules: f.rules || [],
@@ -571,11 +588,11 @@ export async function fetchCustomFiltersFromDb() {
   }
 }
 
-export async function dbSaveCustomFilter(filter) {
+export async function dbSaveCustomFilter(filter, role = 'editor') {
   const { error } = await supabase
     .from('bflow_custom_filters')
     .upsert({
-      id: filter.id,
+      id: toDbFilterId(filter.id, role),
       name: filter.name,
       conjunction: filter.conjunction || 'AND',
       rules: filter.rules || [],
@@ -585,10 +602,10 @@ export async function dbSaveCustomFilter(filter) {
   if (error) throw error;
 }
 
-export async function dbDeleteCustomFilter(filterId) {
+export async function dbDeleteCustomFilter(filterId, role = 'editor') {
   const { error } = await supabase
     .from('bflow_custom_filters')
     .delete()
-    .eq('id', filterId);
+    .eq('id', toDbFilterId(filterId, role));
   if (error) throw error;
 }

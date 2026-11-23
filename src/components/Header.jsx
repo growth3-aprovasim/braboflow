@@ -117,27 +117,39 @@ export default function Header({
                 </span>
               </div>
 
-              {campaigns.map(camp => (
-                <div
-                  key={camp.id}
-                  className="popover-item"
-                  onClick={() => {
-                    onSelectCampaign(camp);
-                    setShowCampaignDropdown(false);
-                  }}
-                >
-                  <span style={{ 
-                    color: activeCampaign?.id === camp.id ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    fontWeight: activeCampaign?.id === camp.id ? 700 : 500,
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap'
-                  }}>
-                    {camp.name}
-                  </span>
-                  {activeCampaign?.id === camp.id && <Check size={14} color="var(--accent-text)" />}
-                </div>
-              ))}
+              {(() => {
+                const activeCampaigns = campaigns.filter(
+                  camp => String(camp.status || '').trim().toLowerCase() === 'ativa'
+                );
+                if (activeCampaigns.length === 0) {
+                  return (
+                    <div style={{ padding: '0.5rem 0.65rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Nenhuma campanha ativa no momento.
+                    </div>
+                  );
+                }
+                return activeCampaigns.map(camp => (
+                  <div
+                    key={camp.id}
+                    className="popover-item"
+                    onClick={() => {
+                      onSelectCampaign(camp);
+                      setShowCampaignDropdown(false);
+                    }}
+                  >
+                    <span style={{ 
+                      color: activeCampaign?.id === camp.id ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      fontWeight: activeCampaign?.id === camp.id ? 700 : 500,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}>
+                      {camp.name}
+                    </span>
+                    {activeCampaign?.id === camp.id && <Check size={14} color="var(--accent-text)" />}
+                  </div>
+                ));
+              })()}
             </div>
           )}
         </div>
