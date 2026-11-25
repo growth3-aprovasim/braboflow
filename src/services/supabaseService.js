@@ -45,6 +45,7 @@ export function formatDisparoFromDb(m) {
   delete cleanCustomFields.emailFooterText;
   delete cleanCustomFields.templateName;
   delete cleanCustomFields.templateCategory;
+  delete cleanCustomFields.dispatchAudience;
   delete cleanCustomFields.unnichatBaseTag;
   delete cleanCustomFields.unnichatBaseCsv;
   delete cleanCustomFields.buttons;
@@ -77,6 +78,7 @@ export function formatDisparoFromDb(m) {
     // Template & Button fields
     templateName: meta.templateName !== undefined ? meta.templateName : (custom.templateName || ''),
     templateCategory: meta.templateCategory !== undefined ? meta.templateCategory : (custom.templateCategory || ''),
+    dispatchAudience: meta.dispatchAudience !== undefined ? meta.dispatchAudience : (custom.dispatchAudience || ''),
     unnichatBaseTag: meta.unnichatBaseTag !== undefined ? meta.unnichatBaseTag : (custom.unnichatBaseTag || ''),
     unnichatBaseCsv: meta.unnichatBaseCsv !== undefined ? meta.unnichatBaseCsv : (custom.unnichatBaseCsv || null),
     buttons: meta.buttons !== undefined ? meta.buttons : (custom.buttons || (custom.buttonText ? [{ id: 'btn_1', text: custom.buttonText, responses: custom.buttonResponses || [] }] : [])),
@@ -103,6 +105,7 @@ export function formatDisparoToDb(m, campaignId) {
     emailFooterText: m.emailFooterText || '',
     templateName: m.templateName || '',
     templateCategory: m.templateCategory || '',
+    dispatchAudience: m.dispatchAudience || '',
     unnichatBaseTag: m.unnichatBaseTag || '',
     unnichatBaseCsv: m.unnichatBaseCsv || null,
     buttons: m.buttons || [],
@@ -452,7 +455,7 @@ export async function dbUpdateDisparo(disparoId, updates, campaignId) {
   const metaKeys = [
     'emailSubject', 'emailPreheader', 'emailSenderName', 'emailSenderAddress',
     'emailCtaText', 'emailCtaUrl', 'emailFooterText',
-    'templateName', 'templateCategory', 'unnichatBaseTag', 'unnichatBaseCsv',
+    'templateName', 'templateCategory', 'dispatchAudience', 'unnichatBaseTag', 'unnichatBaseCsv',
     'buttons', 'buttonText', 'buttonResponses'
   ];
   const hasMeta = metaKeys.some(k => k in updates);

@@ -913,6 +913,31 @@ export default function RecordDetailModal({
           }
         },
         {
+          id: 'dispatchAudience',
+          label: 'Público do Disparo',
+          icon: <Users size={14} className="field-icon" />,
+          render: () => (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', width: '100%' }}>
+              <input
+                type="text"
+                className="form-control"
+                disabled={readOnly}
+                placeholder="Ex: Quem gerou evento de compra + VIP de agosto"
+                value={formData.dispatchAudience || ''}
+                onChange={(e) => handleChange('dispatchAudience', e.target.value)}
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '0.38rem 0.7rem',
+                  width: '100%'
+                }}
+              />
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                Descreva o público-alvo ou segmentação que receberá este disparo.
+              </span>
+            </div>
+          )
+        },
+        {
           id: 'unnichatBaseConfig',
           label: 'Tag / CSV da Base (Unnichat)',
           icon: <FileText size={14} className="field-icon" />,
