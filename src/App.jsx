@@ -87,6 +87,110 @@ export default function App() {
     }
   });
 
+  const campaignsRef = useRef(campaigns);
+  campaignsRef.current = campaigns;
+  const undoStackRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const lastUndoGroupRef = useRef({ key: null, time: 0 });
+  const undoToastTimerRef = useRef(null);
+  const [undoToast, setUndoToast] = useState(null);
+
+  const showUndoToast = useCallback((message) => {
+    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
+    setUndoToast(message);
+    undoToastTimerRef.current = setTimeout(() => {
+      setUndoToast(null);
+    }, 2200);
+  }, []);
+
+  const pushUndoSnapshot = useCallback((groupKey = null) => {
+    const now = Date.now();
+    if (groupKey && lastUndoGroupRef.current.key === groupKey && now - lastUndoGroupRef.current.time < 1500) {
+      lastUndoGroupRef.current.time = now;
+      return;
+    }
+    lastUndoGroupRef.current = { key: groupKey, time: now };
+    const snapshot = JSON.parse(JSON.stringify(campaignsRef.current || []));
+    undoStackRef.current.push(snapshot);
+    if (undoStackRef.current.length > 30) {
+      undoStackRef.current.shift();
+    }
+    redoStackRef.current = [];
+  }, []);
+
+  const syncCampaignsDiffToDb = useCallback((prevList, nextList) => {
+    const prevMap = new Map((prevList || []).map(c => [c.id, c]));
+    const nextMap = new Map((nextList || []).map(c => [c.id, c]));
+
+    // 1. Campanhas removidas
+    for (const [id] of prevMap) {
+      if (!nextMap.has(id)) {
+        dbDeleteCampaign(id).catch(err => console.warn('Undo/Redo delete campaign error:', err));
+      }
+    }
+
+    // 2. Campanhas adicionadas ou atualizadas
+    for (const [id, nextCamp] of nextMap) {
+      const prevCamp = prevMap.get(id);
+      if (!prevCamp) {
+        dbCreateCampaign(nextCamp)
+          .then(() => {
+            (nextCamp.messages || []).forEach(m => {
+              dbCreateDisparo(id, m).catch(err => console.warn('Undo/Redo create disparo error:', err));
+            });
+          })
+          .catch(err => console.warn('Undo/Redo create campaign error:', err));
+        continue;
+      }
+
+      if (
+        prevCamp.name !== nextCamp.name ||
+        prevCamp.status !== nextCamp.status ||
+        prevCamp.tagline !== nextCamp.tagline ||
+        prevCamp.startDate !== nextCamp.startDate ||
+        prevCamp.endDate !== nextCamp.endDate ||
+        prevCamp.badgeColor !== nextCamp.badgeColor ||
+        JSON.stringify(prevCamp.channelOptions) !== JSON.stringify(nextCamp.channelOptions) ||
+        JSON.stringify(prevCamp.stageOptions) !== JSON.stringify(nextCamp.stageOptions)
+      ) {
+        dbUpdateCampaign(id, nextCamp).catch(err => console.warn('Undo/Redo update campaign error:', err));
+      }
+
+      if (JSON.stringify(prevCamp.customPlaceholders) !== JSON.stringify(nextCamp.customPlaceholders)) {
+        dbUpdateCampaignPlaceholders(id, nextCamp.customPlaceholders || {}).catch(err => console.warn('Undo/Redo placeholders error:', err));
+      }
+
+      if (JSON.stringify(prevCamp.predefinedLinks) !== JSON.stringify(nextCamp.predefinedLinks)) {
+        dbSyncCampaignLinks(id, nextCamp.predefinedLinks || []).catch(err => console.warn('Undo/Redo links error:', err));
+      }
+
+      if (JSON.stringify(prevCamp.customColumns) !== JSON.stringify(nextCamp.customColumns)) {
+        dbSyncCampaignColumns(id, nextCamp.customColumns || []).catch(err => console.warn('Undo/Redo cols error:', err));
+      }
+
+      const prevMsgs = new Map((prevCamp.messages || []).map(m => [m.id, m]));
+      const nextMsgs = new Map((nextCamp.messages || []).map(m => [m.id, m]));
+
+      const deletedMsgIds = [];
+      for (const [msgId] of prevMsgs) {
+        if (!nextMsgs.has(msgId)) deletedMsgIds.push(msgId);
+      }
+      if (deletedMsgIds.length > 0) {
+        dbBatchDeleteDisparos(deletedMsgIds).catch(err => console.warn('Undo/Redo delete disparos error:', err));
+      }
+
+      for (const [msgId, nextMsg] of nextMsgs) {
+        const prevMsg = prevMsgs.get(msgId);
+        lastLocalUpdateTimestampRef.current[msgId] = Date.now();
+        if (!prevMsg) {
+          dbCreateDisparo(id, nextMsg).catch(err => console.warn('Undo/Redo create disparo error:', err));
+        } else if (JSON.stringify(prevMsg) !== JSON.stringify(nextMsg)) {
+          dbUpdateDisparo(msgId, nextMsg, id).catch(err => console.warn('Undo/Redo update disparo error:', err));
+        }
+      }
+    }
+  }, []);
+
   const [activeCampaignId, setActiveCampaignId] = useState(() => {
     try {
       return localStorage.getItem('brabo_airtable_active_campaign_id') || null;
@@ -703,6 +807,91 @@ export default function App() {
     return Object.values(groups).flat();
   }, [filteredMessages, groupBy]);
 
+  const applyRestoredCampaigns = useCallback((nextCampaigns, toastMessage) => {
+    const prevCampaigns = campaignsRef.current || [];
+    setCampaigns(nextCampaigns);
+    try {
+      localStorage.setItem('brabo_airtable_campaigns_real', JSON.stringify(nextCampaigns));
+    } catch { /* ignore */ }
+
+    if (selectedRecord) {
+      const updatedCamp = nextCampaigns.find(c => (c.messages || []).some(m => m.id === selectedRecord.id));
+      const updatedRec = updatedCamp?.messages?.find(m => m.id === selectedRecord.id);
+      if (updatedRec) {
+        setSelectedRecord(updatedRec);
+      } else {
+        setSelectedRecord(null);
+        setIsRecordModalOpen(false);
+      }
+    }
+
+    if (activeCampaignId && !nextCampaigns.some(c => c.id === activeCampaignId)) {
+      setActiveCampaignId(nextCampaigns[0]?.id || null);
+    }
+
+    syncCampaignsDiffToDb(prevCampaigns, nextCampaigns);
+    showUndoToast(toastMessage);
+  }, [activeCampaignId, selectedRecord, showUndoToast, syncCampaignsDiffToDb]);
+
+  const handleUndo = useCallback(() => {
+    if (isReadOnly) return;
+    if (undoStackRef.current.length === 0) {
+      showUndoToast('Nada para desfazer');
+      return;
+    }
+    const previous = undoStackRef.current.pop();
+    const currentSnapshot = JSON.parse(JSON.stringify(campaignsRef.current || []));
+    redoStackRef.current.push(currentSnapshot);
+    if (redoStackRef.current.length > 30) {
+      redoStackRef.current.shift();
+    }
+    applyRestoredCampaigns(previous, 'Alteração desfeita (Ctrl+Z)');
+  }, [applyRestoredCampaigns, isReadOnly, showUndoToast]);
+
+  const handleRedo = useCallback(() => {
+    if (isReadOnly) return;
+    if (redoStackRef.current.length === 0) {
+      showUndoToast('Nada para refazer');
+      return;
+    }
+    const nextState = redoStackRef.current.pop();
+    const currentSnapshot = JSON.parse(JSON.stringify(campaignsRef.current || []));
+    undoStackRef.current.push(currentSnapshot);
+    if (undoStackRef.current.length > 30) {
+      undoStackRef.current.shift();
+    }
+    applyRestoredCampaigns(nextState, 'Alteração refeita (Ctrl+Shift+Z)');
+  }, [applyRestoredCampaigns, isReadOnly, showUndoToast]);
+
+  useEffect(() => {
+    if (!currentUser || isReadOnly) return;
+
+    const handleGlobalKeyDown = (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+
+      const target = e.target;
+      const tag = target?.tagName?.toLowerCase();
+      const isEditable = tag === 'input' || tag === 'textarea' || target?.isContentEditable;
+      if (isEditable) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'z' || e.code === 'KeyZ') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleRedo();
+        } else {
+          handleUndo();
+        }
+      } else if ((key === 'y' || e.code === 'KeyY') && !e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [currentUser, isReadOnly, handleUndo, handleRedo]);
+
   // Automatic Dispatch: Quando o disparo estiver com o status "PROGRAMADO" e der o horário dele, muda automaticamente para "Disparada"
   useEffect(() => {
     const checkScheduledDisparos = () => {
@@ -785,6 +974,7 @@ export default function App() {
 
   const handleAddNewCampaign = async (newCamp) => {
     if (isReadOnly) return;
+    pushUndoSnapshot();
     setCampaigns(prev => [newCamp, ...prev]);
     setActiveCampaignId(newCamp.id);
     setActiveTable('disparos');
@@ -799,6 +989,7 @@ export default function App() {
 
   const handleUpdateCampaign = (campaignId, updates) => {
     if (isReadOnly) return;
+    pushUndoSnapshot(`camp-${campaignId}`);
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, ...updates };
@@ -810,6 +1001,7 @@ export default function App() {
 
   const handleDeleteCampaign = (campaignId) => {
     if (isReadOnly) return;
+    pushUndoSnapshot();
     const updated = campaigns.filter(c => c.id !== campaignId);
     setCampaigns(updated);
     if (activeCampaignId === campaignId) {
@@ -820,6 +1012,7 @@ export default function App() {
 
   const handleUpdateCampaignLinks = (campaignId, updatedLinks) => {
     if (isReadOnly) return;
+    pushUndoSnapshot(`links-${campaignId}`);
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, predefinedLinks: updatedLinks };
@@ -831,6 +1024,7 @@ export default function App() {
 
   const handleUpdateCampaignCustomColumns = (newCols) => {
     if (isReadOnly || !activeCampaign) return;
+    pushUndoSnapshot(`cols-${activeCampaign.id}`);
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
         return { ...c, customColumns: newCols };
@@ -848,6 +1042,7 @@ export default function App() {
 
   const handleUpdateCampaignPlaceholders = (campaignId, updatedPlaceholders) => {
     if (isReadOnly) return;
+    pushUndoSnapshot(`tags-${campaignId}`);
     setCampaigns(prev => prev.map(c => {
       if (c.id === campaignId) {
         return { ...c, customPlaceholders: updatedPlaceholders };
@@ -864,6 +1059,7 @@ export default function App() {
   // Message Actions within active campaign
   const handleUpdateRecord = (messageId, updates) => {
     if (isReadOnly || !activeCampaign) return;
+    pushUndoSnapshot(`msg-${messageId}`);
 
     // Registra timestamp da alteração local para impedir que reloads do realtime desfaçam os checks
     lastLocalUpdateTimestampRef.current[messageId] = Date.now();
@@ -906,6 +1102,7 @@ export default function App() {
 
   const handleAddNewMessage = (initialOverrides = {}) => {
     if (isReadOnly || !activeCampaign) return;
+    pushUndoSnapshot();
 
     // Pick first predefined link if exists
     const defaultLink = activeCampaign.predefinedLinks?.[0];
@@ -959,6 +1156,7 @@ export default function App() {
 
   const handleDeleteRecord = (messageId) => {
     if (isReadOnly || !activeCampaign) return;
+    pushUndoSnapshot();
 
     setCampaigns(prev => prev.map(c => {
       if (c.id === activeCampaign.id) {
@@ -986,6 +1184,7 @@ export default function App() {
       : `Tem certeza que deseja excluir os ${count} disparos selecionados permanentemente?`;
 
     if (!window.confirm(confirmMsg)) return;
+    pushUndoSnapshot();
 
     const idsSet = new Set(ids);
 
@@ -1015,6 +1214,7 @@ export default function App() {
     if (isReadOnly || !activeCampaign) return;
     const ids = Array.isArray(recordIds) ? recordIds : selectedRecordIds;
     if (!ids || ids.length === 0 || !updates || Object.keys(updates).length === 0) return;
+    pushUndoSnapshot();
 
     const idsSet = new Set(ids);
     const updatedForSync = [];
@@ -1046,6 +1246,7 @@ export default function App() {
 
   const handleDuplicateRecord = (record) => {
     if (isReadOnly || !activeCampaign) return;
+    pushUndoSnapshot();
 
     const duplicated = {
       ...record,
@@ -1884,6 +2085,35 @@ export default function App() {
           campaign={activeCampaign}
           onApplyBulkEdit={(updates) => handleBulkUpdateRecords(selectedRecordIds, updates)}
         />
+      )}
+
+      {/* Undo / Redo Feedback Toast */}
+      {undoToast && (
+        <div
+          role="status"
+          style={{
+            position: 'fixed',
+            bottom: '1.25rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9998,
+            background: 'var(--bg-card)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--accent-border)',
+            boxShadow: 'var(--shadow-lg)',
+            borderRadius: '10px',
+            padding: '0.5rem 1rem',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            pointerEvents: 'none'
+          }}
+        >
+          <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--accent-primary)' }} />
+          <span>{undoToast}</span>
+        </div>
       )}
     </div>
   );
