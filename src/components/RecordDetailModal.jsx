@@ -680,6 +680,282 @@ export default function RecordDetailModal({
   );
 
   // Field definitions based on channel
+  const creativeField = {
+    id: 'creative',
+    label: 'Criativo',
+    icon: <Paperclip size={14} className="field-icon" />,
+    render: () => (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.5rem',
+          width: '100%',
+          position: 'relative'
+        }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          modalDragCounter.current++;
+          if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+            setIsDraggingModalAtt(true);
+          }
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try { e.dataTransfer.dropEffect = 'copy'; } catch { /* ignore */ }
+          if (!isDraggingModalAtt) setIsDraggingModalAtt(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          modalDragCounter.current--;
+          if (modalDragCounter.current <= 0) {
+            modalDragCounter.current = 0;
+            setIsDraggingModalAtt(false);
+          }
+        }}
+        onDrop={async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          modalDragCounter.current = 0;
+          setIsDraggingModalAtt(false);
+          const files = Array.from(e.dataTransfer.files || []);
+          if (files.length > 0) {
+            await handleProcessAndAddFiles(files);
+          }
+        }}
+      >
+        <input
+          type="file"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          multiple
+          accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+          onChange={handleFilesSelected}
+        />
+
+        {currentAttachments.length === 0 ? (
+          readOnly ? (
+            <div style={{ padding: '0.65rem 0.75rem', fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Nenhum arquivo anexo neste disparo.
+            </div>
+          ) : (
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: isDraggingModalAtt ? '2px dashed #F7BA12' : '1px dashed var(--border-color)',
+                borderRadius: '6px',
+                padding: '1.2rem',
+                textAlign: 'center',
+                cursor: 'pointer',
+                background: isDraggingModalAtt ? 'rgba(247, 186, 18, 0.12)' : 'rgba(255, 255, 255, 0.02)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'var(--transition-fast)'
+              }}
+              onMouseEnter={(e) => {
+                if (!isDraggingModalAtt) {
+                  e.currentTarget.style.borderColor = '#4a5568';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isDraggingModalAtt) {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
+                }
+              }}
+            >
+              <Upload size={16} color={isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)'} />
+              <span style={{ fontSize: '0.78rem', color: isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)', fontWeight: isDraggingModalAtt ? 700 : 500 }}>
+                {isDraggingModalAtt
+                  ? 'Solte os arquivos aqui (máx. 100MB)'
+                  : 'Arraste e solte arquivos aqui ou clique para selecionar (Imagens, Vídeos, Docs até 100MB)'}
+              </span>
+            </div>
+          )
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            {currentAttachments.map((att, idx) => {
+              const isBefore = (att.position || 'before') === 'before';
+              return (
+                <div
+                  key={att.id || `att-${idx}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'var(--bg-cell)',
+                    padding: '0.45rem 0.65rem',
+                    borderRadius: '6px',
+                    border: `1px solid ${isBefore ? 'rgba(56, 189, 248, 0.35)' : 'rgba(247, 186, 18, 0.4)'}`,
+                    gap: '0.6rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                    {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl)) ? (
+                      <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid var(--border-color)' }}>
+                        <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                    ) : (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--bg-card-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        {att.type === 'image' && <ImageIcon size={15} color="#60a5fa" />}
+                        {att.type === 'video' && <VideoIcon size={15} color="#c084fc" />}
+                        {att.type === 'audio' && <Music size={15} color="#4ade80" />}
+                        {att.type === 'document' && <FileText size={15} color="#fbbf24" />}
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={att.name}>
+                        {att.name}
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                        {att.type === 'document' ? '📄 DOCUMENTO' : att.type === 'image' ? '🖼️ IMAGEM' : att.type === 'audio' ? '🎵 ÁUDIO' : '🎬 VÍDEO'} • {att.size || 'Arquivo'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {!readOnly && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '0.2rem 0.45rem',
+                          borderRadius: '4px',
+                          background: isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: isBefore ? '#38bdf8' : 'var(--text-muted)',
+                          border: isBefore ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
+                          fontWeight: isBefore ? 700 : 400
+                        }}
+                        onClick={() => handleToggleAttachmentPositionIndex(idx, 'before')}
+                        title="Enviar antes do texto da copy"
+                      >
+                        ⬆️ Antes
+                      </button>
+
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '0.2rem 0.45rem',
+                          borderRadius: '4px',
+                          background: !isBefore ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          color: !isBefore ? '#fbbf24' : 'var(--text-muted)',
+                          border: !isBefore ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid transparent',
+                          fontWeight: !isBefore ? 700 : 400
+                        }}
+                        onClick={() => handleToggleAttachmentPositionIndex(idx, 'after')}
+                        title="Enviar depois do texto da copy"
+                      >
+                        ⬇️ Depois
+                      </button>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                    {!readOnly && currentAttachments.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === 0 ? 0.3 : 1 }}
+                          disabled={idx === 0}
+                          onClick={() => handleMoveAttachment(idx, -1)}
+                          title="Mover para cima"
+                        >
+                          <ArrowUp size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === currentAttachments.length - 1 ? 0.3 : 1 }}
+                          disabled={idx === currentAttachments.length - 1}
+                          onClick={() => handleMoveAttachment(idx, 1)}
+                          title="Mover para baixo"
+                        >
+                          <ArrowDown size={12} />
+                        </button>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn-ghost"
+                      style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}
+                      onClick={() => handleDownloadAttachmentItem(att)}
+                      title="Baixar arquivo anexo"
+                    >
+                      <Download size={12} />
+                    </button>
+
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: '#ef4444' }}
+                        onClick={() => handleRemoveAttachmentIndex(idx)}
+                        title="Excluir este anexo"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {isDraggingModalAtt && (
+              <div
+                style={{
+                  border: '2px dashed #38bdf8',
+                  borderRadius: '6px',
+                  padding: '0.8rem',
+                  textAlign: 'center',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.4rem',
+                  color: '#38bdf8',
+                  fontSize: '0.78rem',
+                  fontWeight: 700
+                }}
+              >
+                <Upload size={16} />
+                <span>Solte aqui para anexar mais arquivos (máx. 100MB)</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className="btn-ghost"
+              style={{
+                fontSize: '0.74rem',
+                padding: '0.35rem 0.65rem',
+                background: 'rgba(59, 130, 246, 0.08)',
+                color: '#93c5fd',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '5px',
+                alignSelf: 'flex-start'
+              }}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              + Adicionar Outro Arquivo (máx. 100MB)
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  };
+
   const dynamicMessageFields = isEmailChannel
     ? [
         {
@@ -769,6 +1045,7 @@ export default function RecordDetailModal({
             </div>
           )
         },
+        creativeField,
         {
           id: 'copy',
           label: 'Corpo do E-mail',
@@ -1053,6 +1330,7 @@ export default function RecordDetailModal({
             );
           }
         },
+        creativeField,
         {
           id: 'copy',
           label: 'Corpo (Body)',
@@ -1511,6 +1789,7 @@ export default function RecordDetailModal({
         }
       ]
     : [
+        creativeField,
         {
           id: 'copy',
           label: 'Copy',
@@ -1636,286 +1915,7 @@ export default function RecordDetailModal({
         </select>
       )
     },
-    {
-      id: 'creative',
-      label: 'Criativo',
-      icon: <Paperclip size={14} className="field-icon" />,
-      render: () => (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.5rem',
-            width: '100%',
-            position: 'relative'
-          }}
-          onDragEnter={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            modalDragCounter.current++;
-            if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-              setIsDraggingModalAtt(true);
-            }
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            try { e.dataTransfer.dropEffect = 'copy'; } catch { /* ignore */ }
-            if (!isDraggingModalAtt) setIsDraggingModalAtt(true);
-          }}
-          onDragLeave={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            modalDragCounter.current--;
-            if (modalDragCounter.current <= 0) {
-              modalDragCounter.current = 0;
-              setIsDraggingModalAtt(false);
-            }
-          }}
-          onDrop={async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            modalDragCounter.current = 0;
-            setIsDraggingModalAtt(false);
-            const files = Array.from(e.dataTransfer.files || []);
-            if (files.length > 0) {
-              await handleProcessAndAddFiles(files);
-            }
-          }}
-        >
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            multiple
-            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-            onChange={handleFilesSelected}
-          />
-
-          {currentAttachments.length === 0 ? (
-            readOnly ? (
-              <div style={{ padding: '0.65rem 0.75rem', fontSize: '0.76rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                Nenhum arquivo anexo neste disparo.
-              </div>
-            ) : (
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              style={{
-                border: isDraggingModalAtt ? '2px dashed #F7BA12' : '1px dashed var(--border-color)',
-                borderRadius: '6px',
-                padding: '1.2rem',
-                textAlign: 'center',
-                cursor: 'pointer',
-                background: isDraggingModalAtt ? 'rgba(247, 186, 18, 0.12)' : 'rgba(255, 255, 255, 0.02)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                transition: 'var(--transition-fast)'
-              }}
-              onMouseEnter={(e) => {
-                if (!isDraggingModalAtt) {
-                  e.currentTarget.style.borderColor = '#4a5568';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isDraggingModalAtt) {
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)';
-                }
-              }}
-            >
-              <Upload size={16} color={isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)'} />
-              <span style={{ fontSize: '0.78rem', color: isDraggingModalAtt ? '#F7BA12' : 'var(--text-muted)', fontWeight: isDraggingModalAtt ? 700 : 500 }}>
-                {isDraggingModalAtt
-                  ? 'Solte os arquivos aqui (máx. 100MB)'
-                  : 'Arraste e solte arquivos aqui ou clique para selecionar (Imagens, Vídeos, Docs até 100MB)'}
-              </span>
-            </div>
-            )
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              {currentAttachments.map((att, idx) => {
-                const isBefore = (att.position || 'before') === 'before';
-                return (
-                  <div
-                    key={att.id || `att-${idx}`}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      background: 'var(--bg-cell)',
-                      padding: '0.45rem 0.65rem',
-                      borderRadius: '6px',
-                      border: `1px solid ${isBefore ? 'rgba(56, 189, 248, 0.35)' : 'rgba(247, 186, 18, 0.4)'}`,
-                      gap: '0.6rem'
-                    }}
-                  >
-                    {/* Left: Thumbnail & Name */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                      {att.thumbnailUrl || (att.type === 'image' && (att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl)) ? (
-                        <div style={{ width: '34px', height: '34px', borderRadius: '4px', overflow: 'hidden', flexShrink: 0, background: '#000', border: '1px solid var(--border-color)' }}>
-                          <img src={att.thumbnailUrl || att.previewUrl || att.publicUrl || att.url || att.fileUrl || att.dataUrl} alt={att.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        </div>
-                      ) : (
-                        <div style={{ width: '32px', height: '32px', borderRadius: '4px', background: 'var(--bg-card-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          {att.type === 'image' && <ImageIcon size={15} color="#60a5fa" />}
-                          {att.type === 'video' && <VideoIcon size={15} color="#c084fc" />}
-                          {att.type === 'audio' && <Music size={15} color="#4ade80" />}
-                          {att.type === 'document' && <FileText size={15} color="#fbbf24" />}
-                        </div>
-                      )}
-
-                      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={att.name}>
-                          {att.name}
-                        </span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                          {att.type === 'document' ? '📄 DOCUMENTO' : att.type === 'image' ? '🖼️ IMAGEM' : att.type === 'audio' ? '🎵 ÁUDIO' : '🎬 VÍDEO'} • {att.size || 'Arquivo'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Middle: Position Toggle */}
-                    {!readOnly && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '0.2rem 0.45rem',
-                            borderRadius: '4px',
-                            background: isBefore ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                            color: isBefore ? '#38bdf8' : 'var(--text-muted)',
-                            border: isBefore ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid transparent',
-                            fontWeight: isBefore ? 700 : 400
-                          }}
-                          onClick={() => handleToggleAttachmentPositionIndex(idx, 'before')}
-                          title="Enviar antes do texto da copy"
-                        >
-                          ⬆️ Antes
-                        </button>
-
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{
-                            fontSize: '0.68rem',
-                            padding: '0.2rem 0.45rem',
-                            borderRadius: '4px',
-                            background: !isBefore ? 'rgba(251, 191, 36, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                            color: !isBefore ? '#fbbf24' : 'var(--text-muted)',
-                            border: !isBefore ? '1px solid rgba(251, 191, 36, 0.4)' : '1px solid transparent',
-                            fontWeight: !isBefore ? 700 : 400
-                          }}
-                          onClick={() => handleToggleAttachmentPositionIndex(idx, 'after')}
-                          title="Enviar depois do texto da copy"
-                        >
-                          ⬇️ Depois
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Right: Actions */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
-                      {!readOnly && currentAttachments.length > 1 && (
-                        <>
-                          <button
-                            type="button"
-                            className="btn-ghost"
-                            style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === 0 ? 0.3 : 1 }}
-                            disabled={idx === 0}
-                            onClick={() => handleMoveAttachment(idx, -1)}
-                            title="Mover para cima"
-                          >
-                            <ArrowUp size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            className="btn-ghost"
-                            style={{ fontSize: '0.7rem', padding: '0.2rem 0.35rem', opacity: idx === currentAttachments.length - 1 ? 0.3 : 1 }}
-                            disabled={idx === currentAttachments.length - 1}
-                            onClick={() => handleMoveAttachment(idx, 1)}
-                            title="Mover para baixo"
-                          >
-                            <ArrowDown size={12} />
-                          </button>
-                        </>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: 'var(--text-secondary)' }}
-                        onClick={() => handleDownloadAttachmentItem(att)}
-                        title="Baixar arquivo anexo"
-                      >
-                        <Download size={12} />
-                      </button>
-
-                      {!readOnly && (
-                        <button
-                          type="button"
-                          className="btn-ghost"
-                          style={{ fontSize: '0.7rem', padding: '0.2rem 0.4rem', color: '#ef4444' }}
-                          onClick={() => handleRemoveAttachmentIndex(idx)}
-                          title="Excluir este anexo"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-
-              {isDraggingModalAtt && (
-                <div
-                  style={{
-                    border: '2px dashed #38bdf8',
-                    borderRadius: '6px',
-                    padding: '0.8rem',
-                    textAlign: 'center',
-                    background: 'rgba(56, 189, 248, 0.12)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.4rem',
-                    color: '#38bdf8',
-                    fontSize: '0.78rem',
-                    fontWeight: 700
-                  }}
-                >
-                  <Upload size={16} />
-                  <span>Solte aqui para anexar mais arquivos (máx. 100MB)</span>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="btn-ghost"
-                style={{
-                  fontSize: '0.74rem',
-                  padding: '0.35rem 0.65rem',
-                  background: 'rgba(59, 130, 246, 0.08)',
-                  color: '#93c5fd',
-                  border: '1px solid rgba(59, 130, 246, 0.2)',
-                  borderRadius: '5px',
-                  alignSelf: 'flex-start'
-                }}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                + Adicionar Outro Arquivo (máx. 100MB)
-              </button>
-            </div>
-          )}
-        </div>
-      )
-    },
-        ...dynamicMessageFields,
+    ...dynamicMessageFields,
     {
       id: 'campaign',
       label: 'Lançamento',
