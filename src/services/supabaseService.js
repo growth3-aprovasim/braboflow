@@ -44,6 +44,9 @@ export function formatDisparoFromDb(m) {
   delete cleanCustomFields.emailCtaUrl;
   delete cleanCustomFields.emailFooterText;
   delete cleanCustomFields.templateName;
+  delete cleanCustomFields.templateCategory;
+  delete cleanCustomFields.unnichatBaseTag;
+  delete cleanCustomFields.unnichatBaseCsv;
   delete cleanCustomFields.buttons;
   delete cleanCustomFields.buttonText;
   delete cleanCustomFields.buttonResponses;
@@ -73,6 +76,9 @@ export function formatDisparoFromDb(m) {
     emailFooterText: meta.emailFooterText !== undefined ? meta.emailFooterText : (custom.emailFooterText || ''),
     // Template & Button fields
     templateName: meta.templateName !== undefined ? meta.templateName : (custom.templateName || ''),
+    templateCategory: meta.templateCategory !== undefined ? meta.templateCategory : (custom.templateCategory || ''),
+    unnichatBaseTag: meta.unnichatBaseTag !== undefined ? meta.unnichatBaseTag : (custom.unnichatBaseTag || ''),
+    unnichatBaseCsv: meta.unnichatBaseCsv !== undefined ? meta.unnichatBaseCsv : (custom.unnichatBaseCsv || null),
     buttons: meta.buttons !== undefined ? meta.buttons : (custom.buttons || (custom.buttonText ? [{ id: 'btn_1', text: custom.buttonText, responses: custom.buttonResponses || [] }] : [])),
     buttonText: meta.buttonText !== undefined ? meta.buttonText : (custom.buttonText || ''),
     buttonResponses: meta.buttonResponses !== undefined ? meta.buttonResponses : (custom.buttonResponses || [])
@@ -96,6 +102,9 @@ export function formatDisparoToDb(m, campaignId) {
     emailCtaUrl: m.emailCtaUrl || '',
     emailFooterText: m.emailFooterText || '',
     templateName: m.templateName || '',
+    templateCategory: m.templateCategory || '',
+    unnichatBaseTag: m.unnichatBaseTag || '',
+    unnichatBaseCsv: m.unnichatBaseCsv || null,
     buttons: m.buttons || [],
     buttonText: m.buttonText || '',
     buttonResponses: m.buttonResponses || []
@@ -443,7 +452,8 @@ export async function dbUpdateDisparo(disparoId, updates, campaignId) {
   const metaKeys = [
     'emailSubject', 'emailPreheader', 'emailSenderName', 'emailSenderAddress',
     'emailCtaText', 'emailCtaUrl', 'emailFooterText',
-    'templateName', 'buttons', 'buttonText', 'buttonResponses'
+    'templateName', 'templateCategory', 'unnichatBaseTag', 'unnichatBaseCsv',
+    'buttons', 'buttonText', 'buttonResponses'
   ];
   const hasMeta = metaKeys.some(k => k in updates);
 

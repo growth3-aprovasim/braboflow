@@ -850,9 +850,23 @@ export default function ChannelPreview({ record, campaign, customWidth = '100%' 
                   {record.templateName ? `Template: ${record.templateName}` : 'Template HSM (Unnichat)'}
                 </span>
               </div>
-              <span style={{ fontSize: '0.62rem', background: 'rgba(0, 168, 132, 0.25)', color: '#25D366', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800, flexShrink: 0 }}>
-                Aprovado Meta ✅
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                {record.templateCategory && (
+                  <span style={{
+                    fontSize: '0.6rem',
+                    background: record.templateCategory === 'Utility' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                    color: record.templateCategory === 'Utility' ? '#38bdf8' : '#fbbf24',
+                    padding: '0.1rem 0.35rem',
+                    borderRadius: '4px',
+                    fontWeight: 800
+                  }}>
+                    {record.templateCategory}
+                  </span>
+                )}
+                <span style={{ fontSize: '0.62rem', background: 'rgba(0, 168, 132, 0.25)', color: '#25D366', padding: '0.1rem 0.35rem', borderRadius: '4px', fontWeight: 800 }}>
+                  Aprovado Meta ✅
+                </span>
+              </div>
             </div>
           )}
 

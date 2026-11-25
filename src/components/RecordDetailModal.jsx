@@ -863,6 +863,56 @@ export default function RecordDetailModal({
           )
         },
         {
+          id: 'templateCategory',
+          label: 'Categoria do Template (Meta)',
+          icon: <Tag size={14} className="field-icon" />,
+          render: () => {
+            const currentCat = formData.templateCategory || '';
+            const categories = [
+              { value: 'Utility', label: 'Utility', desc: 'Utilidade / Aviso transacional', color: 'var(--info-text)', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.45)' },
+              { value: 'Marketing', label: 'Marketing', desc: 'Oferta / Campanha promocional', color: 'var(--amber-text)', bg: 'var(--accent-soft)', border: 'var(--accent-border)' }
+            ];
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {categories.map(cat => {
+                    const isSelected = currentCat === cat.value;
+                    return (
+                      <button
+                        key={cat.value}
+                        type="button"
+                        disabled={readOnly}
+                        onClick={() => handleChange('templateCategory', isSelected ? '' : cat.value)}
+                        style={{
+                          padding: '0.38rem 0.85rem',
+                          borderRadius: '7px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: readOnly ? 'default' : 'pointer',
+                          border: isSelected ? `1.5px solid ${cat.border}` : '1px solid var(--border-color)',
+                          background: isSelected ? cat.bg : 'var(--surface-nested)',
+                          color: isSelected ? cat.color : 'var(--text-secondary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={cat.desc}
+                      >
+                        <span>{isSelected ? '●' : '○'}</span>
+                        <span>{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                  Selecione se este template na Meta / Unnichat é da categoria Utility ou Marketing.
+                </span>
+              </div>
+            );
+          }
+        },
+        {
           id: 'copy',
           label: 'Corpo (Body)',
           icon: <AlignLeft size={14} className="field-icon" />,
@@ -1788,93 +1838,220 @@ export default function RecordDetailModal({
       )
     },
     // Custom Columns mapped dynamically
-    ...customColumns.map(col => ({
-      id: col.id,
-      label: col.name,
-      icon: col.type === 'checkbox' ? <CheckSquare size={14} className="field-icon" /> : col.type === 'select' ? <Tag size={14} className="field-icon" /> : <Type size={14} className="field-icon" />,
-      render: () => {
-        const val = formData.customFields?.[col.id];
-        if (col.type === 'checkbox') {
-          return (
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.2rem 0' }}>
+    ...customColumns.flatMap(col => {
+      const colField = {
+        id: col.id,
+        label: col.name,
+        icon: col.type === 'checkbox' ? <CheckSquare size={14} className="field-icon" /> : col.type === 'select' ? <Tag size={14} className="field-icon" /> : <Type size={14} className="field-icon" />,
+        render: () => {
+          const val = formData.customFields?.[col.id];
+          if (col.type === 'checkbox') {
+            return (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', padding: '0.2rem 0' }}>
+                <input
+                  type="checkbox"
+                  checked={Boolean(val)}
+                  onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.checked })}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{col.name}</span>
+              </label>
+            );
+          }
+          if (col.type === 'select') {
+            const selectedOpt = (col.options || []).find(o => o.label === val);
+            return (
+              <select
+                className="form-control"
+                style={{
+                  fontSize: '0.8rem',
+                  padding: '0.35rem 0.65rem',
+                  fontWeight: 600,
+                  background: selectedOpt ? selectedOpt.bg : 'rgba(255,255,255,0.04)',
+                  color: selectedOpt ? selectedOpt.color : 'var(--text-muted)',
+                  border: selectedOpt ? `1px solid ${selectedOpt.border}` : '1px solid var(--border-subtle)',
+                  borderRadius: '6px',
+                  width: '100%',
+                  maxWidth: '220px',
+                  cursor: 'pointer'
+                }}
+                value={val || ''}
+                onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.value })}
+              >
+                <option value="" style={{ background: '#161b26', color: '#94a3b8' }}>-- Selecionar Tag --</option>
+                {(col.options || []).map(opt => (
+                  <option key={opt.id || opt.label} value={opt.label} style={{ background: '#161b26', color: opt.color, fontWeight: 600 }}>
+                    ● {opt.label}
+                  </option>
+                ))}
+              </select>
+            );
+          }
+          if (col.type === 'date') {
+            return (
               <input
-                type="checkbox"
-                checked={Boolean(val)}
-                onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.checked })}
-                style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+                type="date"
+                className="form-control"
+                style={{
+                  colorScheme: 'dark',
+                  fontSize: '0.82rem',
+                  padding: '0.35rem 0.65rem',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: '6px',
+                  width: '100%',
+                  maxWidth: '220px'
+                }}
+                value={val || ''}
+                onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.value })}
               />
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-main)' }}>{col.name}</span>
-            </label>
-          );
-        }
-        if (col.type === 'select') {
-          const selectedOpt = (col.options || []).find(o => o.label === val);
+            );
+          }
           return (
-            <select
+            <input
+              type="text"
               className="form-control"
               style={{
                 fontSize: '0.8rem',
                 padding: '0.35rem 0.65rem',
-                fontWeight: 600,
-                background: selectedOpt ? selectedOpt.bg : 'rgba(255,255,255,0.04)',
-                color: selectedOpt ? selectedOpt.color : 'var(--text-muted)',
-                border: selectedOpt ? `1px solid ${selectedOpt.border}` : '1px solid var(--border-subtle)',
-                borderRadius: '6px',
-                width: '100%',
-                maxWidth: '220px',
-                cursor: 'pointer'
-              }}
-              value={val || ''}
-              onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.value })}
-            >
-              <option value="" style={{ background: '#161b26', color: '#94a3b8' }}>-- Selecionar Tag --</option>
-              {(col.options || []).map(opt => (
-                <option key={opt.id || opt.label} value={opt.label} style={{ background: '#161b26', color: opt.color, fontWeight: 600 }}>
-                  ● {opt.label}
-                </option>
-              ))}
-            </select>
-          );
-        }
-        if (col.type === 'date') {
-          return (
-            <input
-              type="date"
-              className="form-control"
-              style={{
-                colorScheme: 'dark',
-                fontSize: '0.82rem',
-                padding: '0.35rem 0.65rem',
                 background: 'rgba(255, 255, 255, 0.04)',
                 border: '1px solid var(--border-subtle)',
                 borderRadius: '6px',
-                width: '100%',
-                maxWidth: '220px'
+                width: '100%'
               }}
+              placeholder="Preencher valor..."
               value={val || ''}
               onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.value })}
             />
           );
         }
-        return (
-          <input
-            type="text"
-            className="form-control"
-            style={{
-              fontSize: '0.8rem',
-              padding: '0.35rem 0.65rem',
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: '6px',
-              width: '100%'
-            }}
-            placeholder="Preencher valor..."
-            value={val || ''}
-            onChange={(e) => handleChange('customFields', { ...(formData.customFields || {}), [col.id]: e.target.value })}
-          />
-        );
+      };
+
+      const isBaseCol = String(col.name || '').toLowerCase().includes('base');
+      if (isIndividualMessage && isBaseCol) {
+        return [
+          colField,
+          {
+            id: 'unnichatBaseConfig',
+            label: 'Tag / CSV da Base (Unnichat)',
+            icon: <FileText size={14} className="field-icon" />,
+            render: () => {
+              const csvFile = formData.unnichatBaseCsv;
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', width: '100%' }}>
+                  <div>
+                    <input
+                      type="text"
+                      className="form-control"
+                      disabled={readOnly}
+                      placeholder="Tag da base no Unnichat (ex: leads_pf_quentes_2026)"
+                      value={formData.unnichatBaseTag || ''}
+                      onChange={(e) => handleChange('unnichatBaseTag', e.target.value)}
+                      style={{
+                        fontSize: '0.8rem',
+                        padding: '0.38rem 0.7rem',
+                        width: '100%'
+                      }}
+                    />
+                  </div>
+
+                  {csvFile ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.5rem',
+                      padding: '0.45rem 0.65rem',
+                      borderRadius: '6px',
+                      background: 'rgba(34, 197, 94, 0.08)',
+                      border: '1px solid rgba(34, 197, 94, 0.3)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden' }}>
+                        <FileText size={14} color="var(--success-text)" style={{ flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {csvFile.name}
+                        </span>
+                        {csvFile.size && (
+                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                            ({csvFile.size})
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="btn-ghost"
+                          onClick={() => triggerFileDownload(csvFile)}
+                          style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem', color: 'var(--success-text)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}
+                          title="Baixar CSV pronto para importar no Unnichat"
+                        >
+                          <Download size={12} /> Baixar CSV
+                        </button>
+                        {!readOnly && (
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            onClick={() => {
+                              if (csvFile.id) deleteAttachmentFile(csvFile.id);
+                              handleChange('unnichatBaseCsv', null);
+                            }}
+                            style={{ fontSize: '0.72rem', padding: '0.2rem 0.4rem', color: 'var(--danger-text)' }}
+                            title="Remover arquivo CSV"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    !readOnly && (
+                      <label style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.4rem',
+                        padding: '0.42rem 0.75rem',
+                        borderRadius: '6px',
+                        border: '1px dashed var(--border-color)',
+                        background: 'var(--surface-nested)',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.76rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        width: 'fit-content'
+                      }}>
+                        <Upload size={13} />
+                        <span>Subir arquivo CSV da base pronta</span>
+                        <input
+                          type="file"
+                          accept=".csv,text/csv"
+                          style={{ display: 'none' }}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = '';
+                            if (!file) return;
+                            const { items, errors } = await processAttachmentFiles([file], formData.id);
+                            if (errors?.length) {
+                              alert(errors[0]);
+                              return;
+                            }
+                            if (items?.[0]) {
+                              handleChange('unnichatBaseCsv', items[0]);
+                            }
+                          }}
+                        />
+                      </label>
+                    )
+                  )}
+                </div>
+              );
+            }
+          }
+        ];
       }
-    }))
+
+      return [colField];
+    })
   ];
 
   // Split visible and hidden fields
